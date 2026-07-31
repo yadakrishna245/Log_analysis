@@ -460,4 +460,17 @@ KNOWN_ISSUES = [
         'category': 'application',
         'resolution_type': 'Database fix (workaround)',
     },
+    {
+        'title': 'VM stuck in "in shutdown" state after libvirt/QEMU teardown failure — cannot start or migrate',
+        'products': ['VME', 'KVM', 'Morpheus'],
+        'symptoms': 'VM cannot be powered on from Morpheus UI. virsh list shows VM in "in shutdown" state (not "shut off"). Power-on operations fail silently or with errors. Migration fails with "domain is not running". virsh domblkerror returns "End of file from qemu monitor". Logs show "Failed to terminate process <PID> with SIGKILL: Device or resource busy". VM was in this state for days until customer performed virsh destroy.',
+        'root_cause': 'During a Morpheus GUI-driven shutdown workflow (virsh shutdown → sleep 10 → virsh destroy → virsh autostart --disable), the QEMU process received SIGTERM but libvirt could not complete teardown. When libvirt attempted SIGKILL, it failed with "Device or resource busy" — meaning the QEMU process was blocked in kernel-level I/O (D-state) that cannot be interrupted even by SIGKILL. The domain remained in "in shutdown" state indefinitely because libvirt domain bookkeeping was inconsistent (scope deactivated but domain runtime artifacts still referenced). LUN assignment changes ("LUN assignments on this target have changed") were observed ~10 minutes before the failure, which may have caused the underlying storage I/O stall.',
+        'solution': '1. Force destroy: virsh destroy <domain>\n2. If destroy fails: check QEMU process PID and state (ps -o pid,stat -p <pid>)\n3. If process is in D-state: host reboot may be required\n4. After state is cleared: virsh start <domain>\n5. Investigate: check syslog for LUN assignment changes or storage I/O errors preceding the event\n6. Prevention: monitor for VMs in "in shutdown" state longer than 10 minutes, alert and auto-destroy if confirmed stuck.',
+        'bug_id': 'MORPH-14737',
+        'affected_versions': 'All VME/KVM versions (libvirt/QEMU level issue)',
+        'prevention': 'Monitor VM states for domains stuck in "in shutdown" beyond 5-10 minutes. Alert on "Failed to terminate process with SIGKILL: Device or resource busy" and "End of file from qemu monitor". Investigate any LUN assignment change messages as potential precursors to VM hangs.',
+        'related_issues': 'MORPHL4-26 (LUN assignment changes causing storage issues). Similar QEMU monitor EOF pattern.',
+        'category': 'virtualization',
+        'resolution_type': 'Operational (force destroy)',
+    },
 ]

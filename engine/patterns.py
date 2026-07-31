@@ -967,6 +967,25 @@ BUILT_IN_PATTERNS: List[LogPattern] = [
         solution_hint='1. Check if the Git URL is reachable from the Morpheus appliance: curl -I <git-url>\n2. If URL is unreachable and repo is stale: must be deleted via database\n3. If UI is hanging on Task creation: this stale repo is the cause\n4. Database fix: DELETE FROM integration WHERE service_url LIKE \'%<unreachable-url>%\'\n5. Always backup database before manual edits.',
         product='Morpheus',
     ),
+    # --- Libvirt/QEMU Teardown Failures ---
+    LogPattern(
+        name='qemu_sigkill_failed',
+        regex=r'(Failed to terminate process \d+ with SIGKILL.*Device or resource busy|cannot parse process status data|End of file from qemu monitor)',
+        severity='CRITICAL',
+        category='virtualization',
+        description='Libvirt failed to kill a QEMU VM process with SIGKILL ("Device or resource busy"). The VM is now stuck in an inconsistent "in shutdown" state — it cannot be started or stopped normally. This happens when QEMU processes are blocked in uninterruptible I/O (D-state) or have kernel-level resource locks that prevent termination. The VM domain object remains in libvirt but is essentially a zombie.',
+        solution_hint='1. Check VM state: virsh list --all (look for "in shutdown")\n2. Check QEMU process: ps -o pid,stat,cmd -p <pid> (D-state = I/O blocked)\n3. If still wedged: virsh destroy <domain> (force destroy)\n4. If destroy also fails: check /proc/<pid>/stack for blocked syscall\n5. Last resort: host reboot may be needed to clear kernel-level blocks\n6. After cleanup: virsh start <domain> should succeed.',
+        product='KVM',
+    ),
+    LogPattern(
+        name='vm_stuck_in_shutdown',
+        regex=r'(domain.*in shutdown|Failed to destroy domain|domain is not running.*move|power.on.*fail.*in shutdown|virsh.*start.*fail.*shutdown)',
+        severity='HIGH',
+        category='virtualization',
+        description='VM domain is stuck in "in shutdown" state — it is neither running nor shut off. This prevents normal start, stop, or migration operations. Usually caused by a failed QEMU teardown where libvirt could not complete process cleanup. Start requests fail silently or with "domain is not running". Migration fails with "domain is not running". Only virsh destroy (force stop) can clear this state.',
+        solution_hint='1. Confirm state: virsh domstate <domain> (should show "in shutdown" or similar)\n2. Force destroy: virsh destroy <domain>\n3. Verify: virsh domstate <domain> (should now show "shut off")\n4. Start: virsh start <domain>\n5. If destroy fails: check QEMU PID with pgrep -f <domain>, then kill -9 <pid>\n6. Investigate: check syslog for "End of file from qemu monitor" or SIGKILL failures around the time it got stuck.',
+        product='KVM',
+    ),
 ]
 
 
