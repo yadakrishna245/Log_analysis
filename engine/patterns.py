@@ -1077,6 +1077,15 @@ BUILT_IN_PATTERNS: List[LogPattern] = [
         solution_hint='1. Check port connectivity: nc -zv <peer-ip> 7443 2224 5405\n2. Check iptables rules: iptables -L -n | grep -E "7443|2224|5405"\n3. If ports blocked: add rules for cluster communication\n4. Check if netplan apply or Aruba CX plugin reset the rules\n5. Make rules persistent: iptables-save > /etc/iptables/rules.v4\n6. Verify cluster recovers after firewall fix: pcs status.',
         product='Pacemaker',
     ),
+    LogPattern(
+        name='gfs2_mount_control_error',
+        regex=r'(mount control error -\d+|control_mount wait.*block|lockspace.*leaving.*mount.*fail|gfs2.*mount control error)',
+        severity='CRITICAL',
+        category='filesystem',
+        description='GFS2 mount control sequence failed. The DLM lockspace was created but GFS2 distributed mount coordination did not complete. Error -4 typically means the mount was interrupted or another node could not participate. The lockspace is freed after failure. Other GFS2 filesystems may still be working (issue isolated to one lockspace). Common causes: dirty journals from unclean shutdown, network link failures disrupting DLM coordination, or resource group inconsistencies requiring fsck.',
+        solution_hint='1. Check if other GFS2 mounts work (issue may be isolated to one datastore)\n2. Check network connectivity between nodes: ping, corosync ring status\n3. Check for dirty journals: fsck.gfs2 -n /dev/mapper/<device>\n4. If dirty journals found: unmount everywhere, run fsck.gfs2 -y\n5. If network issue: check switch ports, LACP bonds, link status\n6. Quick recovery: reboot the affected node (clears stale lock state)\n7. If physical link failures found: investigate NIC/cable/switch hardware.',
+        product='GFS2',
+    ),
 ]
 
 
