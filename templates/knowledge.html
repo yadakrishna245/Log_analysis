@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Knowledge Base - LogSherlock Pro{% endblock %}
+{% block content %}
+<h2>Knowledge Base</h2>
+<div class="row mt-3">
+    <div class="col-md-8"><input type="text" class="form-control" placeholder="Search knowledge base..." id="kb-search"></div>
+    <div class="col-md-4"><button class="btn btn-primary">New Article</button></div>
+</div>
+<div class="mt-4" id="kb-results"></div>
+{% endblock %}

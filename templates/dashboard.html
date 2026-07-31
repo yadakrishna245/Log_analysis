@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - LogSherlock Pro{% endblock %}
+{% block content %}
+<h2 class="mb-4">Dashboard</h2>
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        <div class="card card-stat">
+            <div class="card-body">
+                <h6 class="text-muted">Open Tickets</h6>
+                <h2 id="open-tickets">-</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-stat" style="border-left-color: #dc3545;">
+            <div class="card-body">
+                <h6 class="text-muted">Critical Findings</h6>
+                <h2 id="critical-findings" class="text-danger">-</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-stat" style="border-left-color: #198754;">
+            <div class="card-body">
+                <h6 class="text-muted">Total Tickets</h6>
+                <h2 id="total-tickets">-</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-stat" style="border-left-color: #ffc107;">
+            <div class="card-body">
+                <h6 class="text-muted">Log Files</h6>
+                <h2 id="total-files">-</h2>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">Recent Activity</div>
+            <div class="card-body">
+                <p class="text-muted">Dashboard data loads from <code>/api/reports/dashboard</code></p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+fetch('/api/reports/dashboard')
+    .then(r => r.json())
+    .then(data => {
+        document.getElementById('open-tickets').textContent = data.open_tickets || 0;
+        document.getElementById('critical-findings').textContent = data.critical_findings || 0;
+        document.getElementById('total-tickets').textContent = data.total_tickets || 0;
+        document.getElementById('total-files').textContent = data.total_log_files || 0;
+    })
+    .catch(() => {});
+</script>
+{% endblock %}

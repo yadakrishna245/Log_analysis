@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LogSherlock Pro</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-0: #09090b;
+            --bg-1: #0c0c0f;
+            --bg-2: #131318;
+            --bg-3: #1a1a22;
+            --bg-4: #22222e;
+            --border-subtle: #1e1e2a;
+            --border-default: #2a2a3a;
+            --border-hover: #3a3a4e;
+            --text-100: #fafafa;
+            --text-200: #d4d4d8;
+            --text-300: #a1a1aa;
+            --text-400: #71717a;
+            --text-500: #52525b;
+            --accent: #8b5cf6;
+            --accent-dim: #7c3aed20;
+            --critical: #ef4444;
+            --critical-bg: #ef444412;
+            --high: #f59e0b;
+            --high-bg: #f59e0b12;
+            --medium: #3b82f6;
+            --medium-bg: #3b82f612;
+            --low: #22c55e;
+            --low-bg: #22c55e12;
+            --font: 'Inter', -apple-system, sans-serif;
+            --mono: 'JetBrains Mono', monospace;
+        }
+        @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;}}
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{font-family:var(--font);background:var(--bg-0);color:var(--text-200);font-size:13px;line-height:1.5;-webkit-font-smoothing:antialiased;}
+        :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px;}
+        ::selection{background:var(--accent-dim);color:var(--text-100);}
+
+        /* App shell */
+        .shell{display:grid;grid-template-columns:56px 1fr;height:100vh;overflow:hidden;}
+
+        /* Rail nav (icon-only sidebar) */
+        .rail{background:var(--bg-1);border-right:1px solid var(--border-subtle);display:flex;flex-direction:column;align-items:center;padding:16px 0;gap:4px;}
+        .rail-logo{width:32px;height:32px;background:linear-gradient(135deg,var(--accent),#6366f1);border-radius:8px;display:flex;align-items:center;justify-content:center;margin-bottom:20px;font-size:14px;font-weight:600;color:#fff;}
+        .rail-item{width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:8px;cursor:pointer;color:var(--text-400);transition:all 150ms;}
+        .rail-item:hover{background:var(--bg-3);color:var(--text-200);}
+        .rail-item.active{background:var(--bg-4);color:var(--text-100);}
+        .rail-item svg{width:18px;height:18px;}
+        .rail-footer{margin-top:auto;width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:var(--bg-3);color:var(--text-400);font-size:11px;font-weight:500;}
+
+        /* Main panel */
+        .panel{overflow-y:auto;padding:0;}
+        .panel-inner{max-width:960px;margin:0 auto;padding:40px 48px;}
+        .page{display:none;}
+        .page.active{display:block;}
+
+        /* Page header */
+        .pg-header{margin-bottom:32px;}
+        .pg-title{font-size:22px;font-weight:600;color:var(--text-100);letter-spacing:-0.02em;}
+        .pg-desc{font-size:13px;color:var(--text-400);margin-top:4px;}
+
+        /* Scan terminal */
+        .terminal{background:var(--bg-2);border:1px solid var(--border-default);border-radius:12px;overflow:hidden;margin-bottom:24px;}
+        .terminal-bar{display:flex;align-items:center;padding:10px 16px;background:var(--bg-1);border-bottom:1px solid var(--border-subtle);gap:8px;}
+        .terminal-dot{width:8px;height:8px;border-radius:50%;}
+        .terminal-dot.r{background:#ef4444;}
+        .terminal-dot.y{background:#f59e0b;}
+        .terminal-dot.g{background:#22c55e;}
+        .terminal-title{flex:1;text-align:center;font-size:11px;color:var(--text-500);font-family:var(--mono);}
+        .terminal-body{padding:40px 24px;text-align:center;cursor:pointer;transition:background 150ms;}
+        .terminal-body:hover{background:var(--bg-3);}
+        .terminal-body.dragover{background:var(--bg-4);border:1px dashed var(--accent);}
+        .terminal-prompt{font-family:var(--mono);font-size:13px;color:var(--text-300);margin-bottom:8px;}
+        .terminal-hint{font-size:11px;color:var(--text-500);}
+        .terminal-status{font-family:var(--mono);font-size:11px;padding:8px 16px;border-top:1px solid var(--border-subtle);color:var(--text-500);display:flex;align-items:center;gap:6px;}
+        .terminal-status .dot{width:6px;height:6px;border-radius:50%;background:var(--text-500);}
+        .terminal-status.scanning .dot{background:var(--accent);animation:pulse 1s infinite;}
+        .terminal-status.done .dot{background:var(--low);}
+        .terminal-status.error .dot{background:var(--critical);}
+        @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.3;}}
+
+        /* Input group */
+        .input-group{display:flex;gap:8px;margin-bottom:16px;}
+        .input-group input{flex:1;background:var(--bg-2);border:1px solid var(--border-default);color:var(--text-100);padding:10px 14px;border-radius:8px;font-size:12px;font-family:var(--mono);transition:border-color 150ms;}
+        .input-group input::placeholder{color:var(--text-500);}
+        .input-group input:focus{border-color:var(--accent);outline:none;}
+        .btn{background:var(--accent);color:#fff;border:none;padding:10px 20px;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;font-family:var(--font);transition:all 150ms;white-space:nowrap;}
+        .btn:hover{opacity:0.9;transform:translateY(-1px);}
+        .btn-ghost{background:transparent;border:1px solid var(--border-default);color:var(--text-300);padding:8px 14px;border-radius:8px;font-size:11px;cursor:pointer;font-family:var(--font);transition:all 150ms;}
+        .btn-ghost:hover{border-color:var(--border-hover);color:var(--text-100);}
+
+        /* Context */
+        .context-area{margin-bottom:24px;}
+        .context-label{font-size:11px;color:var(--text-500);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;font-weight:500;}
+        .context-textarea{width:100%;background:var(--bg-2);border:1px solid var(--border-default);color:var(--text-200);padding:12px 14px;border-radius:8px;font-size:12px;font-family:var(--font);resize:vertical;min-height:72px;transition:border-color 150ms;line-height:1.6;}
+        .context-textarea:focus{border-color:var(--accent);outline:none;}
+        .context-textarea::placeholder{color:var(--text-500);}
+
+        /* Progress */
+        .progress{display:none;background:var(--bg-2);border:1px solid var(--border-default);border-radius:8px;padding:14px 16px;margin-bottom:24px;}
+        .progress.active{display:block;}
+        .progress-text{font-family:var(--mono);font-size:11px;color:var(--text-300);margin-bottom:8px;}
+        .progress-track{height:2px;background:var(--bg-4);border-radius:1px;overflow:hidden;}
+        .progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),#6366f1);transition:width 200ms;border-radius:1px;}
+
+        /* Results container */
+        .results{display:none;margin-top:24px;}
+        .results.active{display:block;}
+
+        /* Metric cards */
+        .metrics{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:24px;}
+        .metric{background:var(--bg-2);border:1px solid var(--border-subtle);border-radius:10px;padding:16px;text-align:center;}
+        .metric-val{font-size:28px;font-weight:600;font-family:var(--mono);letter-spacing:-0.02em;}
+        .metric-val.crit{color:var(--critical);}
+        .metric-val.high{color:var(--high);}
+        .metric-val.med{color:var(--medium);}
+        .metric-val.low{color:var(--low);}
+        .metric-val.neutral{color:var(--text-100);}
+        .metric-label{font-size:10px;color:var(--text-500);text-transform:uppercase;letter-spacing:0.06em;margin-top:4px;}
+
+        /* Timeline */
+        .timeline-panel{background:var(--bg-2);border:1px solid var(--border-subtle);border-radius:10px;padding:20px;margin-bottom:24px;}
+        .timeline-title{font-size:11px;font-weight:500;color:var(--text-400);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:14px;}
+        .timeline-bar{position:relative;height:40px;background:var(--bg-0);border-radius:6px;overflow:hidden;display:flex;align-items:center;}
+        .timeline-segment{position:absolute;height:100%;opacity:0.6;border-radius:2px;min-width:3px;}
+        .timeline-event{position:absolute;top:50%;transform:translateY(-50%);width:10px;height:10px;border-radius:50%;border:2px solid var(--bg-0);cursor:pointer;transition:transform 150ms;}
+        .timeline-event:hover{transform:translateY(-50%) scale(1.4);}
+
+        /* Tabs */
+        .tab-bar{display:flex;gap:0;border-bottom:1px solid var(--border-subtle);margin-bottom:20px;}
+        .tab-item{padding:10px 18px;font-size:12px;font-weight:500;color:var(--text-400);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all 150ms;}
+        .tab-item:hover{color:var(--text-200);}
+        .tab-item.active{color:var(--text-100);border-bottom-color:var(--accent);}
+        .tab-pane{display:none;}
+        .tab-pane.active{display:block;}
+
+        /* Findings */
+        .findings-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
+        .findings-count{font-size:12px;color:var(--text-400);}
+        .finding{display:grid;grid-template-columns:80px 1fr;gap:16px;padding:14px 0;border-bottom:1px solid var(--border-subtle);}
+        .finding:last-child{border:none;}
+        .badge{font-family:var(--mono);font-size:10px;font-weight:500;padding:4px 8px;border-radius:4px;text-align:center;text-transform:uppercase;letter-spacing:0.03em;}
+        .badge-critical{background:var(--critical-bg);color:var(--critical);}
+        .badge-high{background:var(--high-bg);color:var(--high);}
+        .badge-medium{background:var(--medium-bg);color:var(--medium);}
+        .badge-low{background:var(--low-bg);color:var(--low);}
+        .finding-content{}
+        .finding-source{font-family:var(--mono);font-size:11px;color:var(--text-500);margin-bottom:4px;}
+        .finding-text{font-size:13px;color:var(--text-200);margin-bottom:6px;}
+        .finding-code{font-family:var(--mono);font-size:11px;color:var(--text-400);background:var(--bg-0);padding:8px 10px;border-radius:6px;overflow-x:auto;white-space:pre;margin-bottom:6px;border:1px solid var(--border-subtle);}
+        .finding-fix{font-size:11px;color:var(--low);display:flex;align-items:center;gap:4px;}
+        .finding-fix::before{content:'→';}
+
+        /* Jira output */
+        .jira-box{background:var(--bg-0);border:1px solid var(--border-default);border-radius:10px;padding:20px;font-family:var(--mono);font-size:11px;color:var(--text-300);white-space:pre-wrap;line-height:1.7;max-height:500px;overflow-y:auto;}
+
+        /* KB cards */
+        .card{background:var(--bg-2);border:1px solid var(--border-subtle);border-radius:10px;padding:16px 20px;margin-bottom:10px;transition:border-color 150ms;}
+        .card:hover{border-color:var(--border-hover);}
+        .card-title{font-size:13px;font-weight:500;color:var(--text-100);margin-bottom:6px;}
+        .card-meta{font-family:var(--mono);font-size:10px;color:var(--text-500);margin-bottom:8px;}
+        .card-body{font-size:12px;color:var(--text-300);line-height:1.6;}
+        .card-solution{font-family:var(--mono);font-size:11px;color:var(--low);margin-top:10px;padding:10px 12px;background:var(--low-bg);border-radius:6px;white-space:pre-wrap;line-height:1.6;}
+
+        /* History */
+        .history-item{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border-subtle);}
+        .history-item:last-child{border:none;}
+        .history-path{font-family:var(--mono);font-size:12px;color:var(--text-200);}
+        .history-info{font-size:11px;color:var(--text-500);}
+    </style>
+</head>
+<body>
+<div class="shell">
+    <!-- Icon rail -->
+    <nav class="rail">
+        <div class="rail-logo">LS</div>
+        <div class="rail-item active" onclick="showPage('analyze')" tabindex="0" title="Scan">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        </div>
+        <div class="rail-item" onclick="showPage('history')" tabindex="0" title="History">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        </div>
+        <div class="rail-item" onclick="showPage('knowledge')" tabindex="0" title="Knowledge Base">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+        </div>
+        <div class="rail-item" onclick="showPage('runbooks')" tabindex="0" title="Runbooks">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12l2 2 4-4"/></svg>
+        </div>
+        <div class="rail-footer" title="On-prem">⚡</div>
+    </nav>
+
+
+    <!-- Main Panel -->
+    <div class="panel">
+        <div class="panel-inner">
+            <!-- SCAN PAGE -->
+            <div id="page-analyze" class="page active">
+                <div class="pg-header">
+                    <div class="pg-title">Log Scanner</div>
+                    <div class="pg-desc">Drop archives or point to a folder. Patterns matched against 68 signatures.</div>
+                </div>
+
+                <div class="terminal">
+                    <div class="terminal-bar">
+                        <span class="terminal-dot r"></span>
+                        <span class="terminal-dot y"></span>
+                        <span class="terminal-dot g"></span>
+                        <span class="terminal-title">logsherlock — scan</span>
+                    </div>
+                    <div class="terminal-body" id="dropZone">
+                        <div class="terminal-prompt">$ drop files or click to browse</div>
+                        <div class="terminal-hint">.7z · .zip · .tar.gz · .log · .txt · .png (OCR) · any text file</div>
+                    </div>
+                    <div class="terminal-status" id="termStatus">
+                        <span class="dot"></span>
+                        <span id="statusText">ready — awaiting input</span>
+                    </div>
+                </div>
+                <input type="file" id="fileInput" multiple hidden>
+
+                <div class="input-group">
+                    <input type="text" id="folderPath" placeholder="or paste folder path: C:\Users\chaithay\Desktop\Tickets\Ticket-85">
+                    <button class="btn" onclick="analyzeFolder()">Scan</button>
+                </div>
+
+                <div class="context-area">
+                    <div class="context-label">Ticket context</div>
+                    <textarea class="context-textarea" id="ticketContext" placeholder="Paste full Jira ticket description here to focus the analysis and improve Jira report output..."></textarea>
+                </div>
+
+                <div class="progress" id="progressBar">
+                    <div class="progress-text" id="progressText">Scanning...</div>
+                    <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+                </div>
+
+                <div class="results" id="results">
+                    <div class="metrics" id="metricsGrid"></div>
+
+                    <div class="timeline-panel" id="timelinePanel" style="display:none">
+                        <div class="timeline-title">Event distribution</div>
+                        <div class="timeline-bar" id="timelineBar"></div>
+                    </div>
+
+                    <div class="tab-bar">
+                        <div class="tab-item active" onclick="switchTab('findings')">Findings</div>
+                        <div class="tab-item" onclick="switchTab('jira')">Jira Report</div>
+                    </div>
+
+                    <div class="tab-pane active" id="tab-findings">
+                        <div class="findings-header">
+                            <span class="findings-count" id="findingsCount"></span>
+                            <button class="btn-ghost" onclick="copyFindings()">Copy all</button>
+                        </div>
+                        <div id="findingsList"></div>
+                    </div>
+
+                    <div class="tab-pane" id="tab-jira">
+                        <div class="findings-header">
+                            <span class="findings-count">Formatted for Jira wiki markup</span>
+                            <button class="btn-ghost" onclick="copyJira()">Copy to clipboard</button>
+                        </div>
+                        <div class="jira-box" id="jiraReport"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- HISTORY PAGE -->
+            <div id="page-history" class="page">
+                <div class="pg-header"><div class="pg-title">History</div><div class="pg-desc">Previous scan results stored locally.</div></div>
+                <div id="historyList"></div>
+            </div>
+
+            <!-- KNOWLEDGE BASE PAGE -->
+            <div id="page-knowledge" class="page">
+                <div class="pg-header"><div class="pg-title">Knowledge Base</div><div class="pg-desc">31 known issues across Morpheus, KVM, Alletra, GFS2, VME, Pacemaker.</div></div>
+                <div class="input-group" style="margin-bottom:20px;">
+                    <input type="text" id="kbSearch" placeholder="Search... (iptables, GFS2, SCSI, migration, quorum)">
+                    <button class="btn" onclick="searchKB()">Search</button>
+                </div>
+                <div id="kbResults"></div>
+            </div>
+
+            <!-- RUNBOOKS PAGE -->
+            <div id="page-runbooks" class="page">
+                <div class="pg-header"><div class="pg-title">Runbooks</div><div class="pg-desc">Step-by-step investigation guides for junior and senior engineers.</div></div>
+                <div id="runbooksList"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<script>
+const $ = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
+
+// Nav
+function showPage(p){$$('.page').forEach(x=>x.classList.remove('active'));$$('.rail-item').forEach(x=>x.classList.remove('active'));$('#page-'+p).classList.add('active');event.currentTarget.classList.add('active');if(p==='knowledge')loadKB();if(p==='runbooks')loadRunbooks();if(p==='history')loadHistory();}
+function switchTab(t){$$('.tab-item').forEach(x=>x.classList.remove('active'));$$('.tab-pane').forEach(x=>x.classList.remove('active'));event.currentTarget.classList.add('active');$('#tab-'+t).classList.add('active');}
+
+// Drop
+const dz=$('#dropZone'),fi=$('#fileInput');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('dragover');});
+dz.addEventListener('dragleave',()=>dz.classList.remove('dragover'));
+dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('dragover');handleFiles(e.dataTransfer.files);});
+dz.addEventListener('click',()=>fi.click());
+fi.addEventListener('change',e=>handleFiles(e.target.files));
+
+function handleFiles(files){
+    if(!files.length)return;
+    setStatus('scanning','Uploading '+files.length+' file(s)...');
+    showProgress(15);
+    const fd=new FormData();
+    for(let f of files)fd.append('files',f);
+    const ctx=$('#ticketContext').value;
+    if(ctx)fd.append('description',ctx);
+    fetch('/api/analyze/quick',{method:'POST',body:fd})
+        .then(r=>r.json())
+        .then(d=>{showProgress(100);setTimeout(()=>render(d),200);})
+        .catch(e=>setStatus('error','Error: '+e.message));
+}
+
+function analyzeFolder(){
+    const p=$('#folderPath').value.trim();if(!p)return;
+    const ctx=$('#ticketContext').value;
+    setStatus('scanning','Scanning folder...');showProgress(20);
+    fetch('/api/analyze/folder',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({folder_path:p,description:ctx})})
+        .then(r=>r.json())
+        .then(d=>{if(d.error){setStatus('error',d.error);hideProgress();return;}showProgress(100);setTimeout(()=>render(d),200);})
+        .catch(e=>setStatus('error','Error: '+e.message));
+}
+
+function render(data){
+    hideProgress();
+    const f=data.findings||[];
+    const c=f.filter(x=>x.severity==='CRITICAL').length;
+    const h=f.filter(x=>x.severity==='HIGH').length;
+    const m=f.filter(x=>x.severity==='MEDIUM').length;
+    const l=f.filter(x=>x.severity==='LOW').length;
+    setStatus('done',`${f.length} findings · ${data.files_analyzed||0} files scanned`);
+    $('#results').classList.add('active');
+
+    // Metrics
+    $('#metricsGrid').innerHTML=`
+        <div class="metric"><div class="metric-val crit">${c}</div><div class="metric-label">Critical</div></div>
+        <div class="metric"><div class="metric-val high">${h}</div><div class="metric-label">High</div></div>
+        <div class="metric"><div class="metric-val med">${m}</div><div class="metric-label">Medium</div></div>
+        <div class="metric"><div class="metric-val low">${l}</div><div class="metric-label">Low</div></div>
+        <div class="metric"><div class="metric-val neutral">${data.files_analyzed||0}</div><div class="metric-label">Files</div></div>`;
+
+    // Timeline
+    if(f.length>1){
+        $('#timelinePanel').style.display='block';
+        const bar=$('#timelineBar');
+        let dots='';
+        f.forEach((x,i)=>{
+            const pct=(i/Math.max(f.length-1,1))*100;
+            const col=x.severity==='CRITICAL'?'var(--critical)':x.severity==='HIGH'?'var(--high)':x.severity==='MEDIUM'?'var(--medium)':'var(--low)';
+            dots+=`<div class="timeline-event" style="left:${pct}%;background:${col}" title="${x.pattern_name} — ${x.file}:${x.line_number}"></div>`;
+        });
+        bar.innerHTML=dots;
+    }
+
+    // Findings
+    const ord={CRITICAL:0,HIGH:1,MEDIUM:2,LOW:3,INFO:4};
+    f.sort((a,b)=>(ord[a.severity]||5)-(ord[b.severity]||5));
+    $('#findingsCount').textContent=f.length+' findings';
+    $('#findingsList').innerHTML=f.map(x=>`
+        <div class="finding">
+            <div><span class="badge badge-${x.severity.toLowerCase()}">${x.severity}</span></div>
+            <div class="finding-content">
+                <div class="finding-source">${esc(x.file||'')}:${x.line_number||'?'}</div>
+                <div class="finding-text">${esc(x.description||x.pattern_name||'')}</div>
+                <div class="finding-code">${esc(x.line_content||'')}</div>
+                ${x.solution_hint?`<div class="finding-fix">${esc(x.solution_hint)}</div>`:''}
+            </div>
+        </div>`).join('')||'<p style="color:var(--text-500)">No patterns matched.</p>';
+
+    // Jira
+    let j=data.jira_report||'';
+    if(!j){
+        j=`h2. Root Cause Analysis (RCA)\n*Date:* ${new Date().toISOString().split('T')[0]}\n*Findings:* ${f.length} (${c} Critical, ${h} High, ${m} Medium, ${l} Low)\n*Files:* ${data.files_analyzed||0}\n\n`;
+        j+=`h3. 1. Problem Statement\n${$('#ticketContext').value||'Log analysis.'}\n\n`;
+        j+=`h3. 4. Root Cause\n`;
+        f.filter(x=>x.severity==='CRITICAL'||x.severity==='HIGH').slice(0,5).forEach(x=>{
+            j+=`*[${x.severity}]* ${x.pattern_name||''}\n{noformat}${x.line_content||''}{noformat}\n_${x.description||''}_\n${x.solution_hint?'_Fix:_ '+x.solution_hint+'\n':''}\n`;
+        });
+        j+=`h3. 5. Evidence\n`;
+        f.slice(0,10).forEach(x=>{j+=`* ${x.file}:${x.line_number} — ${x.pattern_name}\n`;});
+    }
+    $('#jiraReport').textContent=j;
+    saveHistory(data);
+}
+
+// Helpers
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function setStatus(type,text){const s=$('#termStatus');s.className='terminal-status '+type;$('#statusText').textContent=text;}
+function showProgress(pct){const b=$('#progressBar');b.classList.add('active');$('#progressFill').style.width=pct+'%';$('#progressText').textContent=pct>=100?'Done':'Scanning...';}
+function hideProgress(){$('#progressBar').classList.remove('active');}
+function copyFindings(){navigator.clipboard.writeText($('#findingsList').innerText).then(()=>flash('Copied'));}
+function copyJira(){navigator.clipboard.writeText($('#jiraReport').textContent).then(()=>flash('Copied — paste into Jira'));}
+function flash(msg){const t=$('#statusText');const prev=t.textContent;t.textContent=msg;setTimeout(()=>t.textContent=prev,2000);}
+
+// KB
+function loadKB(){fetch('/api/knowledge/issues').then(r=>r.json()).then(d=>{
+    const items=d.issues||d||[];
+    $('#kbResults').innerHTML=items.map(i=>`<div class="card"><div class="card-title">${esc(i.title)}</div><div class="card-meta">${esc(i.product||'')}</div><div class="card-body">${esc(i.symptoms||i.root_cause||'')}</div>${i.solution?`<div class="card-solution">${esc(i.solution)}</div>`:''}</div>`).join('')||'<p style="color:var(--text-500)">No entries.</p>';
+});}
+function searchKB(){const q=$('#kbSearch').value.trim();if(!q){loadKB();return;}
+fetch('/api/knowledge/search?q='+encodeURIComponent(q)).then(r=>r.json()).then(d=>{
+    const items=d.results||d.issues||d||[];
+    $('#kbResults').innerHTML=items.map(i=>`<div class="card"><div class="card-title">${esc(i.title)}</div><div class="card-body">${esc(i.symptoms||i.root_cause||'')}</div>${i.solution?`<div class="card-solution">${esc(i.solution)}</div>`:''}</div>`).join('')||`<p style="color:var(--text-500)">No results for "${esc(q)}"</p>`;
+});}
+
+// Runbooks
+function loadRunbooks(){fetch('/api/knowledge/runbooks').then(r=>r.json()).then(d=>{
+    const rbs=d.runbooks||d||[];
+    $('#runbooksList').innerHTML=rbs.map(r=>`<div class="card" style="cursor:pointer" onclick="openRunbook('${r.key||r.category}')"><div class="card-title">${esc(r.title||r.key)}</div><div class="card-meta">${esc(r.category||'')}</div></div>`).join('')||'<p style="color:var(--text-500)">No runbooks.</p>';
+});}
+function openRunbook(k){fetch('/api/knowledge/runbooks/'+k).then(r=>r.json()).then(d=>{
+    const rb=d.runbook||d;const steps=rb.steps||[];
+    let h=`<button class="btn-ghost" onclick="loadRunbooks()" style="margin-bottom:16px">← Back</button><div class="pg-title" style="margin-bottom:20px;font-size:16px">${esc(rb.title)}</div>`;
+    steps.forEach((s,i)=>{h+=`<div class="card"><div class="card-title">Step ${i+1}: ${esc(s.description||'')}</div><div class="card-body">${esc(s.explanation_for_juniors||s.what_to_check||'')}</div>${s.suggested_commands?`<div class="card-solution">${s.suggested_commands.map(esc).join('\n')}</div>`:''}</div>`;});
+    $('#runbooksList').innerHTML=h;
+});}
+
+// History
+function saveHistory(d){let h=JSON.parse(localStorage.getItem('ls_h')||'[]');h.unshift({t:Date.now(),f:(d.findings||[]).length,n:d.files_analyzed||0,p:$('#folderPath').value||'Upload'});localStorage.setItem('ls_h',JSON.stringify(h.slice(0,50)));}
+function loadHistory(){const h=JSON.parse(localStorage.getItem('ls_h')||'[]');$('#historyList').innerHTML=h.length?h.map(x=>`<div class="history-item"><span class="history-path">${esc(x.p)}</span><span class="history-info">${x.f} findings · ${x.n} files · ${new Date(x.t).toLocaleString()}</span></div>`).join(''):'<p style="color:var(--text-500)">No scans yet.</p>';}
+
+// Keys
+$('#folderPath').addEventListener('keydown',e=>{if(e.key==='Enter')analyzeFolder();});
+$('#kbSearch').addEventListener('keydown',e=>{if(e.key==='Enter')searchKB();});
+$$('.rail-item').forEach(el=>el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();el.click();}}));
+</script>
+</body>
+</html>

@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}{{ ticket.ticket_number }} - LogSherlock Pro{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="/tickets">Tickets</a></li>
+    <li class="breadcrumb-item active">{{ ticket.ticket_number }}</li>
+</ol></nav>
+<h2>{{ ticket.title }}</h2>
+<div class="row mt-4">
+    <div class="col-md-8">
+        <div class="card mb-3"><div class="card-header">Description</div>
+            <div class="card-body">{{ ticket.description or 'No description provided.' }}</div>
+        </div>
+        <div class="card mb-3"><div class="card-header">Log Files</div>
+            <div class="card-body" id="log-files">Loading...</div>
+        </div>
+        <div class="card"><div class="card-header">Findings</div>
+            <div class="card-body" id="findings">Loading...</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card"><div class="card-body">
+            <p><strong>Status:</strong> <span class="badge bg-info">{{ ticket.status }}</span></p>
+            <p><strong>Priority:</strong> {{ ticket.priority }}</p>
+            <p><strong>Product:</strong> {{ ticket.product or '-' }}</p>
+            <p><strong>Customer:</strong> {{ ticket.customer_name or '-' }}</p>
+            <hr>
+            <a href="/analysis/{{ ticket.id }}" class="btn btn-outline-primary w-100 mb-2">
+                <i class="bi bi-cpu"></i> Run Analysis
+            </a>
+        </div></div>
+    </div>
+</div>
+{% endblock %}

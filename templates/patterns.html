@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Patterns - LogSherlock Pro{% endblock %}
+{% block content %}
+<h2>Analysis Patterns</h2>
+<p class="text-muted">Manage regex and keyword patterns used for log analysis.</p>
+<div class="card mt-3"><div class="card-body"><div class="table-responsive">
+    <table class="table" id="patterns-table">
+        <thead><tr><th>Name</th><th>Type</th><th>Severity</th><th>Category</th><th>Hits</th><th>Enabled</th></tr></thead>
+        <tbody></tbody>
+    </table>
+</div></div></div>
+{% endblock %}

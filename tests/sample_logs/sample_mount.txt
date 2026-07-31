@@ -1,0 +1,19 @@
+/dev/sda1 on /boot type xfs (rw,relatime,seclabel,attr2,inode64,logbufs=8,logbsize=32k,noquota)
+/dev/mapper/rhel-root on / type xfs (rw,relatime,seclabel,attr2,inode64,logbufs=8,logbsize=32k,noquota)
+tmpfs on /dev/shm type tmpfs (rw,nosuid,nodev,seclabel)
+/dev/mapper/vg_shared-lv_gfs2_01 on /shared/data type gfs2 (ro,noatime,seclabel)
+/dev/mapper/vg_shared-lv_gfs2_02 on /shared/logs type gfs2 (ro,noatime,seclabel)
+/dev/mapper/vg_shared-lv_gfs2_03 on /shared/config type gfs2 (rw,noatime,seclabel)
+/dev/mapper/vg_local-lv_data on /data type xfs (rw,relatime,seclabel,attr2,inode64,logbufs=8,logbsize=32k,noquota)
+devtmpfs on /dev type devtmpfs (rw,nosuid,seclabel,size=16384000k,nr_inodes=4096000,mode=755)
+nfs-server:/exports/shared on /mnt/nfs type nfs4 (rw,relatime,vers=4.2,rsize=1048576,wsize=1048576)
+/dev/mapper/mpatha-part1 on /san/data type gfs2 (ro,noatime,seclabel)
+Jul 15 10:30:45 node1 kernel: GFS2: fsid=cluster1:gfs2vol01: journal recovery required
+Jul 15 10:30:46 node1 kernel: GFS2: fsid=cluster1:gfs2vol01: filesystem mounted read-only due to journal errors
+Jul 15 10:31:00 node1 kernel: GFS2: fsid=cluster1:gfs2vol02: withdrawing filesystem
+Jul 15 10:31:01 node1 kernel: DLM: dlm_recv: connection to node 3 lost
+Jul 15 10:31:05 node1 kernel: GFS2: fsid=cluster1:gfs2vol01: First mount trap - forcing read-only
+Jul 15 10:31:10 node1 kernel: GFS2: fsid=cluster1:gfs2vol01: error -5 writing to journal
+Jul 15 10:32:00 node1 kernel: DLM: cannot connect to node 2, retrying
+Jul 15 10:32:30 node1 gfs2_tool: mount: /shared/data: GFS2 mount refused - DLM not running
+Jul 15 10:33:00 node1 kernel: GFS2: fsid=cluster1:gfs2vol03: filesystem full, no space left on device

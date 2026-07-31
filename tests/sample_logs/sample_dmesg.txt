@@ -1,0 +1,29 @@
+[    0.000000] Linux version 4.18.0-513.el8.x86_64 (mockbuild@x86-05.stream.rdu2.redhat.com) (gcc version 8.5.0 20210514 (Red Hat 8.5.0-18)) #1 SMP Fri Sep 29 10:51:56 UTC 2023
+[    0.000000] Command line: BOOT_IMAGE=(hd0,msdos1)/vmlinuz-4.18.0-513.el8.x86_64 root=/dev/mapper/rhel-root ro crashkernel=auto rd.lvm.lv=rhel/root rd.lvm.lv=rhel/swap
+[    1.234567] Memory: 32768000k available (8192k kernel code, 1024k reserved, 4096k data, 2048k init)
+[    2.345678] SCSI subsystem initialized
+[    3.456789] sd 0:0:0:0: [sda] 976773168 512-byte logical blocks: (500 GB/465 GiB)
+[    4.567890] sd 0:0:0:0: [sda] Write Protect is off
+[   12.345678] XFS (sda1): Mounting V5 Filesystem
+[   15.678901] GFS2: fsid=cluster1:gfs2vol01: Joined cluster. Now mounting...
+[  234.567890] sd 2:0:1:0: reservation conflict
+[  234.567891] sd 2:0:1:0: [sdb] CDB: Write(10) 2a 00 00 00 08 00 00 00 08 00
+[  234.567892] blk_update_request: critical target error, dev sdb, sector 2048 op 0x1:(WRITE) flags 0x800 phys_seg 1 prio class 0
+[  234.678901] sd 2:0:1:0: reservation conflict
+[  234.678902] sd 2:0:1:0: [sdb] CDB: Read(10) 28 00 00 00 10 00 00 00 08 00
+[  235.012345] SCSI error: return code = 0x08000002
+[  235.012346] sd 2:0:1:0: [sdb] sense key: Not Ready
+[  235.012347] sd 2:0:1:0: [sdb] Add. Sense: Logical unit not ready, manual intervention required
+[  236.123456] sd 2:0:1:0: reservation conflict
+[  236.234567] device-mapper: multipath: Failing path 8:16
+[  236.345678] mpatha: Failing path 8:16
+[  237.456789] sd 2:0:1:0: [sdb] SCSI error: return code = 0x08000002
+[  237.567890] sd 2:0:1:0: [sdb] Medium Error: unrecoverable read error
+[  238.678901] EXT4-fs error (device dm-3): ext4_journal_check_start: Detected aborted journal
+[  240.123456] Buffer I/O error on dev sdb, logical block 0, async page read
+[  241.234567] sd 2:0:2:0: [sdc] SCSI command timeout: cmd=Read(10)
+[  242.345678] sd 2:0:2:0: [sdc] command abort timed out
+[  300.123456] Kernel panic - not syncing: Fatal exception
+[  300.234567] Call Trace:
+[  300.345678]  dump_stack+0x5c/0x80
+[  300.456789]  panic+0xe7/0x2a9

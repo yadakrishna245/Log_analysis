@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Analysis - {{ ticket.ticket_number }}{% endblock %}
+{% block content %}
+<h2>Analysis: {{ ticket.ticket_number }}</h2>
+<p>{{ ticket.title }}</p>
+<div class="row mt-4">
+    <div class="col-12">
+        <button class="btn btn-success mb-3" id="run-analysis">
+            <i class="bi bi-play-fill"></i> Run Analysis
+        </button>
+        <div class="card"><div class="card-header">Findings</div>
+            <div class="card-body" id="analysis-results">Click "Run Analysis" to start.</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
