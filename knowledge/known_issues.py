@@ -512,4 +512,17 @@ KNOWN_ISSUES = [
         'category': 'cluster',
         'resolution_type': 'Configuration (increase DLM timeout, resource reservation)',
     },
+    {
+        'title': 'GFS2 goes read-only after host reboot due to incomplete SCSI PR registration (MORPH-5492)',
+        'products': ['GFS2', 'VME', 'Pacemaker', 'Alletra'],
+        'symptoms': 'After rebooting a cluster node, GFS2 mounts as read-only (ro) instead of read-write. Kernel logs show "reservation conflict" errors followed by "Error 6 writing to journal" and "about to withdraw this file system". On subsequent cluster-wide reboot: "fatal: invalid metadata block" during journal replay, GFS2 resource stuck in Starting state. Rebooting the read-only node can cause cascading VMs shutdown on OTHER nodes because the withdraw disrupts DLM lockspace recovery. mpathpersist -i -k shows fewer registered keys than expected (missing key for one iSCSI path).',
+        'root_cause': 'Known bug (MORPH-5492, fixed in 8.1.0): After a host reboot, the SCSI Persistent Reservation (PR) keys are not fully re-registered on all storage paths. With only partial PR registration, writes on the unregistered path get "reservation conflict" from the storage array. GFS2 journal write fails → GFS2 withdraws → filesystem goes read-only. If the node is then rebooted while other nodes have active DLM locks referencing this journal, it can corrupt the journal metadata, causing "invalid metadata block" on next mount attempt cluster-wide.',
+        'solution': '1. Before returning rebooted node to cluster: verify SCSI PR keys\n   mpathpersist -i -k /dev/mapper/<device> | grep <node-key>\n   Count should match number of active paths (typically 2 per node)\n2. If PR keys missing: manually re-register or cold reboot via ILO\n3. If GFS2 already in RO/withdrawn: put node in standby, reboot it\n4. If journal corrupted (invalid metadata block): full cluster stop → fsck.gfs2 -y → restart\n5. Upgrade to VME 8.1.0+ (contains MORPH-5492 fix)\n6. MANDATORY: always verify SCSI PR after any reboot before unstandby',
+        'bug_id': 'MORPH-5492 / MORPH-14160',
+        'affected_versions': 'VME 8.0.13 and earlier (fixed in 8.1.0)',
+        'prevention': 'Upgrade to VME 8.1.0+. Always place node in standby (pcs node standby) before reboot. After reboot: verify mpathpersist -i -k shows correct key count BEFORE pcs node unstandby. Never reboot a node with GFS2 in RO state without first unmounting and fixing the underlying PR issue.',
+        'related_issues': 'MORPHL4-28 (GFS2 corruption from power outage). MORPHL4-39. Same reservation conflict → withdraw → journal corruption chain.',
+        'category': 'storage',
+        'resolution_type': 'Software bug (fixed in 8.1.0)',
+    },
 ]

@@ -1032,6 +1032,24 @@ BUILT_IN_PATTERNS: List[LogPattern] = [
         solution_hint='1. PREVENTION (before it happens): increase DLM monitor timeout to 60s in pcs config\n2. If already fenced: reboot node, let it rejoin cluster\n3. Investigate WHY DLM was slow: check for CPU hogging, memory pressure, storage latency\n4. Common triggers: mass VM starts, OOM events, storage path checker delays\n5. Long-term: consider changing on-fail policy or upgrading to VME 9.x.',
         product='Pacemaker',
     ),
+    LogPattern(
+        name='gfs2_journal_reservation_conflict',
+        regex=r'(reservation conflict.*Error \d+ writing to journal|Error 6 writing to journal.*jid|reservation conflict error.*dev.*WRITE.*gfs2)',
+        severity='CRITICAL',
+        category='storage',
+        description='SCSI reservation conflict occurred during GFS2 journal write. This means the storage array rejected a write because the node does not have a valid SCSI Persistent Reservation (PR) key on that path. GFS2 will WITHDRAW the filesystem and go read-only. Known bug MORPH-5492: after reboot, PR keys are not fully re-registered on all paths. This is different from a GFS2 deadlock — this is a storage-layer access denial.',
+        solution_hint='1. Check PR keys: mpathpersist -i -k /dev/mapper/<device>\n2. Count keys for this node (cat /var/run/cluster.key for the key value)\n3. If fewer keys than paths: PR registration incomplete (MORPH-5492 bug)\n4. Fix: cold reboot via ILO, or manually re-register with mpathpersist\n5. After fixing: verify key count matches path count, then unstandby\n6. Upgrade to VME 8.1.0+ (permanent fix).',
+        product='GFS2',
+    ),
+    LogPattern(
+        name='gfs2_invalid_metadata_block',
+        regex=r'(fatal:.*invalid metadata block|bh = \d+.*type:exp=\d+.*found=\d+|gfs2.*fatal.*invalid metadata|foreach_descriptor.*recovery\.c)',
+        severity='CRITICAL',
+        category='filesystem',
+        description='GFS2 journal replay encountered an invalid metadata block — the journal is corrupted and cannot be replayed. This prevents GFS2 from mounting on ANY node in the cluster. The filesystem will attempt to withdraw. This is typically caused by a prior unclean shutdown where journal writes were incomplete (reservation conflict, I/O error, or power loss during journal commit). REQUIRES offline fsck.gfs2 to repair.',
+        solution_hint='1. Stop cluster: pcs cluster stop --all\n2. Unmount GFS2 on all nodes\n3. Run: fsck.gfs2 -n /dev/mapper/<device> (read-only check first)\n4. If corruption confirmed: fsck.gfs2 -y /dev/mapper/<device>\n5. Restart cluster: pcs cluster start --all\n6. Verify: GFS2 resources should start successfully\n7. Root cause: investigate what caused the journal corruption (reservation conflict, power loss, etc.).',
+        product='GFS2',
+    ),
 ]
 
 
