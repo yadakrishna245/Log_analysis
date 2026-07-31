@@ -1059,6 +1059,15 @@ BUILT_IN_PATTERNS: List[LogPattern] = [
         solution_hint='1. Check iSCSI session status: iscsiadm -m session -P 3\n2. Check network path: ping <target-ip>, check switch ports for errors\n3. Verify MTU alignment between host, switches, and storage\n4. Check storage array health and port status\n5. If intermittent: may be network congestion or switch port flapping\n6. If persistent: check cables, NICs, and storage controller health.',
         product='Alletra',
     ),
+    LogPattern(
+        name='gfs2_metadata_withdraw',
+        regex=r'(gfs2_meta_check_ii|gfs2_meta_buffer.*withdraw|File system withdrawn.*metadata|gfs2.*fatal.*jdata.*on disk.*!=|dlm_new_lockspace error -53)',
+        severity='CRITICAL',
+        category='filesystem',
+        description='GFS2 filesystem withdrew during metadata access — kernel stack trace shows gfs2_meta_check_ii, gfs2_meta_buffer, or fillup_metapath. This indicates GFS2 read a metadata block that failed validation (bad checksum or structure). Different from journal corruption — this is live metadata inconsistency, often caused by prior SCSI PR conflicts writing incomplete data or FC/storage path instability causing bad reads. DLM error -53 means lockspace creation failed due to I/O errors on the backing device.',
+        solution_hint='1. Verify SCSI PR state: mpathpersist -i -k and -i -r (clear stale reservations)\n2. If PR clean but still withdrawing: offline fsck is needed\n3. Unmount on ALL nodes: mount | grep gfs2 (must show nothing)\n4. Dry-run: fsck.gfs2 -n /dev/mapper/<device>\n5. Repair: fsck.gfs2 -y /dev/mapper/<device>\n6. If withdraw recurs after fsck: investigate FC path stability, MSA behavior, multipath health.',
+        product='GFS2',
+    ),
 ]
 
 
