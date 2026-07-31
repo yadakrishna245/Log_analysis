@@ -655,4 +655,17 @@ KNOWN_ISSUES = [
         'category': 'application',
         'resolution_type': 'Display bug (under investigation)',
     },
+    {
+        'title': 'VME Manager UI returns HTTP 404 Not Found — login page inaccessible',
+        'products': ['VME', 'Morpheus'],
+        'symptoms': 'Navigating to the VME Manager URL in a browser displays "HTTP Status 404 – Not Found" instead of the login/dashboard page. All UI-based operations are blocked. The morpheus-ui service may be running but the web application is not serving pages. morpheus-ui logs may be nearly empty (few KB) if the application failed to deploy properly.',
+        'root_cause': 'The morpheus-ui web application (WAR file) failed to deploy or became corrupted. Common causes include: failed upgrade/patch leaving incomplete deployment, disk full preventing WAR extraction, Java/Tomcat crash during application startup, or corrupted morpheus-ui installation. Without complete logs from the affected manager, exact root cause cannot be determined.',
+        'solution': "1. Check morpheus-ui service status: morpheus-ctl status morpheus-ui\\n2. Check logs: morpheus-ctl tail morpheus-ui (look for startup errors, deployment failures)\\n3. Try restart: morpheus-ctl restart morpheus-ui\\n4. Check disk space: df -h (full disk can prevent WAR deployment)\\n5. Check if application deployed: ls -la /opt/morpheus/embedded/tomcat/webapps/\\n6. If corrupted: morpheus-ctl reconfigure\\n7. If all else fails: deploy new VME Manager VM and restore from backup\\n8. IMPORTANT: capture full logs BEFORE replacing the manager for RCA.",
+        'bug_id': 'MORPH-14536',
+        'affected_versions': 'VME 8.1.2 (potentially any version)',
+        'prevention': 'Monitor VME Manager UI availability. Set up health check (curl the login page URL). After any upgrade/patch, verify UI is accessible before closing the change window. Always capture morpheus-ui logs immediately when issue is discovered.',
+        'related_issues': 'General application deployment failure. Not cluster/storage related.',
+        'category': 'application',
+        'resolution_type': 'Redeploy manager (root cause undetermined)',
+    },
 ]
