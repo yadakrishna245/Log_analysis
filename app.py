@@ -23,10 +23,12 @@ def create_app(config_class=Config):
     from routes.tickets import tickets_bp
     from routes.knowledge import knowledge_bp
     from routes.analysis import analysis_bp
+    from routes.feedback import feedback_bp
 
     app.register_blueprint(tickets_bp)
     app.register_blueprint(knowledge_bp)
     app.register_blueprint(analysis_bp)
+    app.register_blueprint(feedback_bp)
 
     # Create database tables
     with app.app_context():
