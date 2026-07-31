@@ -707,4 +707,17 @@ KNOWN_ISSUES = [
         'category': 'storage',
         'resolution_type': 'Software bug (MORPH-14627) + Migration artifact',
     },
+    {
+        'title': 'Windows VMs repeatedly hang and suffer NTFS corruption from host-side storage I/O instability (qcow2 write-lock failures)',
+        'products': ['VME', 'KVM'],
+        'symptoms': 'Multiple Windows VMs (6+ with video protection/NVR workload) stop responding multiple times per day. Require reboot to recover. NTFS volumes report "requires online analysis" and CHKDSK detects corruption. Data loss reported. QEMU logs show "Failed to flush the L2 table cache: Input/output error" and "Failed to get write lock". Windows Event ID 129 (viostor storage-port reset). Multipath shows paths dropping to 1 active path intermittently. Same workload runs fine on VMware. Issue worsens after VirtIO driver update.',
+        'root_cause': 'Host-side storage I/O instability on the VME/KVM path (QEMU + libvirt + multipath). Multipath paths intermittently fail and recover (ALUA trespass), causing I/O stalls. During the path failover window, QEMU cannot flush qcow2 L2 table cache or refcount block cache → I/O errors propagated to guest. Guest Windows sees disk timeout → viostor Event ID 129 (storage-port reset). If write was in-flight to NTFS metadata: NTFS corruption. The intermittent nature (hours between events) suggests transient SAN path instability rather than permanent failure.',
+        'solution': '1. Investigate SAN/multipath path stability: grep "mark as failed\\|remaining active paths" /var/log/syslog\n2. Check QEMU logs for I/O errors: grep "Input/output error\\|write lock" /var/log/libvirt/qemu/<vm>.log\n3. Pin affected VMs to most stable host/path combination\n4. Fix underlying SAN path instability (check HBA firmware, switch ports, array controller)\n5. For corrupted NTFS: run CHKDSK /F /R only AFTER confirming storage paths are stable\n6. Do NOT update VirtIO drivers until storage stability confirmed\n7. Engage storage vendor (Dell/array) for path failure root cause.',
+        'bug_id': 'MORPH-14904',
+        'affected_versions': 'VME 8.1.2 with Windows Server 2025, VirtIO 0.1.266/0.1.271, DGC/VRAID storage',
+        'prevention': 'Monitor multipath path health continuously. Alert on any "remaining active paths: 1" event. Fix SAN path instability before deploying I/O-intensive workloads. Validate VirtIO driver compatibility with storage stack before updating.',
+        'related_issues': 'Similar to MORPHL4-38 (Windows corruption after cluster event). Guest NTFS corruption is downstream of host storage I/O failure, not a Windows/VirtIO defect per se.',
+        'category': 'storage',
+        'resolution_type': 'Infrastructure (SAN path stability) + Under investigation',
+    },
 ]
