@@ -694,4 +694,17 @@ KNOWN_ISSUES = [
         'category': 'storage',
         'resolution_type': 'Software bug (MORPH-14554)',
     },
+    {
+        'title': 'Alletra MP Plugin snapshot revert causes LUN ID collision — 50+ Windows VMs stuck at EFI shell',
+        'products': ['VME', 'Alletra', 'Morpheus'],
+        'symptoms': 'After snapshot revert operation via Morpheus UI, 50+ Windows VMs drop to UEFI/EFI shell. Disks visible in EFI boot menu but selection does not boot. multipath -ll shows wrong LUN IDs (e.g., showvlun says LUN 84 but multipath shows LUN 100 for same WWID). Manual removevlun + createvlun does NOT fix until kernel SCSI bus is rescanned. dmesg shows "GPT: Primary header thinks Alt. header is not at the end of the disk" (134 occurrences). NVRAM files corrupted/zeroed from thermal shutdown.',
+        'root_cause': 'Three-layer cascading failure: (1) PRIMARY - HPE Alletra MP Plugin does NOT clean up kernel block devices (/dev/sd*) during removevlun in snapshot revert workflow. Stale device paths remain in kernel memory. When createvlun reassigns the same LUN IDs to newly-promoted snapshot volumes, the kernel maps new WWIDs to old stale device paths = device path corruption. (2) ENABLER - User initiated snapshot revert 34 minutes after cluster quorum loss recovery, no operational safeguards blocked the operation. (3) MANIFESTATION - OVMF UEFI strict GPT validation + pre-existing GPT header misalignment from VMware-to-KVM migration (Alletra VVs larger than source VMDKs) = VMs unbootable when device paths corrupted and NVRAM lost.',
+        'solution': "RECOVERY:\\n1. rescan-scsi-bus.sh -r -f -m (purge stale device paths, rebuild multipath)\\n2. multipath -r (rebuild multipath configuration)\\n3. Verify: multipath -ll LUN IDs now match showvlun output\\n4. Fix GPT headers: sgdisk --move-second-header /dev/mapper/<WWID>\\n5. Refresh kernel partition tables: kpartx -u /dev/mapper/<WWID>\\n6. Restore NVRAM: cp /var/morpheus/kvm/OVMF_VARS_4M.fd /var/lib/libvirt/qemu/nvram/<VM>_VARS.fd\\n7. Power on VMs\\n8. For VMs still failing: boot from Windows ISO, run CHKDSK /F /R\\n\\nPREVENTION:\\n- Always run rescan-scsi-bus.sh after ANY snapshot revert operation\\n- Fix GPT alignment after VMware migration: sgdisk --move-second-header on all migrated disks\\n- Bug: MORPH-14627 (Alletra plugin must clean block devices during unexport)",
+        'bug_id': 'MORPH-14627',
+        'affected_versions': 'VME 8.1.0 with HPE Alletra MP Plugin (all versions until fix)',
+        'prevention': 'Always run rescan-scsi-bus.sh -r -f -m after snapshot revert. Fix GPT headers post-migration (sgdisk --move-second-header). Do not initiate destructive operations during cluster recovery window. Implement UPS-triggered graceful shutdown.',
+        'related_issues': 'MORPHL4-38 (similar thermal event + Windows corruption). MORPHL4-28 (power outage + GFS2). VMware migration GPT mismatch is a ticking time bomb until fixed.',
+        'category': 'storage',
+        'resolution_type': 'Software bug (MORPH-14627) + Migration artifact',
+    },
 ]
