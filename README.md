@@ -169,16 +169,74 @@ The `jira_report` field contains ready-to-paste wiki markup for your ticket.
 
 ---
 
-## Security
+## 🔒 Security & Data Privacy (Compliance)
 
-- ✅ API key authentication (`X-API-Key` header)
-- ✅ Session-based auth for web UI
-- ✅ Archive path traversal protection (zip-slip prevention)
-- ✅ Security headers (CSP, X-Frame-Options, X-Content-Type-Options)
-- ✅ No hardcoded secrets (auto-generated on first run)
-- ✅ Input validation on all endpoints
-- ✅ Rate limiting support
-- ✅ 100% on-premises — no data sent to external services
+> **"Will uploading logs expose customer data to the internet?"**  
+> **NO.** LogSherlock Pro is designed with HPE enterprise compliance in mind.
+
+### Data Never Leaves Your Control
+
+| Concern | How We Address It |
+|---------|-------------------|
+| **Data residency** | 100% on-premises OR your own private AWS account — NO shared/multi-tenant cloud |
+| **No external AI calls** | Zero calls to OpenAI, Google, or any third-party AI. All analysis is local regex matching |
+| **No telemetry** | No usage tracking, no analytics, no phone-home. Completely air-gapped capable |
+| **No internet required** | Works fully offline (on-prem mode). AWS mode uses only YOUR private VPC |
+| **Customer data isolation** | Each deployment is single-tenant. No shared databases across customers/teams |
+| **Log file lifecycle** | Uploaded logs auto-deleted after 7 days (S3) or configurable retention locally |
+| **No data in source code** | Zero customer names, IPs, hostnames, or ticket IDs in the codebase |
+
+### How Log Analysis Works (No AI, No Cloud APIs)
+
+```
+Customer Log File → Local Regex Pattern Matching → Results Stay Local
+                    (runs on YOUR machine/Lambda)
+                    
+                    ❌ NOT sent to any external service
+                    ❌ NOT processed by any AI model  
+                    ❌ NOT stored on any shared platform
+                    ✅ Processed entirely within your infrastructure
+```
+
+### Deployment Security Model
+
+| Deployment Mode | Data Location | Network Access Required |
+|----------------|---------------|------------------------|
+| **Local (localhost:5000)** | Your laptop/server only | None — fully offline |
+| **Docker** | Your container host only | None — fully offline |
+| **AWS Lambda** | YOUR AWS account, YOUR region | Inbound HTTPS only (API Gateway) |
+
+### Application Security Controls
+
+| Control | Implementation |
+|---------|---------------|
+| Authentication | API key (`X-API-Key` header) + session-based login |
+| Authorization | All `/api/*` endpoints require valid credentials |
+| Encryption at rest | S3 AES-256 encryption, DynamoDB encryption enabled by default |
+| Encryption in transit | HTTPS/TLS via API Gateway (AWS) or reverse proxy (on-prem) |
+| Input validation | `secure_filename()`, archive path traversal prevention (zip-slip) |
+| Security headers | CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy |
+| Secret management | Auto-generated keys, no hardcoded credentials |
+| Access logging | All API requests logged with timestamp |
+| Rate limiting | Configurable request throttling |
+| File size limits | Configurable max upload size (default 4GB) |
+
+### Compliance Alignment
+
+| Standard | Relevant Controls |
+|----------|------------------|
+| **SOC 2** | Data encrypted at rest & transit, access controls, audit logging |
+| **GDPR** | No personal data processed, data retention policies, right to delete |
+| **ISO 27001** | Access management, cryptographic controls, operational security |
+| **HPE Internal** | No customer data in code, single-tenant, no external API calls |
+
+### For Your Manager / Compliance Team
+
+> *"LogSherlock Pro performs pattern matching using pre-built regex signatures against uploaded log files. It does NOT use any AI/ML model, does NOT send data to any external service, and runs entirely within our own infrastructure (either on-premises or in our dedicated AWS account). Customer log data is never exposed to the internet, shared with third parties, or stored beyond the configured retention period."*
+
+Copy-paste the above for any compliance review.
+
+---
 
 ---
 
