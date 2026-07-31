@@ -2,7 +2,7 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
   LogSherlock Pro - Serverless Log Analysis Application
-  Flask-based web app deployed on AWS Lambda with API Gateway and S3 storage.
+  Flask + DynamoDB + S3 on AWS Lambda with API Gateway.
 
 Globals:
   Function:
@@ -18,6 +18,15 @@ Parameters:
       - production
       - development
     Description: Flask environment mode
+  ApiKey:
+    Type: String
+    Default: ''
+    Description: API key for authentication (leave empty to auto-generate)
+    NoEcho: true
+  TablePrefix:
+    Type: String
+    Default: LogSherlock
+    Description: DynamoDB table name prefix
 
 Resources:
   # ============================================================
@@ -33,6 +42,7 @@ Resources:
         AllowHeaders:
           - Content-Type
           - Authorization
+          - X-API-Key
           - X-Requested-With
         AllowMethods:
           - GET
@@ -57,12 +67,24 @@ Resources:
       Environment:
         Variables:
           FLASK_ENV: !Ref FlaskEnv
-          DATABASE_URL: sqlite:////tmp/logsherlock.db
+          STORAGE_BACKEND: dynamodb
+          DYNAMODB_TABLE_PREFIX: !Ref TablePrefix
           UPLOAD_FOLDER: /tmp/uploads
+          LOG_DIR: /tmp/logs
           S3_BUCKET: !Ref LogSherlockUploads
+          LOGSHERLOCK_API_KEY: !Ref ApiKey
+          LOGSHERLOCK_DEV_MODE: 'false'
       Policies:
         - S3FullAccessPolicy:
             BucketName: !Ref LogSherlockUploads
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TicketsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref FindingsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PatternsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref KnowledgeTable
       Events:
         CatchAll:
           Type: HttpApi
@@ -76,6 +98,75 @@ Resources:
             ApiId: !Ref LogSherlockApi
             Path: /
             Method: ANY
+
+  # ============================================================
+  # DynamoDB Tables
+  # ============================================================
+  TicketsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${TablePrefix}-Tickets'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      Tags:
+        - Key: Application
+          Value: LogSherlockPro
+
+  FindingsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${TablePrefix}-Findings'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: ticket_id
+          AttributeType: S
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: ticket_id
+          KeyType: HASH
+        - AttributeName: id
+          KeyType: RANGE
+      Tags:
+        - Key: Application
+          Value: LogSherlockPro
+
+  PatternsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${TablePrefix}-Patterns'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: name
+          AttributeType: S
+      KeySchema:
+        - AttributeName: name
+          KeyType: HASH
+      Tags:
+        - Key: Application
+          Value: LogSherlockPro
+
+  KnowledgeTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${TablePrefix}-Knowledge'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      Tags:
+        - Key: Application
+          Value: LogSherlockPro
 
   # ============================================================
   # S3 Bucket - Log File Storage
@@ -101,12 +192,16 @@ Resources:
 Outputs:
   ApiUrl:
     Description: API Gateway endpoint URL for LogSherlock Pro
-    Value: !Sub "https://${LogSherlockApi}.execute-api.${AWS::Region}.amazonaws.com/prod/"
-
-  S3Bucket:
+    Value: !Sub 'https://${LogSherlockApi}.execute-api.${AWS::Region}.amazonaws.com/prod/'
+  S3BucketName:
     Description: S3 bucket for uploaded log files
     Value: !Ref LogSherlockUploads
-
+  TicketsTableName:
+    Description: DynamoDB Tickets table
+    Value: !Ref TicketsTable
+  FindingsTableName:
+    Description: DynamoDB Findings table
+    Value: !Ref FindingsTable
   FunctionArn:
     Description: LogSherlock Lambda Function ARN
     Value: !GetAtt LogSherlockFunction.Arn
