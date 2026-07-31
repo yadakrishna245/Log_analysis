@@ -382,4 +382,17 @@ KNOWN_ISSUES = [
         'category': 'cluster',
         'resolution_type': 'Operational (workaround available)',
     },
+    {
+        'title': 'Data center power outage causes GFS2 metadata corruption — all cluster resources stopped, manual fsck required',
+        'products': ['GFS2', 'Pacemaker', 'DLM', 'VME', 'Alletra'],
+        'symptoms': 'After abrupt DC power loss, all GFS2 cluster resources show Stopped. DLM-clone stopped on all nodes. Manual mount attempts fail with "wrong fs type, bad option, bad superblock". pcs resource enable does not bring resources up. Some nodes fail to rejoin cluster post-power-restoration (quorum loss). All production VMs inaccessible. fsck.gfs2 required on every affected datastore before mount succeeds.',
+        'root_cause': 'Instantaneous power loss interrupts active I/O before commits to disk, leaving GFS2 journals in inconsistent state (journal desynchronization). On power restoration: (1) Some nodes have hardware/connectivity issues and cannot rejoin — causing quorum loss which prevents DLM from starting. (2) Without DLM, GFS2 cannot mount (requires lock_dlm protocol). (3) Even with quorum restored (via node eviction), the GFS2 superblock/metadata is corrupted from unclean shutdown — journals cannot replay automatically. Contributing factors: No graceful shutdown mechanism (no UPS-triggered pcs node standby), NBD/LVM interaction from Commvault backups creating device locks (known 8.0.x defect), excessive heartbeat datastore count (12 vs recommended 2-3).',
+        'solution': '1. Restore quorum first: if nodes cannot rejoin, evict them (pcs cluster node remove <node>)\n2. Verify DLM starts: pcs resource enable dlm-clone, dlm_tool status\n3. Disable all GFS2 resources: pcs resource disable <resource>\n4. Run fsck.gfs2 -y on EVERY affected mapper device (all 12 datastores)\n5. Re-enable resources sequentially: pcs resource enable <resource> (one at a time)\n6. Verify mounts: mount | grep gfs2\n7. Start VMs once all datastores are online\n8. For stubborn volumes: repeat fsck.gfs2, check for stale journals from evicted nodes',
+        'bug_id': 'MORPH-14174 (elevated to engineering)',
+        'affected_versions': 'Morpheus 8.0.13 and all 8.0.x with Pacemaker/GFS2 cluster architecture',
+        'prevention': 'Implement UPS-triggered graceful shutdown (pcs node standby on power loss signal). Apply LVM filter in /etc/lvm/lvm.conf to exclude /dev/nbd* devices. Reduce heartbeat datastore count to 2-3 (not 12). Upgrade to 9.x (removes Pacemaker, uses agent-based quorum). Keep spare nodes to maintain quorum after failures.',
+        'related_issues': 'MORPHL4-28, PCS-1886. Historical: PCS-995 (CIB mismatch), PCS-1826 (datastore decommission), MORPHL4-21 (GFS2 deadlock), MORPHL4-26 (fencing device lost). Architecture redesigned in Morpheus 9.x (Cluster Layout 1.3 removes Pacemaker).',
+        'category': 'cluster',
+        'resolution_type': 'Architectural limitation (fix in 9.x)',
+    },
 ]

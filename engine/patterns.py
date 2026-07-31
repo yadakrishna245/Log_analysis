@@ -891,6 +891,34 @@ BUILT_IN_PATTERNS: List[LogPattern] = [
         solution_hint='1. Before cluster upgrade: power on ALL VMs or manually move powered-off VMs\n2. If upgrade already failed: restart all cluster nodes\n3. Verify: pcs cluster status, systemctl status corosync\n4. DLM should remount datastores after cluster reforms\n5. Prevention: audit VM power states before any cluster upgrade.',
         product='VME',
     ),
+    # --- GFS2 Superblock / Journal Corruption (Power Outage) ---
+    LogPattern(
+        name='gfs2_superblock_corruption',
+        regex=r'(bad superblock on /dev/mapper|wrong fs type.*bad.*superblock|gfs2.*can.t find protocol|mount.*wrong fs type.*gfs2|GFS2.*superblock.*invalid|gfs2.*bad magic number)',
+        severity='CRITICAL',
+        category='filesystem',
+        description='GFS2 filesystem superblock or metadata is corrupted — the filesystem cannot be mounted. This typically occurs after an abrupt power loss that interrupted in-flight I/O before journals could be committed. The mount returns "wrong fs type, bad superblock" even though the device is accessible. Manual fsck.gfs2 is REQUIRED before the filesystem can be mounted again.',
+        solution_hint='1. Do NOT repeatedly try to mount — it will not work without fsck\n2. Ensure DLM is stopped for this resource: pcs resource disable <resource>\n3. Run: fsck.gfs2 -y /dev/mapper/<device>\n4. If fsck succeeds: re-enable resource (pcs resource enable <resource>)\n5. If fsck fails: check for stale journals from evicted nodes, try fsck again\n6. Root cause: likely unclean shutdown without graceful unmount. Implement UPS-triggered pcs node standby.',
+        product='GFS2',
+    ),
+    LogPattern(
+        name='dlm_error_107',
+        regex=r'(dlm.*error.*-107|DLM.*error.*-107|dlm.*ENOTCONN|lockspace.*join.*fail|can.t find protocol fsck_dlm|dlm_controld.*error.*join)',
+        severity='CRITICAL',
+        category='cluster',
+        description='DLM (Distributed Lock Manager) error -107 (ENOTCONN) — cannot connect to or join lockspace. This means the DLM subsystem cannot establish the lock coordination needed for GFS2. Common causes: cluster quorum not achieved, nodes evicted but DLM state not cleaned, stale lockspace from crashed nodes. GFS2 CANNOT mount until DLM is healthy.',
+        solution_hint='1. Check cluster quorum: pcs status (need majority of configured nodes)\n2. If nodes cannot rejoin: evict them (pcs cluster node remove <node>)\n3. After eviction: pcs resource cleanup dlm-clone\n4. Verify DLM: dlm_tool status (should show all lockspaces joined)\n5. If stale lockspace: dlm_tool close <lockspace>, then re-enable\n6. GFS2 depends on DLM — fix DLM first, then GFS2.',
+        product='DLM',
+    ),
+    LogPattern(
+        name='nbd_lvm_interaction',
+        regex=r'(nbd\d+.*lvm|LVM.*nbd|device-mapper.*nbd|lvm.*scan.*nbd|nbd.*lock.*held|pvscan.*nbd)',
+        severity='HIGH',
+        category='storage',
+        description='LVM is scanning or interacting with NBD (Network Block Device) devices used by backup systems (Commvault VSA). This known defect in Morpheus 8.0.x causes LVM to create persistent device locks on NBD devices, which can block GFS2 recovery after a crash. LVM should never scan NBD devices in a cluster environment.',
+        solution_hint='1. Apply LVM filter: edit /etc/lvm/lvm.conf\n2. Add filter = [ "r|/dev/nbd.*|", "a|.*|" ] to devices section\n3. Run: vgscan --cache to rebuild LVM cache\n4. Verify: pvs should not show any /dev/nbd devices\n5. This prevents LVM from interfering with GFS2 cluster resource transitions.',
+        product='VME',
+    ),
 ]
 
 
