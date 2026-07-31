@@ -67,6 +67,7 @@ python app.py
 
 ```bash
 # Requires: AWS CLI + SAM CLI configured
+cd deploy
 ./deploy.sh                    # Linux/Mac
 .\deploy.ps1                   # Windows
 ```
@@ -190,26 +191,42 @@ LogSherlock-Pro/
 ├── models.py                 # Database models (SQLAlchemy)
 ├── storage.py                # Storage abstraction (SQLite ↔ DynamoDB)
 ├── db_dynamo.py              # DynamoDB data layer
-├── lambda_handler.py         # AWS Lambda entry point
-├── engine/
-│   ├── patterns.py           # 101 detection patterns (regex engine)
-│   ├── analyzer.py           # Orchestrates analysis pipeline
-│   ├── ingestion.py          # File parsing, archive extraction
-│   └── correlator.py         # Cross-node event correlation
-├── knowledge/
-│   ├── known_issues.py       # 63 catalogued known issues
-│   ├── runbooks.py           # 12 step-by-step investigation guides
-│   └── similar_tickets.py    # Similar ticket matching
-├── routes/
-│   ├── analysis.py           # Upload & analyze endpoints
-│   ├── tickets.py            # Ticket CRUD + RCA generation
-│   ├── knowledge.py          # Knowledge base search
-│   └── reports.py            # Report generation
-├── templates/                # Web UI (single-page app)
-├── static/                   # CSS/JS assets
-├── template.yaml             # AWS SAM deployment template
-├── deploy.ps1 / deploy.sh    # Single-click deploy scripts
+├── requirements.txt          # Python dependencies
 ├── Dockerfile                # Container deployment
+├── README.md                 # This file
+│
+├── engine/                   # Core analysis engine
+│   ├── patterns.py           #   101 detection patterns (regex)
+│   ├── analyzer.py           #   Analysis orchestrator
+│   ├── ingestion.py          #   File parsing & extraction
+│   └── correlator.py         #   Cross-node correlation
+│
+├── knowledge/                # Knowledge base
+│   ├── known_issues.py       #   63 catalogued known issues
+│   ├── runbooks.py           #   12 investigation runbooks
+│   └── similar_tickets.py    #   Similar ticket matching
+│
+├── routes/                   # API endpoints
+│   ├── analysis.py           #   Upload & analyze
+│   ├── tickets.py            #   Ticket CRUD + RCA
+│   └── knowledge.py          #   KB search
+│
+├── deploy/                   # AWS serverless deployment
+│   ├── template.yaml         #   SAM/CloudFormation template
+│   ├── lambda_handler.py     #   Lambda entry point
+│   ├── deploy.ps1            #   One-click deploy (Windows)
+│   ├── deploy.sh             #   One-click deploy (Linux/Mac)
+│   └── samconfig.toml        #   SAM CLI config
+│
+├── docs/                     # Documentation
+│   ├── DEPLOYMENT.md         #   Deployment guide
+│   ├── USER_GUIDE.md         #   User guide
+│   ├── COMPLIANCE.md         #   Security & compliance
+│   └── SALES_PITCH.md        #   Business value summary
+│
+├── templates/                # Web UI (Jinja2)
+├── static/                   # CSS/JS assets
+├── tests/                    # Test suite
 └── .github/workflows/        # CI/CD automation
 ```
 

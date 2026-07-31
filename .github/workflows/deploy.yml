@@ -46,7 +46,8 @@ jobs:
         run: |
           python -c "
           import ast, os
-          files = ['app.py', 'config.py', 'models.py', 'lambda_handler.py',
+          files = ['app.py', 'config.py', 'models.py', 'storage.py', 'db_dynamo.py',
+                   'deploy/lambda_handler.py',
                    'routes/analysis.py', 'routes/tickets.py', 'routes/knowledge.py',
                    'engine/patterns.py', 'engine/ingestion.py', 'engine/analyzer.py',
                    'knowledge/known_issues.py', 'knowledge/runbooks.py']
@@ -88,7 +89,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
       
       - name: SAM Build
-        run: sam build --template-file template.yaml
+        run: sam build --template-file deploy/template.yaml
       
       - name: SAM Deploy
         run: |
