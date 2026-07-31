@@ -564,4 +564,17 @@ KNOWN_ISSUES = [
         'category': 'storage',
         'resolution_type': 'Operational (restore multipath/clear stale PR)',
     },
+    {
+        'title': 'Windows VM SQL Server extreme CPU scheduling delays — Hyper-V enlightenments missing in KVM/QEMU config',
+        'products': ['VME', 'KVM'],
+        'symptoms': 'Windows Server 2025 VM with SQL Server shows extreme CPU wait times (SOS_SCHEDULER_YIELD). Simple queries take 39 seconds instead of 1-2 seconds. VM has 48GB RAM but performance suggests CPU scheduling bottleneck, not memory limitation. No CPU spikes visible in monitoring. Same query runs fine on VMware, on fresh VM, or on other KVM environments. Performance degrades after VM lifecycle operations (rename, domain join, backup config).',
+        'root_cause': 'Default KVM/QEMU Hyper-V enlightenment settings in Morpheus VME do not expose all the paravirtualized features that Windows/SQL Server needs for efficient CPU scheduling. Missing features: stimer direct mode, TSC/APIC frequency exposure, re-enlightenment notifications, paravirtualized TLB flush, and paravirtualized IPI. Without these, Windows falls back to less efficient timer and scheduling mechanisms, causing massive SOS_SCHEDULER_YIELD waits in SQL Server.',
+        'solution': "WORKAROUND (requires virsh edit <domain>):\\n\\n1. Add Hyper-V enlightenments to VM XML:\\n   <hyperv mode='custom'>\\n     <relaxed state='on'/>\\n     <vapic state='on'/>\\n     <spinlocks state='on' retries='8191'/>\\n     <vpindex state='on'/>\\n     <runtime state='on'/>\\n     <synic state='on'/>\\n     <stimer state='on'>\\n       <direct state='on'/>\\n     </stimer>\\n     <frequencies state='on'/>\\n     <reenlightenment state='on'/>\\n     <tlbflush state='on'/>\\n     <ipi state='on'/>\\n   </hyperv>\\n\\n2. For live migration compatibility, also add TSC timer:\\n   <timer name='tsc' frequency='<host_tsc_freq>' mode='native'/>\\n   Get frequency: virsh capabilities | grep tsc\\n\\n3. Morpheus UI does not expose these settings — must use virsh edit.",
+        'bug_id': 'MORPH-14550 (enhancement request)',
+        'affected_versions': 'VME 8.0.13 and all versions (Morpheus does not expose advanced Hyper-V enlightenments in UI)',
+        'prevention': 'For Windows VMs running SQL Server or CPU-intensive workloads: apply Hyper-V enlightenments via virsh edit after deployment. Request feature enhancement from Morpheus to expose these settings in UI.',
+        'related_issues': 'Not a bug per se — enhancement request. Morpheus only exposes a subset of libvirt Hyper-V features.',
+        'category': 'virtualization',
+        'resolution_type': 'Configuration (virsh edit workaround)',
+    },
 ]
