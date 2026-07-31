@@ -746,4 +746,17 @@ KNOWN_ISSUES = [
         'category': 'virtualization',
         'resolution_type': 'Workaround (convert VMDK to qcow2)',
     },
+    {
+        'title': 'VM pauses with "vdX: no space" (ENOSPC) despite guest showing ample free space — thin-provisioned storage or VirtIO driver issue',
+        'products': ['VME', 'KVM', 'Alletra'],
+        'symptoms': 'VM unexpectedly transitions from Running to Paused state. virsh domblkerror <VM> shows "vdX: no space" for one of the virtual disks. Guest OS shows plenty of free space on all volumes (e.g., 22 TB free). Only the affected VM pauses — other VMs on same host continue running. No kernel storage errors in host logs. No guest OS disk/NTFS/StorPort errors. Issue recurs multiple times per day. VirtIO driver version 0.1.285 installed recently.',
+        'root_cause': 'QEMU pauses a VM when it encounters ENOSPC (no space) on a backend storage write. Despite the guest showing free space, the ENOSPC can come from: (1) Thin-provisioned storage CPG exhaustion at the array level — the array cannot allocate more physical pages even though the virtual volume has logical space, (2) VirtIO storage driver bug (v0.1.285) — upstream fix exists for "clobbered SRB Extension IDs" that can cause false ENOSPC signals, (3) VSS snapshot flush operations (IOCTL_VOLSNAP_FLUSH) creating I/O queue spikes that trigger timeout/space errors, (4) NTFS corruption on a volume with dirty bit set prevents storage optimizer/slab consolidation.',
+        'solution': "IMMEDIATE:\\n1. Resume paused VM: virsh resume <VM>\\n2. Check which disk: virsh domblkerror <VM>\\n\\nINVESTIGATION:\\n3. Check array-side CPG utilization: showvv, showcpg (thin-provisioned used% vs limit%)\\n4. Check if array returned ENOSPC to host: array event logs around incident time\\n5. Check NTFS health: chkdsk /f /r on affected volume during maintenance\\n\\nWORKAROUNDS:\\n6. Downgrade VirtIO driver: 0.1.285 → 0.1.271 (pending L5 review)\\n7. Change QEMU error policy to report instead of pause:\\n   virsh edit <VM>: change <driver .../> to include error_policy='report' rerror_policy='report'\\n   WARNING: This reports errors to guest instead of pausing — guest may see I/O errors\\n8. Temporarily disable VSS to eliminate flush-lock spikes\\n9. Enable debug logging: libvirtd log_level=1, morpheus logback DEBUG",
+        'bug_id': 'MORPH-15043',
+        'affected_versions': 'VME 8.1.2 with VirtIO 0.1.285 and thin-provisioned Alletra storage',
+        'prevention': 'Monitor array CPG utilization (alert at 80%). Monitor for virsh domblkerror output. Consider error_policy=report for non-critical VMs. Keep VirtIO drivers at validated version (0.1.271 until 0.1.285 fix confirmed). Run regular chkdsk on Windows volumes.',
+        'related_issues': 'MORPHL4-34 (PCBE DENUE OVC out of space). Similar to VM stuck in paused state from MORPHL4-21 heartbeat mechanism but different trigger (storage ENOSPC vs heartbeat failure).',
+        'category': 'storage',
+        'resolution_type': 'Under investigation (VirtIO driver + thin provisioning)',
+    },
 ]
