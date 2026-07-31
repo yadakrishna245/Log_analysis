@@ -317,4 +317,17 @@ KNOWN_ISSUES = [
         'category': 'cluster',
         'resolution_type': 'Software bug',
     },
+    {
+        'title': 'Morpheus datastore decommission race condition causes cluster-wide STONITH fencing cascade',
+        'products': ['Morpheus', 'Pacemaker', 'GFS2', 'DLM'],
+        'symptoms': 'During datastore decommission via Morpheus UI, cluster goes down unexpectedly. All remaining datastores transition to read-only state. STONITH fencing events across multiple/all nodes. DLM service failures. ~300+ VMs impacted. Cluster cannot auto-recover because STONITH configuration references deleted device paths. FSCK required on all affected GFS2 volumes before remount.',
+        'root_cause': 'Software defect in the Morpheus datastore decommissioning workflow. When a datastore is marked as Stopped in Morpheus, the platform immediately removes the associated Pacemaker resource configuration WITHOUT waiting for the underlying GFS2 unmount operation to complete. If the unmount does not complete within the timeout (e.g., because the datastore still has active I/O), the GFS2 resource becomes orphaned — still mounted but no longer managed by Pacemaker. To protect shared filesystem integrity and prevent split-brain, Pacemaker initiates automatic STONITH fencing across affected nodes. As part of the cluster protection mechanism, all shared GFS2 volumes are transitioned to read-only mode, DLM and multipath services fail, and remaining clustered datastores become unavailable. The cluster cannot unfence automatically because STONITH configuration still references the deleted device path.',
+        'solution': '1. Immediate: Full cluster node reboots to restore baseline availability\n2. Run FSCK (fsck.gfs2) on ALL affected datastores before remounting — do NOT skip this\n3. Process datastores in parallel, prioritize critical production dependencies\n4. Mount only after successful FSCK validation\n5. Phased VM restoration across recovered datastores\n6. Long-term fix: Upgrade to Morpheus v9.x where storage orchestration is handled by Morpheus agent directly (eliminates Pacemaker dependency)\n7. Workaround for older versions: NEVER decommission datastores via Morpheus UI. Instead: manually unmount GFS2 → remove Pacemaker resource → then remove from Morpheus.',
+        'bug_id': 'MORPH-13237',
+        'affected_versions': 'Morpheus/VME versions using legacy Pacemaker-based storage orchestration (pre-9.x)',
+        'prevention': 'Do NOT use Morpheus UI to decommission datastores with GFS2/Pacemaker integration. Always verify datastore has zero active I/O before decommission. Upgrade to VME 9.x. Maintain valid STONITH device paths even for retired storage.',
+        'related_issues': 'Related to MORPHL4-21 (GFS2 deadlock), MORPHL4-85 (GFS2 datastore reclassification). Grasten PC cluster P1 outage.',
+        'category': 'cluster',
+        'resolution_type': 'Software bug',
+    },
 ]

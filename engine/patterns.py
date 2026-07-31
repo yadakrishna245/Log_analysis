@@ -707,6 +707,52 @@ BUILT_IN_PATTERNS: List[LogPattern] = [
         solution_hint='Check call trace in dmesg for the blocked process. If it shows gfs2_glock_wait or gfs2_create_inode, it is a GFS2 deadlock. Check storage paths (multipath -ll). If GFS2 deadlock, reboot the host. If storage path issue, check iSCSI connectivity.',
         product='general',
     ),
+    # --- Datastore Decommission / STONITH Fencing Cascade ---
+    LogPattern(
+        name='stonith_fencing_cascade',
+        regex=r'(STONITH.*fenc(e|ing)|stonith.*action.*reboot|fenced.*node.*stonith|Initiating.*stonith|stonith-ng.*scheduling)',
+        severity='CRITICAL',
+        category='cluster',
+        description='STONITH (Shoot The Other Node In The Head) fencing event detected. The cluster is forcibly restarting or isolating nodes to protect data integrity. Multiple STONITH events in sequence indicate a fencing cascade — one node fence triggering others. This can result from orphaned Pacemaker resources, GFS2 unmount failures, or storage path removal while resources are still active.',
+        solution_hint='1. Check pcs stonith history for fencing sequence\n2. Look for orphaned resources (pcs resource cleanup)\n3. Check if a datastore decommission or storage change preceded the event\n4. Verify STONITH device configuration still references valid paths\n5. If cascade: reboot all affected nodes after fixing root cause.',
+        product='Pacemaker',
+    ),
+    LogPattern(
+        name='gfs2_readonly_cluster_wide',
+        regex=r'(GFS2.*read.only|Remounting.*read-only.*gfs2|gfs2.*jid=\d+.*ro|multiple.*datastore.*read.only|storage.*fencing.*read.only)',
+        severity='CRITICAL',
+        category='filesystem',
+        description='GFS2 filesystem transitioned to read-only state. When this affects MULTIPLE datastores simultaneously, it indicates a cluster-wide storage fencing event — typically triggered by STONITH fencing that forces protective read-only transitions to prevent data corruption. Impact: ALL VMs using affected datastores lose write access and will fail.',
+        solution_hint='1. Do NOT force remount immediately — check data integrity first\n2. Run fsck.gfs2 on each affected volume before remounting\n3. Check pcs status for the fencing event that caused this\n4. Verify DLM service health (dlm_tool status)\n5. Recovery order: fix root cause → fsck → remount → restart VMs.',
+        product='GFS2',
+    ),
+    LogPattern(
+        name='dlm_service_failure',
+        regex=r'(dlm.*fail|DLM.*error|dlm_controld.*error|dlm.*lock.*space.*fail|DLM.*connection.*lost|dlm_unlock.*error)',
+        severity='CRITICAL',
+        category='cluster',
+        description='Distributed Lock Manager (DLM) service failure. DLM manages locks for GFS2 filesystems across cluster nodes. DLM failure means GFS2 cannot coordinate access between nodes, leading to filesystem read-only transitions or withdrawals. Often caused by cluster communication loss, STONITH fencing, or Pacemaker resource failures.',
+        solution_hint='1. Check DLM status: dlm_tool status, dlm_tool lockdebug\n2. Check Pacemaker/Corosync health: pcs status, corosync-cfgtool -s\n3. Verify cluster communication (corosync rings)\n4. Restart DLM: pcs resource restart dlm-clone\n5. May need full cluster restart if DLM is stuck.',
+        product='GFS2',
+    ),
+    LogPattern(
+        name='orphaned_pacemaker_resource',
+        regex=r'(orphan.*resource|resource.*orphan|unmanaged.*resource|resource.*no longer.*managed|pcs.*resource.*not found|Failed actions:.*not running)',
+        severity='HIGH',
+        category='cluster',
+        description='Orphaned or unmanaged Pacemaker resource detected. This occurs when a resource configuration is removed from Pacemaker while the underlying service (like a GFS2 mount) is still active. The resource becomes unmanageable — Pacemaker cannot stop or recover it. This can trigger STONITH fencing as the cluster tries to recover a resource it can no longer control.',
+        solution_hint='1. List orphaned resources: pcs status --full\n2. Manual cleanup: pcs resource cleanup <resource>\n3. If GFS2 mount orphaned: manually unmount then cleanup\n4. Check if a datastore decommission removed the Pacemaker config before unmount completed\n5. Prevent recurrence: ensure unmount completes before removing Pacemaker resource.',
+        product='Pacemaker',
+    ),
+    LogPattern(
+        name='datastore_decommission_race',
+        regex=r'(datastore.*stop.*remov|resource.*delete.*before.*unmount|pcs resource.*delete.*gfs2|morpheus.*datastore.*decommission.*fail|Stopped.*datastore.*removing.*resource)',
+        severity='CRITICAL',
+        category='storage',
+        description='Datastore decommission race condition detected. The Morpheus platform removed Pacemaker resource configuration BEFORE the GFS2 unmount completed. This leaves the datastore in an orphaned state that cannot be managed by the cluster, potentially triggering STONITH fencing and a cluster-wide cascade failure affecting all datastores.',
+        solution_hint='This is a known Morpheus bug (MORPH-13237). DO NOT decommission datastores via Morpheus UI if they have active I/O or pending unmounts. Workaround: 1. Manually unmount GFS2 (umount) 2. Then remove Pacemaker resource (pcs resource delete) 3. Then remove from Morpheus. Upgrade to VME 9.x where storage orchestration is handled by Morpheus agent directly.',
+        product='Morpheus',
+    ),
 ]
 
 
