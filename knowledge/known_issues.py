@@ -733,4 +733,17 @@ KNOWN_ISSUES = [
         'category': 'storage',
         'resolution_type': 'Software bug (fixed in 9.0.2.44)',
     },
+    {
+        'title': 'VM creation fails when using VMDK image in Morpheus 9.0.0 — upload succeeds but provisioning fails',
+        'products': ['VME', 'Morpheus'],
+        'symptoms': 'VMDK image uploads successfully to Morpheus Library without errors. When creating an instance using the uploaded VMDK image, provisioning fails. Other image formats (qcow2, raw, ISO) work fine in the same environment. The error appears during the instance creation/provisioning step, not during upload.',
+        'root_cause': 'Under investigation. Potential causes: (1) VMDK format conversion issue during provisioning (qemu-img convert from VMDK to qcow2 may fail silently), (2) VMDK descriptor file format incompatibility (monolithicSparse vs streamOptimized vs split), (3) Image metadata not correctly parsed for KVM provisioning, (4) Disk controller/bus type mismatch between VMDK metadata and KVM provisioning template.',
+        'solution': '1. Check morpheus-ui logs during provisioning for specific error: morpheus-ctl tail morpheus-ui\n2. Check if VMDK is monolithicSparse format: qemu-img info <vmdk-file>\n3. Workaround: convert VMDK to qcow2 before upload:\n   qemu-img convert -f vmdk -O qcow2 <input.vmdk> <output.qcow2>\n   Then upload the qcow2 image instead\n4. Verify image was fully uploaded (check file size matches source)\n5. Try with a fresh VMDK export (single-file, not split VMDK)',
+        'bug_id': 'MORPH-14112 (cancelled — could not reproduce)',
+        'affected_versions': 'Morpheus 9.0.0 (intermittent, environment-specific)',
+        'prevention': 'Use qcow2 format for KVM/VME environments whenever possible. If VMDK required: convert to qcow2 before upload. Verify VMDK is single-file monolithicSparse format.',
+        'related_issues': 'General image format compatibility. VMware-to-KVM migration workflows.',
+        'category': 'virtualization',
+        'resolution_type': 'Workaround (convert VMDK to qcow2)',
+    },
 ]
