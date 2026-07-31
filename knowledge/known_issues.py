@@ -551,4 +551,17 @@ KNOWN_ISSUES = [
         'category': 'storage',
         'resolution_type': 'Infrastructure (add iSCSI ports)',
     },
+    {
+        'title': 'VMs on other nodes fail after host reboot disrupts shared clustered-datastore LUN access (MSA SAS)',
+        'products': ['VME', 'Morpheus', 'Alletra'],
+        'symptoms': 'After rebooting one cluster host, VMs on OTHER hosts (not the rebooted one) stop and cannot boot. virsh list shows affected VMs as "shut off" on nodes that were NOT rebooted. Morpheus logs show "ensureAgentMount: failed agent mount register/remount" for shared LUN devices. Datastore refreshes timeout at ~60 seconds. Win2025 VM on an unaffected LUN remains running. Issue is storage-scoped (shared clustered datastore), not host-scoped.',
+        'root_cause': 'Rebooting a SAS initiator directly attached to a shared MSA array disrupts access to clustered-datastore LUNs. On return, the rebooted node cannot re-establish multipath/mount for those LUNs (stale SCSI reservation or path loss). Because HPE Clustered Datastores are shared LUNs used cluster-wide, the disruption affects VMs whose disks reside on them regardless of which node the VMs run on. VMs on unaffected LUNs (different datastore) are not impacted.',
+        'solution': '1. Check multipath state on rebooted node: multipath -ll <WWID>\n2. Check for stale SCSI reservations: sg_persist -r /dev/mapper/<WWID>\n3. If paths faulty: multipath -f <WWID> then multipath -r, or rescan SAS bus\n4. If stale PR: sg_persist --out --clear --param-rk=<key> <dev>\n5. Wait for VME to retry ensureAgentMount (warnings should stop)\n6. Verify datastore refresh completes in normal time (not 60s)\n7. Start affected VMs\n8. Prevention: put node in standby before reboot, verify LUN access after rejoin.',
+        'bug_id': 'MORPH-14196',
+        'affected_versions': 'VME 9.0.0 with MSA Gen6 SAS arrays (direct connect topology)',
+        'prevention': 'Always put node in standby/maintenance mode before reboot. Verify multipath health and SCSI PR state after node rejoins before unstandby. Monitor ensureAgentMount failures as early warning of shared LUN access issues.',
+        'related_issues': 'MORPHL4-39 (SCSI PR incomplete after reboot). Same class of issue but SAS vs iSCSI fabric.',
+        'category': 'storage',
+        'resolution_type': 'Operational (restore multipath/clear stale PR)',
+    },
 ]
