@@ -720,4 +720,17 @@ KNOWN_ISSUES = [
         'category': 'storage',
         'resolution_type': 'Infrastructure (SAN path stability) + Under investigation',
     },
+    {
+        'title': 'GFS2 Datastore creation fails on iSCSI cluster — mount failure during creation (fixed in 9.0.2)',
+        'products': ['VME', 'Alletra', 'GFS2'],
+        'symptoms': 'Attempting to create a GFS2 datastore on a cluster with iSCSI-connected hosts fails with a mount error during the creation process. The VV (virtual volume) is exported to all hosts successfully, but the GFS2 datastore creation step fails. Works on FC-connected hosts. Occurs on VME 9.0.0 with Alletra MP Plugin 1.13.0-SNAPSHOT.',
+        'root_cause': 'Software defect in VME 9.0.0 GFS2 datastore creation workflow for iSCSI-connected hosts. The mount operation during datastore creation fails — likely a timing or device discovery issue specific to iSCSI path enumeration during the GFS2 format and mount sequence. Issue could not be reproduced after upgrading to VME 9.0.2.44, indicating it was fixed in a subsequent release.',
+        'solution': '1. Upgrade to VME 9.0.2.44 or later (issue resolved)\n2. Workaround for 9.0.0: try creating the GFS2 filesystem manually (mkfs.gfs2) and then importing as datastore\n3. Verify the shared VV is visible on all hosts before attempting creation: multipath -ll\n4. Ensure iSCSI sessions are established on all nodes: iscsiadm -m session',
+        'bug_id': 'MORPH-13022 (cancelled — fixed in 9.0.2)',
+        'affected_versions': 'VME 9.0.0 with iSCSI hosts and Alletra MP Plugin 1.13.0-SNAPSHOT',
+        'prevention': 'Upgrade to VME 9.0.2+. Verify iSCSI connectivity and device visibility on all cluster nodes before attempting GFS2 datastore creation.',
+        'related_issues': 'General GFS2/iSCSI interaction issues. Not related to SCSI PR or cluster fencing.',
+        'category': 'storage',
+        'resolution_type': 'Software bug (fixed in 9.0.2.44)',
+    },
 ]
