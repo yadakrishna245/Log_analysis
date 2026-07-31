@@ -369,4 +369,17 @@ KNOWN_ISSUES = [
         'category': 'virtualization',
         'resolution_type': 'Software bug',
     },
+    {
+        'title': 'Cluster upgrade from 1.2 to 1.3 kills cluster when powered-off VMs cannot be migrated',
+        'products': ['VME', 'Pacemaker', 'Morpheus'],
+        'symptoms': 'After upgrading VME to 9.0.0 and attempting cluster upgrade from 1.2 to 1.3, the cluster goes down. Error message: "VM Essentials, Skipped: VM is powered off and movePoweredOff is disabled". Cluster process fails but does not roll back cleanly. pcs cluster status returns "Error: cluster is not currently running on this node". DLM and GFS2 datastores become unmounted.',
+        'root_cause': 'The cluster upgrade process from 1.2 to 1.3 attempts to migrate all VMs off each node before upgrading it. When it encounters powered-off VMs, it cannot migrate them (movePoweredOff is disabled by default). The process logs a skip/error but continues with the upgrade, which disrupts cluster services. The upgrade does not properly handle the case where VMs are in a non-running state, leaving the cluster in a broken state with corosync/pacemaker stopped.',
+        'solution': '1. Restart all cluster nodes (rolling reboot)\n2. Verify corosync starts: systemctl status corosync\n3. Verify DLM mounts datastores: pcs status, mount | grep gfs2\n4. Prevention: Before upgrading cluster 1.2→1.3, ensure ALL VMs are either running (so they can be migrated) or manually moved/unregistered from the node\n5. Alternative: Enable movePoweredOff before upgrade if possible.',
+        'bug_id': 'MORPHL4-27 (tracking)',
+        'affected_versions': 'VME 9.0.0 with cluster upgrade from 1.2 to 1.3',
+        'prevention': 'Before cluster upgrade: power on all VMs or manually move powered-off VMs to a single node. Verify no VMs are in off/suspended state across nodes being upgraded. Take cluster backup (pcs config backup) before upgrade.',
+        'related_issues': 'General cluster upgrade issues. VME 9.0.x cluster management.',
+        'category': 'cluster',
+        'resolution_type': 'Operational (workaround available)',
+    },
 ]

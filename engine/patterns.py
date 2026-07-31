@@ -881,6 +881,16 @@ BUILT_IN_PATTERNS: List[LogPattern] = [
         solution_hint='1. Check host load average: uptime (if >50x CPU count, host is critically overloaded)\n2. Check memory: free -h (if swap is 100% used, OOM risk)\n3. This is a symptom — fix the underlying cause (LUN saturation, memory overcommit, hardware fault)\n4. Stats will auto-recover once host load normalizes.',
         product='Morpheus',
     ),
+    # --- Cluster Upgrade Failures ---
+    LogPattern(
+        name='cluster_upgrade_vm_skip',
+        regex=r'(VM is powered off and movePoweredOff is disabled|[Ss]kipped.*VM.*powered off|cluster.*upgrade.*skip.*migration|cannot migrate.*powered.off)',
+        severity='HIGH',
+        category='cluster',
+        description='Cluster upgrade process cannot migrate powered-off VMs. The upgrade from cluster version 1.2→1.3 requires all VMs to be migrated off each node before upgrading. Powered-off VMs are skipped but the upgrade may continue and disrupt cluster services, leaving corosync/pacemaker in a broken state.',
+        solution_hint='1. Before cluster upgrade: power on ALL VMs or manually move powered-off VMs\n2. If upgrade already failed: restart all cluster nodes\n3. Verify: pcs cluster status, systemctl status corosync\n4. DLM should remount datastores after cluster reforms\n5. Prevention: audit VM power states before any cluster upgrade.',
+        product='VME',
+    ),
 ]
 
 
