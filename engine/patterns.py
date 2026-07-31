@@ -1068,6 +1068,15 @@ BUILT_IN_PATTERNS: List[LogPattern] = [
         solution_hint='1. Verify SCSI PR state: mpathpersist -i -k and -i -r (clear stale reservations)\n2. If PR clean but still withdrawing: offline fsck is needed\n3. Unmount on ALL nodes: mount | grep gfs2 (must show nothing)\n4. Dry-run: fsck.gfs2 -n /dev/mapper/<device>\n5. Repair: fsck.gfs2 -y /dev/mapper/<device>\n6. If withdraw recurs after fsck: investigate FC path stability, MSA behavior, multipath health.',
         product='GFS2',
     ),
+    LogPattern(
+        name='cluster_port_blocked',
+        regex=r'(Connection refused.*(7443|2224|5405|5406|5407)|iptables.*DROP.*(7443|2224)|cluster.*communication.*refused|pcsd.*connection refused|corosync.*connect.*refused)',
+        severity='HIGH',
+        category='cluster',
+        description='Cluster communication port is blocked (connection refused). Ports 7443 (Morpheus agent), 2224 (pcsd), 5405-5407 (corosync) are required for cluster operation. Missing iptables rules or firewall misconfiguration prevents node-to-node communication. Can cause: heartbeat failures, fencing events, quorum loss, pcs status hangs. Common after OS reinstall, netplan apply, or Aruba CX plugin network refresh.',
+        solution_hint='1. Check port connectivity: nc -zv <peer-ip> 7443 2224 5405\n2. Check iptables rules: iptables -L -n | grep -E "7443|2224|5405"\n3. If ports blocked: add rules for cluster communication\n4. Check if netplan apply or Aruba CX plugin reset the rules\n5. Make rules persistent: iptables-save > /etc/iptables/rules.v4\n6. Verify cluster recovers after firewall fix: pcs status.',
+        product='Pacemaker',
+    ),
 ]
 
 
