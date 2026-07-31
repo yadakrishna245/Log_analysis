@@ -395,4 +395,17 @@ KNOWN_ISSUES = [
         'category': 'cluster',
         'resolution_type': 'Architectural limitation (fix in 9.x)',
     },
+    {
+        'title': 'Backup restore and clone fail with "Instance is not valid" when source image is deleted (MORPH-13534)',
+        'products': ['VME', 'Morpheus'],
+        'symptoms': 'Restore-to-new-instance and Clone operations fail with UI error "Instance is not valid". Morpheus logs show NullPointerException: Cannot get property \'locations\' on null object at VirtualImageService.findVirtualImageLocationRecord(). Affects any VM whose original source ISO/image was deleted from the Morpheus Library, or VMs that were migrated and have no associated image. Original VM continues to run fine — only restore/clone is broken.',
+        'root_cause': 'Software defect in Morpheus validation workflow. During Clone/Restore, InstanceService.validateInstance() calls VirtualImageService.findVirtualImageLocationRecord() which attempts to resolve the original source Virtual Image. If the image was deleted, the lookup returns null. The code then accesses .locations on null without a null check, causing NullPointerException. The validation treats this as a fatal error and blocks the operation, even though the VM, backup data, and storage are all healthy and usable.',
+        'solution': 'WORKAROUND (API bypass):\\n\\nFor CLONE:\\ncurl -k -X PUT "https://<appliance>/api/instances/<instance_id>/clone" -H "Authorization: Bearer <token>" -H "Content-Type: application/json" -d \'{ "name": "<clone-name>", "config": {"imageId": -1}, "provisionPoweredOff": true }\'\\n\\nFor RESTORE:\\ncurl -k -X POST "https://<appliance>/api/backups/restores" -H "Authorization: Bearer <token>" -H "Content-Type: application/json" -d \'{"restore": {"backupResultId": <id>, "instanceId": <id>, "restoreInstance": "new", "provisionPoweredOff": true, "instance": {"name": "<name>", "group": {"id": <gid>}, "cloud": {"id": <cid>}, "layout": {"id": <lid>}, "plan": {"id": <pid>}, "type": "mvm", "provisionType": "kvm", "config": {"imageId": -1, "resourcePoolId": "<rpid>"}, "volumes": [{"rootVolume": true, "name": "root", "size": 100, "storageType": <stid>, "datastoreId": "auto"}], "networkInterfaces": [{"network": {"id": "<nid>"}, "networkInterfaceTypeId": <nitid>}]}}}\'\\n\\nKey: "imageId": -1 bypasses the source image validation.\\nPermanent fix: upgrade to 9.0.1.22+ (MORPH-13534).',
+        'bug_id': 'MORPH-13534',
+        'affected_versions': 'VME 8.0.x and 9.0.x (fixed in 9.0.1.22)',
+        'prevention': 'Do not delete source images from Morpheus Library if any VM was created from them and may need restore/clone in the future. If image must be deleted, document the API workaround for affected VMs.',
+        'related_issues': 'MORPHL4-29. Separate but related: KvmProvisionService.applyDiskConfig() NullPointerException if volumes not specified in restore API payload.',
+        'category': 'application',
+        'resolution_type': 'Software bug',
+    },
 ]

@@ -919,6 +919,16 @@ BUILT_IN_PATTERNS: List[LogPattern] = [
         solution_hint='1. Apply LVM filter: edit /etc/lvm/lvm.conf\n2. Add filter = [ "r|/dev/nbd.*|", "a|.*|" ] to devices section\n3. Run: vgscan --cache to rebuild LVM cache\n4. Verify: pvs should not show any /dev/nbd devices\n5. This prevents LVM from interfering with GFS2 cluster resource transitions.',
         product='VME',
     ),
+    # --- Morpheus Application Errors ---
+    LogPattern(
+        name='source_image_null_restore_fail',
+        regex=r'(Cannot get property.*locations.*on null object|findVirtualImageLocationRecord|Instance is not valid.*validateInstance|NullPointerException.*VirtualImageService)',
+        severity='HIGH',
+        category='application',
+        description='Morpheus backup restore or clone operation failed because the source Virtual Image was deleted from the Library. The validation code throws NullPointerException when trying to access .locations on a null image object. The VM itself is healthy — only restore/clone is blocked. Known bug MORPH-13534 (fixed in 9.0.1.22).',
+        solution_hint='WORKAROUND: Use Morpheus API with "imageId": -1 to bypass image validation.\nClone: curl -k -X PUT "https://<appliance>/api/instances/<id>/clone" -H "Authorization: Bearer <token>" -H "Content-Type: application/json" -d \'{"name": "<name>", "config": {"imageId": -1}, "provisionPoweredOff": true}\'\nPermanent fix: upgrade to 9.0.1.22+.',
+        product='Morpheus',
+    ),
 ]
 
 
