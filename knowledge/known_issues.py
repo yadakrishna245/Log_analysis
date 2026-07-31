@@ -642,4 +642,17 @@ KNOWN_ISSUES = [
         'category': 'virtualization',
         'resolution_type': 'Software bug (MORPH-14756)',
     },
+    {
+        'title': 'Quorum section missing from GUI after VME 9.0.0-2 + HVM 1.3 layout upgrade — cluster is actually healthy',
+        'products': ['VME', 'Morpheus'],
+        'symptoms': 'After upgrading VME to 9.0.0-2 and performing HVM 1.3 cluster layout upgrade, the Quorum section disappears from the cluster summary page in the Morpheus GUI. Logs show "No online hosts found for quorum status refresh" after every datastore refresh cycle. However, the cluster is actually healthy: all nodes online, Corosync quorate, DLM working, GFS2 mounted RW, VMs running normally. morpheus-ui restart does not fix it.',
+        'root_cause': 'Display/workflow issue in the VME 9.0.0-2 quorum status refresh logic after HVM Cluster Layout 1.3 upgrade. The 1.3 layout upgrade transfers HA ownership from Pacemaker to the Morpheus Agent (QuorumCheckService). The quorum-status refresh job fails a host-eligibility check post-upgrade despite all hosts being fully online and healthy. The refresh code cannot find "eligible" hosts for quorum polling, even though cluster discovery, host discovery, Pacemaker status caching, and inventory refresh all work correctly.',
+        'solution': '1. IMPORTANT: The cluster IS healthy — this is a display-only issue\n2. Verify cluster health independently: pcs status, corosync-quorum-tool, dlm_tool ls\n3. Do NOT take corrective action on the cluster itself\n4. Wait for engineering fix (this is a post-upgrade refresh workflow bug)\n5. morpheus-ui restart does not resolve the issue\n6. The quorum section should reappear once the eligibility check logic is fixed.',
+        'bug_id': 'MORPHL4-50 (under investigation)',
+        'affected_versions': 'VME 9.0.0-2 after HVM Cluster Layout 1.2 → 1.3 upgrade',
+        'prevention': 'Known post-upgrade cosmetic issue. Verify cluster health via CLI (pcs status, corosync-quorum-tool) rather than relying solely on GUI quorum display after upgrade.',
+        'related_issues': 'Related to HVM 1.3 architecture change (removes Pacemaker dependency, introduces agent-based quorum). MORPHL4-28 discussion of 9.x architectural changes.',
+        'category': 'application',
+        'resolution_type': 'Display bug (under investigation)',
+    },
 ]
