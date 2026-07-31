@@ -995,6 +995,25 @@ BUILT_IN_PATTERNS: List[LogPattern] = [
         solution_hint='1. IMMEDIATE: identify and truncate the largest log files: du -sh /var/log/* | sort -rh | head\n2. Common offenders: OpenSearch (/var/log/opensearch/), Pacemaker, syslog\n3. Truncate without deleting: truncate -s 0 /var/log/<large-file>\n4. After freeing space: restart affected services (morpheus-node, libvirtd)\n5. Prevention: configure log rotation, set max sizes, monitor disk usage.',
         product='general',
     ),
+    # --- Libvirtd Stuck Job / DLM Lock Validation ---
+    LogPattern(
+        name='libvirtd_stuck_job',
+        regex=r'(remoteDispatchConnectGetAllDomainStats|cannot acquire state change lock.*held by monitor|Timeout expired while shutting down domains|libvirt-guests.*Timeout|stuck.*job.*domstats)',
+        severity='HIGH',
+        category='virtualization',
+        description='A libvirtd monitoring/stats API call (remoteDispatchConnectGetAllDomainStats) is holding a domain job lock, blocking VM shutdown/destroy/undefine operations. This is a known libvirtd bug class where a stats-polling client (Morpheus stats collector, monitoring agent) does not release its connection cleanly. Can hold the lock for hours/days. Critical impact: if this delays a planned node reboot past Corosync token timeout, the cluster will fence the node — triggering DLM recovery and potentially more lock instability.',
+        solution_hint='1. Identify the stuck domstats process: ps aux | grep domstats\n2. Kill the polling client: kill <pid>\n3. If that does not release the lock: systemctl restart libvirtd\n4. WARNING: restarting libvirtd on a node with running VMs is generally safe but verify\n5. Prevention: identify which monitoring tool is calling getAllDomainStats and fix its timeout/cleanup.',
+        product='KVM',
+    ),
+    LogPattern(
+        name='dlm_validate_lock_args_warn',
+        regex=r'(validate_lock_args.*WARN|WARNING.*fs/dlm/lock\.c|dlm.*lock.*EINVAL|dlm.*lock.*conversion.*fail|validate_lock_args.*lock\.c:\d+)',
+        severity='CRITICAL',
+        category='cluster',
+        description='Kernel WARNING in DLM lock validation code (validate_lock_args at fs/dlm/lock.c). This indicates a race condition between in-flight I/O lock conversion and DLM recovery path after a node is fenced. The lock state becomes momentarily invalid during remove_member → recover_masters → redistribute_locks sequence. Can cause GFS2 glock to become orphaned — all waiters stuck indefinitely. Known bug in kernel <6.10.',
+        solution_hint='1. This is a kernel-level bug — no application-level fix\n2. Check for D-state processes: ps -eo pid,stat,wchan:32,cmd | awk \'$2 ~ /^D/\'\n3. If processes stuck in gfs2_glock_wait: reboot the affected node\n4. Long-term: upgrade kernel to >=6.10 where this race condition is fixed\n5. Monitor: check dmesg for validate_lock_args warnings after any node reboot/fencing.',
+        product='DLM',
+    ),
 ]
 
 

@@ -486,4 +486,17 @@ KNOWN_ISSUES = [
         'category': 'virtualization',
         'resolution_type': 'Under investigation (MORPH-13907)',
     },
+    {
+        'title': 'GFS2/DLM glock orphaned after lockspace recovery — QEMU process stuck in D-state indefinitely, unkillable',
+        'products': ['GFS2', 'DLM', 'KVM', 'Pacemaker'],
+        'symptoms': 'QEMU VM process stuck in uninterruptible sleep (D-state) with wchan=gfs2_glock_wait for 48+ hours. virsh destroy fails with "Failed to terminate process with SIGKILL: Device or resource busy". Multiple other processes (qemu-img, ls, bash) also pile up in D-state behind the same file. Cluster is quorate, all nodes online, DLM shows no errors, multipath paths all active, no SCSI/I/O errors in dmesg. GFS2 glock debug shows lock in DF (Deferred) state with all holders in W (Waiting) status — no process actually holds the lock. Issue is triggered by DLM lockspace recovery (node reboot/fencing) and a race condition in kernel DLM lock-conversion code (validate_lock_args WARN_ON at fs/dlm/lock.c).',
+        'root_cause': 'During DLM lockspace recovery after a node is fenced/rebooted, there is a narrow race window between "DLM recovery done" and "GFS2 journal recovery done" where in-flight I/O (io_uring from QEMU) can race against DLM re-establishing lock ownership. This causes the DLM validate_lock_args check to fire (kernel WARN_ON), and the glock conversion request becomes orphaned — stuck in a state where no process holds it but no new holders can be granted. The stuck lock affects one specific inode (disk file) and ALL processes accessing that file pile up behind it. The trigger in this case was a libvirtd stuck-job (remoteDispatchConnectGetAllDomainStats held domain lock for ~49 hours) which delayed node shutdown past Corosync token timeout, causing unexpected STONITH fencing and forced DLM recovery.',
+        'solution': '1. Identify stuck processes: ps -eo pid,stat,wchan:32,cmd | awk \'$2 ~ /^D/\'\n2. Confirm GFS2 glock wedge: cat /sys/kernel/debug/gfs2/*/glocks | grep -A5 "s:DF"\n3. Identify stuck file: find <mount> -inum <inode-from-glock>\n4. Check if any node holds the lock: lsof | grep <filename> (on all nodes)\n5. ONLY FIX: Reboot the affected node to clear the orphaned glock\n6. After reboot: verify VM starts cleanly\n7. WARNING: Rebooting may trigger the SAME bug on a different node/VM (race condition in DLM recovery)\n8. Long-term: Upgrade kernel to >=6.10+ (fix for validate_lock_args race condition)',
+        'bug_id': 'MORPH-14602',
+        'affected_versions': 'Kernel 6.8.0-84-generic (Ubuntu 24.04 HVM). DLM/GFS2 on any kernel <6.10.',
+        'prevention': 'Upgrade kernel to 6.10+. Fix stuck libvirtd jobs (remoteDispatchConnectGetAllDomainStats) that delay shutdown and cause unexpected fencing. Always place node in standby (pcs node standby) before maintenance reboot. Monitor for D-state processes with gfs2_glock_wait wchan.',
+        'related_issues': 'MORPHL4-21 (GFS2 deadlock from different trigger). Same gfs2_glock_wait D-state pattern but this one is caused by DLM recovery race, not concurrent operations.',
+        'category': 'filesystem',
+        'resolution_type': 'Kernel bug (fix in >=6.10)',
+    },
 ]
