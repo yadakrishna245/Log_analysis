@@ -668,4 +668,17 @@ KNOWN_ISSUES = [
         'category': 'application',
         'resolution_type': 'Redeploy manager (root cause undetermined)',
     },
+    {
+        'title': 'VM provisioning wizard stuck at "Loading configuration" — configure tab never loads',
+        'products': ['Morpheus', 'VME'],
+        'symptoms': 'When deploying a VM via Provisioning → Instances → Add, after selecting HVM group/cloud/name and clicking Next, the "Configure" tab shows "Loading configuration" indefinitely and never completes. No error is displayed. Issue persists across all browsers (Chrome, Firefox, Edge), after clearing cache, restarting morpheus-ui, restarting VME Manager, and restarting morpheus-node on all hosts. Cloning an existing VM works fine (configure page loads immediately). Issue is intermittent initially but becomes permanent.',
+        'root_cause': 'The provisioning wizard configure tab requires a valid default datastore that is: (1) online, (2) active, (3) allowProvision=true, (4) defaultStore=true, and (5) scoped to the selected resource pool. If the default datastore (typically GFS2Datastore-1 in PCBE) has allowProvision=false or is not scoped to the selected resource pool, the wizard hangs waiting for datastore configuration that will never resolve. The configure tab API call for datastore options returns no valid options, causing the infinite loading state.',
+        'solution': "1. Check datastore configuration via API:\\n   curl -sk 'https://<morpheus>/api/clusters/<id>/datastores?max=100&hideInactive=false' -H 'authorization: Bearer <token>' | jq '.datastores[] | {id, name, defaultStore, allowProvision, visibility}'\\n2. Verify default datastore has allowProvision=true:\\n   curl -sk -X PUT 'https://<morpheus>/api/data-stores/<id>' -H 'authorization: Bearer <token>' -H 'content-type: application/json' -d '{\"datastore\": {\"allowProvision\": true}}'\\n3. Set as default if not already: Infrastructure → Clusters → Storage → Datastores → enable Default flag\\n4. Verify datastore is scoped to the correct resource pool\\n5. Re-test provisioning wizard\\n6. If still stuck: check resource pool → datastore mapping alignment.",
+        'bug_id': 'MORPHL4-51 (under investigation)',
+        'affected_versions': 'VME 8.1.2-1 (PCBE). Potentially all versions with misconfigured datastore defaults.',
+        'prevention': 'After any datastore changes or upgrades: verify that the default datastore has allowProvision=true and is scoped to the active resource pool. Monitor the provisioning wizard periodically to catch issues before they become permanent.',
+        'related_issues': 'Similar pattern to MORPHL4-33 (stale Git repo blocking Task UI) — both are cases where a misconfigured/unreachable resource causes UI wizard to hang indefinitely.',
+        'category': 'application',
+        'resolution_type': 'Configuration (datastore scope/permissions)',
+    },
 ]
