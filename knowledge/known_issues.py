@@ -681,4 +681,17 @@ KNOWN_ISSUES = [
         'category': 'application',
         'resolution_type': 'Configuration (datastore scope/permissions)',
     },
+    {
+        'title': 'Storage migration between datastores fails with HibernateOptimisticLockingFailureException after migrating a few disks',
+        'products': ['VME', 'Morpheus', 'Alletra'],
+        'symptoms': 'Underlying storage migration from one datastore to another within the same cluster starts successfully (first 3-4 disks migrate), then fails with error: "org.springframework.orm.hibernate5.HibernateOptimisticLockingFailureException: Batch update returned unexpected row count from update [0]; actual row count: 0; expected: 1; statement executed: delete from storage_volume where id=?". Remaining disks (typically last 3) are left unmigrated. The VM host stays the same but storage migration is incomplete.',
+        'root_cause': 'Morpheus metadata/database inconsistency. During the storage migration workflow, the system successfully moves several disks but then encounters a stale or already-deleted storage_volume record in the database. When Hibernate attempts to delete that record as part of the migration finalization, the row no longer exists (row count 0 instead of expected 1). This causes an OptimisticLockingFailure and aborts the remaining migration. The stale record may have been created by a prior failed migration, snapshot deletion, or concurrent database modification.',
+        'solution': '1. Identify unmigrated disks from the error logs\n2. Compare storage_volume records in Morpheus DB with actual attached disks on hypervisor (virsh domblklist)\n3. Look for orphaned storage_volume records with no corresponding real disk\n4. If stale records found: may need database cleanup (backup first!)\n5. After cleanup: retry storage migration for remaining disks\n6. Prevention: ensure snapshot/backup deletion completes cleanly before initiating storage migration\n7. Escalate to engineering if stale records continue to accumulate (MORPH-14554)',
+        'bug_id': 'MORPH-14554',
+        'affected_versions': 'VME 9.0.0.2 with HPE Alletra MP (Block Storage OS 10.6.0.59)',
+        'prevention': 'Delete all snapshots and backups before initiating storage migration (as documented). Verify storage_volume records match actual disk state before migration. Monitor migration task progress and investigate immediately if partial completion occurs.',
+        'related_issues': 'Database metadata consistency issues. Similar to MORPH-13534 (NullPointerException from stale image references) — pattern of Morpheus DB records becoming out of sync with actual infrastructure state.',
+        'category': 'storage',
+        'resolution_type': 'Software bug (MORPH-14554)',
+    },
 ]
