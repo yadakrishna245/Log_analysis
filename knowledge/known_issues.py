@@ -590,4 +590,17 @@ KNOWN_ISSUES = [
         'category': 'application',
         'resolution_type': 'Database fix / Bug (MORPH-13993)',
     },
+    {
+        'title': 'Stale SCSI PR reservation keys from VME 8.x prevent GFS2 volumes from working in 9.x — LUNs go read-only',
+        'products': ['VME', 'GFS2', 'Pacemaker'],
+        'symptoms': 'After upgrading from VME 8.x to 9.x (or reusing GFS2 LUNs from a previous 8.x environment), GFS2 volumes go read-only or cannot be mounted. VMs cannot power on or access storage volumes. Cluster layout shows HVM 1.2 but hosts behave like HVM 1.3 (no Pacemaker). Agent reinstall fails with "permission denied error 13". Stale SCSI Persistent Reservation keys from the old 8.x Pacemaker/fence_scsi configuration remain on the storage LUNs, blocking write access from the 9.x environment which does not use PR.',
+        'root_cause': 'VME 8.x uses Pacemaker with fence_scsi_hpevm which registers SCSI-3 Persistent Reservation (PR) keys on shared LUNs for fencing. VME 9.x (cluster layout 1.3) removes Pacemaker and does not use SCSI PR fencing. However, when LUNs are reused from 8.x without clearing the old PR registrations, the storage array still has active PR keys. Any host that does not hold a valid PR key will get "reservation conflict" on writes, causing GFS2 to go read-only or withdraw. The 9.x agents do not register PR keys (since they do not use Pacemaker), so ALL writes fail.',
+        'solution': '1. Identify all GFS2 LUNs: blkid | grep gfs2\n2. Check existing PR keys: mpathpersist -i -k /dev/mapper/<device>\n3. If keys exist from old 8.x environment: clear ALL PR registrations\n4. Clear from a registered host: mpathpersist --out --clear --param-rk=<key> /dev/mapper/<device>\n5. If no host can clear (no valid key): use sg_persist on individual paths:\n   sg_persist --out --register --param-rk=0x0 --param-sark=<temp_key> /dev/<path>\n   sg_persist --out --clear --param-rk=<temp_key> /dev/<path>\n6. Verify: mpathpersist -i -k /dev/mapper/<device> (should show no keys)\n7. Remount GFS2 and verify RW access',
+        'bug_id': 'MORPH-14198',
+        'affected_versions': 'VME 9.x when reusing LUNs from VME 8.x environments (any version with Pacemaker/fence_scsi)',
+        'prevention': 'Before reusing LUNs from VME 8.x in 9.x: clear ALL SCSI PR keys from every LUN. Document PR key cleanup as mandatory step in 8.x→9.x upgrade procedure. Do not assume LUNs are clean just because Pacemaker is removed.',
+        'related_issues': 'MORPHL4-46 (same issue in reverse — PR keys blocking 9.x). MORPHL4-39 (PR incomplete after reboot). MORPH-5492.',
+        'category': 'storage',
+        'resolution_type': 'Operational (clear stale PR keys)',
+    },
 ]
