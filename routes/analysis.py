@@ -1,12 +1,10 @@
 """Analysis routes for LogSherlock Pro."""
 
 import os
-import tempfile
 from datetime import datetime, timezone
 from flask import Blueprint, request, jsonify, current_app
 from werkzeug.utils import secure_filename
-from models import db, Ticket, LogFile, Finding, Pattern, KnowledgeEntry
-from engine.analyzer import analyze_ticket
+from models import db, Ticket, LogFile, Finding, Pattern, KnowledgeEntry, Suppression
 
 analysis_bp = Blueprint('analysis', __name__)
 
@@ -139,10 +137,21 @@ def quick_analyze():
                         member_path = os.path.join(extract_dir, member.name)
                         if not os.path.abspath(member_path).startswith(os.path.abspath(extract_dir)):
                             raise ValueError(f'Path traversal detected in archive: {member.name}')
+                    # Validate: reject symlinks and hardlinks
+                    for member in tf.getmembers():
+                        if member.issym() or member.islnk():
+                            raise ValueError(f'Symlink/hardlink not allowed in archive: {member.name}')
                     tf.extractall(extract_dir)
                 os.remove(filepath)
             elif filename.endswith('.tar'):
                 import tarfile
+                # Tar bomb protection
+                archive_size = os.path.getsize(filepath)
+                is_safe, reason = _check_tar_bomb(filepath, archive_size)
+                if not is_safe:
+                    current_app.logger.warning(f'TAR BOMB DETECTED: {filename} - {reason}')
+                    os.remove(filepath)
+                    return jsonify({'error': f'Archive rejected: {reason}'}), 400
                 extract_dir = os.path.join(analysis_folder, filename.replace('.tar', ''))
                 os.makedirs(extract_dir, exist_ok=True)
                 with tarfile.open(filepath, 'r:') as tf:
@@ -151,6 +160,10 @@ def quick_analyze():
                         member_path = os.path.join(extract_dir, member.name)
                         if not os.path.abspath(member_path).startswith(os.path.abspath(extract_dir)):
                             raise ValueError(f'Path traversal detected in archive: {member.name}')
+                    # Validate: reject symlinks and hardlinks
+                    for member in tf.getmembers():
+                        if member.issym() or member.islnk():
+                            raise ValueError(f'Symlink/hardlink not allowed in archive: {member.name}')
                     tf.extractall(extract_dir)
                 os.remove(filepath)
             elif filename.endswith('.gz') and not filename.endswith('.tar.gz'):
@@ -187,6 +200,12 @@ def quick_analyze():
     from engine.patterns import PatternEngine
 
     engine = PatternEngine()
+
+    # Filter out suppressed patterns
+    suppressed_names = set(
+        s.pattern_name for s in Suppression.query.filter_by(active=True).all()
+    )
+
     all_findings = []
     files_analyzed = 0
     total_lines = 0
@@ -234,7 +253,7 @@ def quick_analyze():
                 rel_path = os.path.relpath(fpath, analysis_folder)
                 for line_num, line in stream_file(fpath):
                     total_lines += 1
-                    matches = engine.match_line(line)
+                    matches = [(p, m) for p, m in engine.match_line(line) if p.name not in suppressed_names]
                     for pattern, m in matches:
                         all_findings.append({
                             'pattern_name': pattern.name,
@@ -249,6 +268,25 @@ def quick_analyze():
             except Exception as e:
                 current_app.logger.error(f"Error analyzing {fpath}: {e}")
                 continue
+
+    # Multi-line pattern scan (Java stack traces, Python tracebacks, kernel dumps)
+    from engine.patterns import MULTILINE_PATTERNS
+    if MULTILINE_PATTERNS:
+        for root, dirs, filenames in os.walk(analysis_folder):
+            for fname in filenames:
+                fpath = os.path.join(root, fname)
+                ext = os.path.splitext(fname)[1].lower()
+                if ext in binary_extensions:
+                    continue
+                try:
+                    from engine.ingestion import stream_file
+                    file_lines = list(stream_file(fpath))
+                    multiline_findings = engine.scan_multiline(file_lines, MULTILINE_PATTERNS)
+                    for mf in multiline_findings:
+                        mf['file'] = os.path.relpath(fpath, analysis_folder)
+                        all_findings.append(mf)
+                except Exception:
+                    continue
 
     # Sort by severity
     severity_order = {'CRITICAL': 0, 'HIGH': 1, 'MEDIUM': 2, 'LOW': 3, 'INFO': 4}
@@ -338,6 +376,12 @@ def analyze_folder():
     from engine.patterns import PatternEngine
 
     engine = PatternEngine()
+
+    # Filter out suppressed patterns
+    suppressed_names = set(
+        s.pattern_name for s in Suppression.query.filter_by(active=True).all()
+    )
+
     all_findings = []
     files_analyzed = 0
     total_lines = 0
@@ -374,7 +418,7 @@ def analyze_folder():
                         rel_path = os.path.relpath(filepath, folder_path) + ' (OCR)'
                         for line_num, line in enumerate(text.splitlines(), 1):
                             total_lines += 1
-                            matches = engine.match_line(line)
+                            matches = [(p, m) for p, m in engine.match_line(line) if p.name not in suppressed_names]
                             for pattern, m in matches:
                                 all_findings.append({
                                     'pattern_name': pattern.name,
@@ -414,7 +458,7 @@ def analyze_folder():
 
                 for line_num, line in stream_file(filepath):
                     total_lines += 1
-                    matches = engine.match_line(line)
+                    matches = [(p, m) for p, m in engine.match_line(line) if p.name not in suppressed_names]
                     for pattern, m in matches:
                         all_findings.append({
                             'pattern_name': pattern.name,
@@ -429,6 +473,25 @@ def analyze_folder():
             except Exception as e:
                 current_app.logger.error(f"Error analyzing {filepath}: {e}")
                 continue
+
+    # Multi-line pattern scan (Java stack traces, Python tracebacks, kernel dumps)
+    from engine.patterns import MULTILINE_PATTERNS
+    if MULTILINE_PATTERNS:
+        for root, dirs, filenames in os.walk(folder_path):
+            for fname in filenames:
+                fpath = os.path.join(root, fname)
+                ext = os.path.splitext(fname)[1].lower()
+                if ext in binary_extensions:
+                    continue
+                try:
+                    from engine.ingestion import stream_file
+                    file_lines = list(stream_file(fpath))
+                    multiline_findings = engine.scan_multiline(file_lines, MULTILINE_PATTERNS)
+                    for mf in multiline_findings:
+                        mf['file'] = os.path.relpath(fpath, folder_path)
+                        all_findings.append(mf)
+                except Exception:
+                    continue
 
     # Sort findings by severity
     severity_order = {'CRITICAL': 0, 'HIGH': 1, 'MEDIUM': 2, 'LOW': 3, 'INFO': 4}

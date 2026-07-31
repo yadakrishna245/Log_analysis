@@ -44,6 +44,16 @@ def create_app(config_class=Config):
         if not app.config.get('DEBUG'):
             logger.critical("🚨 LOGSHERLOCK_DEV_MODE is enabled but DEBUG is False. This looks like a production misconfiguration!")
 
+    # Production safety: require API key
+    if not (app.config.get('DEBUG') or os.environ.get('LOGSHERLOCK_DEV_MODE', '').lower() in ('true', '1', 'yes')):
+        if not app.config.get('API_KEY'):
+            import warnings
+            warnings.warn(
+                'WARNING: No LOGSHERLOCK_API_KEY set. API endpoints are unprotected! '
+                'Set LOGSHERLOCK_API_KEY environment variable for production use.',
+                RuntimeWarning
+            )
+
     # API authentication - require API key or session auth for all /api/ routes
     @app.before_request
     def require_api_auth():

@@ -83,6 +83,18 @@ def submit_pattern():
     except re.error as e:
         return jsonify({'error': f'Invalid regex pattern: {str(e)}'}), 400
 
+    # ReDoS protection: test regex against pathological input
+    import time
+    test_input = 'a' * 500 + '!'
+    start = time.time()
+    try:
+        compiled.search(test_input)
+    except Exception:
+        pass
+    elapsed = time.time() - start
+    if elapsed > 1.0:  # If matching 500 chars takes > 1 second, it's catastrophic
+        return jsonify({'error': f'Regex rejected: potential catastrophic backtracking (took {elapsed:.1f}s on test input). Simplify your pattern.'}), 400
+
     # Check if pattern name already exists
     existing = Pattern.query.filter_by(name=name).first()
     if existing:
