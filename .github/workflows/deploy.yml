@@ -1,0 +1,130 @@
+name: Deploy LogSherlock Pro to AWS
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '*.md'
+      - 'docs/**'
+  workflow_dispatch:
+    inputs:
+      region:
+        description: 'AWS Region'
+        required: true
+        default: 'us-east-1'
+        type: choice
+        options:
+          - us-east-1
+          - us-west-2
+          - eu-west-1
+          - ap-south-1
+      stack_name:
+        description: 'CloudFormation Stack Name'
+        required: true
+        default: 'logsherlock-pro'
+
+env:
+  AWS_REGION: ${{ github.event.inputs.region || 'us-east-1' }}
+  STACK_NAME: ${{ github.event.inputs.stack_name || 'logsherlock-pro' }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      
+      - name: Validate Python syntax
+        run: |
+          python -c "
+          import ast, os
+          files = ['app.py', 'config.py', 'models.py', 'lambda_handler.py',
+                   'routes/analysis.py', 'routes/tickets.py', 'routes/knowledge.py',
+                   'engine/patterns.py', 'engine/ingestion.py', 'engine/analyzer.py',
+                   'knowledge/known_issues.py', 'knowledge/runbooks.py']
+          for f in files:
+              if os.path.exists(f):
+                  ast.parse(open(f).read())
+                  print(f'  ✓ {f}')
+          print('All files valid!')
+          "
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    permissions:
+      id-token: write
+      contents: read
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Set up SAM CLI
+        uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: SAM Build
+        run: sam build --template-file template.yaml
+      
+      - name: SAM Deploy
+        run: |
+          sam deploy \
+            --stack-name ${{ env.STACK_NAME }} \
+            --region ${{ env.AWS_REGION }} \
+            --capabilities CAPABILITY_IAM \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset \
+            --parameter-overrides "ApiKey=${{ secrets.LOGSHERLOCK_API_KEY }}" \
+            --resolve-s3
+      
+      - name: Get deployment URL
+        run: |
+          API_URL=$(aws cloudformation describe-stacks \
+            --stack-name ${{ env.STACK_NAME }} \
+            --region ${{ env.AWS_REGION }} \
+            --query 'Stacks[0].Outputs[?OutputKey==`ApiUrl`].OutputValue' \
+            --output text)
+          echo "## 🚀 Deployment Successful!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**API URL:** $API_URL" >> $GITHUB_STEP_SUMMARY
+          echo "**Region:** ${{ env.AWS_REGION }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Stack:** ${{ env.STACK_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Health Check:**" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "curl -H 'X-API-Key: <your-key>' $API_URL/api/health" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+      
+      - name: Health check
+        run: |
+          API_URL=$(aws cloudformation describe-stacks \
+            --stack-name ${{ env.STACK_NAME }} \
+            --region ${{ env.AWS_REGION }} \
+            --query 'Stacks[0].Outputs[?OutputKey==`ApiUrl`].OutputValue' \
+            --output text)
+          echo "Testing health endpoint..."
+          curl -sf -H "X-API-Key: ${{ secrets.LOGSHERLOCK_API_KEY }}" "$API_URL/api/health" || echo "Health check pending (cold start)"

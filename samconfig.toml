@@ -1,0 +1,13 @@
+# AWS SAM CLI Configuration
+# This file is auto-generated and used by `sam deploy --guided`
+
+version = 0.1
+
+[default.deploy.parameters]
+stack_name = "logsherlock-pro"
+resolve_s3 = true
+s3_prefix = "logsherlock-pro"
+region = "us-east-1"
+confirm_changeset = false
+capabilities = "CAPABILITY_IAM"
+image_repositories = []

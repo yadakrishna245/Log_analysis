@@ -41,3 +41,6 @@ Thumbs.db
 htmlcov/
 .pytest_cache/
 test_uploads/
+
+# Deployment
+.deployment-info.json

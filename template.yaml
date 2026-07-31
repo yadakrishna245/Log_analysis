@@ -1,0 +1,112 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  LogSherlock Pro - Serverless Log Analysis Application
+  Flask-based web app deployed on AWS Lambda with API Gateway and S3 storage.
+
+Globals:
+  Function:
+    Timeout: 300
+    MemorySize: 1024
+    Runtime: python3.11
+
+Parameters:
+  FlaskEnv:
+    Type: String
+    Default: production
+    AllowedValues:
+      - production
+      - development
+    Description: Flask environment mode
+
+Resources:
+  # ============================================================
+  # API Gateway - HTTP API with CORS
+  # ============================================================
+  LogSherlockApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: prod
+      CorsConfiguration:
+        AllowOrigins:
+          - "*"
+        AllowHeaders:
+          - Content-Type
+          - Authorization
+          - X-Requested-With
+        AllowMethods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - OPTIONS
+        MaxAge: 600
+
+  # ============================================================
+  # Lambda Function - LogSherlock Pro Application
+  # ============================================================
+  LogSherlockFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: LogSherlockPro
+      Handler: lambda_handler.handler
+      Runtime: python3.11
+      MemorySize: 1024
+      Timeout: 300
+      Description: LogSherlock Pro - AI-powered log analysis engine
+      Environment:
+        Variables:
+          FLASK_ENV: !Ref FlaskEnv
+          DATABASE_URL: sqlite:////tmp/logsherlock.db
+          UPLOAD_FOLDER: /tmp/uploads
+          S3_BUCKET: !Ref LogSherlockUploads
+      Policies:
+        - S3FullAccessPolicy:
+            BucketName: !Ref LogSherlockUploads
+      Events:
+        CatchAll:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref LogSherlockApi
+            Path: /{proxy+}
+            Method: ANY
+        Root:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref LogSherlockApi
+            Path: /
+            Method: ANY
+
+  # ============================================================
+  # S3 Bucket - Log File Storage
+  # ============================================================
+  LogSherlockUploads:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteUploadsAfter7Days
+            Status: Enabled
+            ExpirationInDays: 7
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+Outputs:
+  ApiUrl:
+    Description: API Gateway endpoint URL for LogSherlock Pro
+    Value: !Sub "https://${LogSherlockApi}.execute-api.${AWS::Region}.amazonaws.com/prod/"
+
+  S3Bucket:
+    Description: S3 bucket for uploaded log files
+    Value: !Ref LogSherlockUploads
+
+  FunctionArn:
+    Description: LogSherlock Lambda Function ARN
+    Value: !GetAtt LogSherlockFunction.Arn
