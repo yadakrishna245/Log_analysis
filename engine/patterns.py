@@ -958,6 +958,15 @@ BUILT_IN_PATTERNS: List[LogPattern] = [
         solution_hint='1. Measure gap: compare df -B1 <mount> vs du -sxB1 <mount>\n2. If gap >10% of filesystem: schedule fsck\n3. Exclude memfd from lsof: lsof +L1 <mount> | grep -v memfd\n4. Fix requires offline fsck: unmount on all nodes, then fsck.gfs2 -y\n5. Long-term: upgrade kernel to 6.8.0-117+ and install linux-modules-extra.',
         product='GFS2',
     ),
+    LogPattern(
+        name='git_repo_transport_error',
+        regex=r'(remoteGitFetch transport error|cannot open git-upload-pack|TransportException.*git-upload-pack|GitRepoService.*transport error)',
+        severity='MEDIUM',
+        category='application',
+        description='Morpheus cannot reach a configured Git repository URL. Repeated transport errors indicate either a network issue or a stale/invalid repository configuration. If this error repeats continuously, it may cause UI hangs when loading Task creation forms (the UI waits for all repositories to be validated). Known issue: automation can import references to non-existent repos that cannot be deleted via UI.',
+        solution_hint='1. Check if the Git URL is reachable from the Morpheus appliance: curl -I <git-url>\n2. If URL is unreachable and repo is stale: must be deleted via database\n3. If UI is hanging on Task creation: this stale repo is the cause\n4. Database fix: DELETE FROM integration WHERE service_url LIKE \'%<unreachable-url>%\'\n5. Always backup database before manual edits.',
+        product='Morpheus',
+    ),
 ]
 
 
