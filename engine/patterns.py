@@ -1050,6 +1050,15 @@ BUILT_IN_PATTERNS: List[LogPattern] = [
         solution_hint='1. Stop cluster: pcs cluster stop --all\n2. Unmount GFS2 on all nodes\n3. Run: fsck.gfs2 -n /dev/mapper/<device> (read-only check first)\n4. If corruption confirmed: fsck.gfs2 -y /dev/mapper/<device>\n5. Restart cluster: pcs cluster start --all\n6. Verify: GFS2 resources should start successfully\n7. Root cause: investigate what caused the journal corruption (reservation conflict, power loss, etc.).',
         product='GFS2',
     ),
+    LogPattern(
+        name='iscsi_nop_timeout',
+        regex=r'(ISCSI_ERR_NOP_TIMEDOUT|iSCSI.*NOP.*timed out|iscsi.*session.*timeout|DID_TRANSPORT_DISRUPTED|connection.*to.*target.*lost)',
+        severity='HIGH',
+        category='storage',
+        description='iSCSI NOP (keep-alive) timeout or transport disruption detected. The host is losing communication with the iSCSI storage target. If this progresses, storage paths will fail and Morpheus may initiate VM shutdown to protect data integrity. Progressive NOP timeouts followed by DID_TRANSPORT_DISRUPTED indicate the iSCSI connection is degrading and may fail completely.',
+        solution_hint='1. Check iSCSI session status: iscsiadm -m session -P 3\n2. Check network path: ping <target-ip>, check switch ports for errors\n3. Verify MTU alignment between host, switches, and storage\n4. Check storage array health and port status\n5. If intermittent: may be network congestion or switch port flapping\n6. If persistent: check cables, NICs, and storage controller health.',
+        product='Alletra',
+    ),
 ]
 
 

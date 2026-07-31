@@ -525,4 +525,17 @@ KNOWN_ISSUES = [
         'category': 'storage',
         'resolution_type': 'Software bug (fixed in 8.1.0)',
     },
+    {
+        'title': 'iSCSI connectivity degradation causes Morpheus to gracefully shutdown VMs during active I/O (MSA Gen7)',
+        'products': ['VME', 'Morpheus', 'Alletra'],
+        'symptoms': 'VM stops automatically after 14+ hours of continuous I/O. No guest OS crash, kernel panic, or QEMU failure — Morpheus agent initiates graceful shutdown via virsh shutdown. Preceding logs show progressive iSCSI issues: ISCSI_ERR_NOP_TIMEDOUT events, DID_TRANSPORT_DISRUPTED errors, multiple iSCSI-backed devices (sd*) becoming unavailable. LUNs not brought online automatically after snapshot restore. Issue reproducible with MSA Gen7 iSCSI but NOT with Alletra MP10000 or MSA Gen6.',
+        'root_cause': 'Progressive iSCSI connectivity degradation between KVM host and MSA Gen7 storage array. The sequence: (1) Intermittent ISCSI_ERR_NOP_TIMEDOUT events indicate communication problems, (2) Sessions recover temporarily but timeouts continue, (3) Eventually DID_TRANSPORT_DISRUPTED errors cause storage path loss, (4) Multiple iSCSI-backed devices become unavailable, (5) Morpheus detects storage issue and initiates graceful VM shutdown to protect data. The shutdown is by design — Morpheus is protecting VMs from running without storage access. The underlying issue is the iSCSI connectivity instability specific to MSA Gen7 arrays.',
+        'solution': '1. Check iSCSI session health: iscsiadm -m session -P 3\n2. Check for NOP timeout events in syslog: grep ISCSI_ERR_NOP /var/log/syslog\n3. Review storage array logs for the same timeframe\n4. Check multipath status: multipath -ll (look for failed/faulty paths)\n5. Validate iSCSI target network stability (ping, MTU, switch port errors)\n6. Consider increasing iSCSI NOP timeout values if timeouts are transient\n7. Check if MSA Gen7 firmware update addresses connectivity stability.',
+        'bug_id': 'MORPH-14011 (cancelled — by design behavior)',
+        'affected_versions': 'VME 9.0.0 with MSA Gen7 iSCSI arrays',
+        'prevention': 'Monitor iSCSI session health. Alert on ISCSI_ERR_NOP_TIMEDOUT events. Review MSA Gen7 firmware for iSCSI stability fixes. Validate network infrastructure (MTU alignment, switch port health). Consider redundant iSCSI paths.',
+        'related_issues': 'Similar to heartbeat-driven shutdown pattern (MORPHL4-21, MORPHL4-32) but triggered by actual storage path loss rather than false positive.',
+        'category': 'storage',
+        'resolution_type': 'Infrastructure (iSCSI/storage stability)',
+    },
 ]
