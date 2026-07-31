@@ -1014,6 +1014,24 @@ BUILT_IN_PATTERNS: List[LogPattern] = [
         solution_hint='1. This is a kernel-level bug — no application-level fix\n2. Check for D-state processes: ps -eo pid,stat,wchan:32,cmd | awk \'$2 ~ /^D/\'\n3. If processes stuck in gfs2_glock_wait: reboot the affected node\n4. Long-term: upgrade kernel to >=6.10 where this race condition is fixed\n5. Monitor: check dmesg for validate_lock_args warnings after any node reboot/fencing.',
         product='DLM',
     ),
+    LogPattern(
+        name='workqueue_cpu_hogging',
+        regex=r'(workqueue:.*hogged CPU for >\d+us|fill_page_cache_func hogged CPU|workqueue.*consider switching to WQ_UNBOUND)',
+        severity='HIGH',
+        category='kernel',
+        description='Kernel workqueue is hogging CPU for extended periods (>10ms). fill_page_cache_func is a common offender — it pre-fills page cache for memory-intensive operations. When this repeats thousands of times, it starves other kernel subsystems (DLM, Pacemaker, multipath) of CPU time. In clustered environments, this can cause DLM monitor timeouts which trigger node fencing. Often triggered by rapid mass VM starts that create extreme memory pressure and page cache contention.',
+        solution_hint='1. Check host load: uptime, top, vmstat 1\n2. Check memory pressure: free -h, cat /proc/meminfo | grep -i avail\n3. If VMs were just started: too many started simultaneously — stagger them\n4. Monitor for "High CIB load" as escalation indicator\n5. Prevention: reserve CPU/memory for host OS, limit concurrent VM starts\n6. If DLM timeout follows: increase DLM monitor timeout from 20s to 60s.',
+        product='general',
+    ),
+    LogPattern(
+        name='dlm_monitor_timeout_fence',
+        regex=r'(dlm_monitor.*timed out|dlm.*timed out after \d+ms|monitor.*dlm.*Timed Out|on-fail=fence.*dlm|dlm.*failed.*fence)',
+        severity='CRITICAL',
+        category='cluster',
+        description='DLM resource monitor timed out — Pacemaker will FENCE this node. With DLM configured as on-fail=fence, any DLM monitor timeout (default 20s) is treated as a node integrity risk and results in immediate STONITH fencing. If multiple nodes hit this simultaneously (shared infrastructure stall), the cluster can lose quorum. This is the most aggressive fencing policy and leaves very little tolerance for transient resource spikes.',
+        solution_hint='1. PREVENTION (before it happens): increase DLM monitor timeout to 60s in pcs config\n2. If already fenced: reboot node, let it rejoin cluster\n3. Investigate WHY DLM was slow: check for CPU hogging, memory pressure, storage latency\n4. Common triggers: mass VM starts, OOM events, storage path checker delays\n5. Long-term: consider changing on-fail policy or upgrading to VME 9.x.',
+        product='Pacemaker',
+    ),
 ]
 
 

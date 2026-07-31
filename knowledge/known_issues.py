@@ -499,4 +499,17 @@ KNOWN_ISSUES = [
         'category': 'filesystem',
         'resolution_type': 'Kernel bug (fix in >=6.10)',
     },
+    {
+        'title': 'Host CPU/memory exhaustion causes DLM monitor timeout → fencing cascade → quorum loss → 300+ VMs down',
+        'products': ['Pacemaker', 'DLM', 'GFS2', 'VME'],
+        'symptoms': 'Multiple nodes fenced within 5 minutes due to DLM monitor timeout (20s). Kernel logs show "workqueue: fill_page_cache_func hogged CPU for >10000us" (escalating: 512→1024→2048 times). "High CIB load detected". OOM killer fires on one node (kills qemu-system-x86). "multipathd path checkers took longer than 42 seconds". Processes blocked in D-state (dlm_lock → gfs2_glock_nq path). After 2 nodes fenced, quorum lost with no-quorum-policy=freeze. GFS2 inaccessible. Heartbeat agent shuts down all VMs (~300+). 18 Windows VMs suffer registry corruption from abrupt power-off.',
+        'root_cause': 'Two cluster nodes experienced simultaneous severe resource exhaustion (CPU starvation from fill_page_cache_func workqueue hogging + memory exhaustion triggering OOM). The resource starvation prevented DLM monitor processes from completing within the configured 20-second timeout. Since DLM is configured with on-fail=fence, Pacemaker fenced both nodes. With 2 nodes removed from an 8-node cluster (2 already in standby), only 4 active nodes remained — insufficient for quorum. no-quorum-policy=freeze stopped resource management. GFS2 became inaccessible. Heartbeat agent triggered protective VM shutdown. Windows VMs with in-flight writes suffered registry/NTFS corruption from the abrupt power-off. The resource exhaustion appears to have been triggered by rapid VM starts on the affected nodes (multiple VMs started within seconds of each other).',
+        'solution': '1. Recover quorum: reboot fenced nodes, let them rejoin cluster\n2. Verify GFS2/DLM healthy: pcs status, dlm_tool status, mount | grep gfs2\n3. Start VMs gradually (NOT all at once)\n4. For corrupted Windows VMs: boot from DVD media, restore registry hive from backup\n5. Prevention: increase DLM monitor timeout from 20s to 60s\n6. Set CPU/memory reservations for host OS (ensure Pacemaker/DLM always have headroom)\n7. Stagger VM starts (do not start 10+ VMs simultaneously on one node)\n8. Monitor for "High CIB load" and "fill_page_cache_func hogged CPU" as early warnings',
+        'bug_id': 'MORPH-14556',
+        'affected_versions': 'All VME/Pacemaker versions with DLM on-fail=fence and 20s monitor timeout',
+        'prevention': 'Increase DLM timeout to 60s. Reserve CPU/memory for host OS. Stagger VM starts. Configure Pacemaker alerts for CIB load and DLM monitor degradation. Upgrade to VME 9.x (removes Pacemaker). For Windows VMs: use VirtIO drivers + write-through caching on registry volumes.',
+        'related_issues': 'MORPHL4-21 (similar heartbeat-driven VM shutdown). MORPHL4-28 (quorum loss from node failure). Windows corruption is downstream impact, not cause.',
+        'category': 'cluster',
+        'resolution_type': 'Configuration (increase DLM timeout, resource reservation)',
+    },
 ]
