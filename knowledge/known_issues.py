@@ -473,4 +473,17 @@ KNOWN_ISSUES = [
         'category': 'virtualization',
         'resolution_type': 'Operational (force destroy)',
     },
+    {
+        'title': 'VMs enter Unknown state after root disk fills from OpenSearch logs — large-scale migration trigger',
+        'products': ['VME', 'Morpheus'],
+        'symptoms': 'In large-scale environments (~750 VMs across 14 nodes, ~60 VMs/node), approximately 80 VMs enter "Unknown" state in Morpheus UI. Cluster quorum is confirmed OK. DLM reports no errors. GFS2 datastore is healthy and mounted on all nodes. virsh list --all on the host shows the VM is NOT present (not running, not defined). Member status shows "not ok" despite quorum being achieved. Issue suspected to have started when OpenSearch logs filled the root disk (/). Occurs after large-scale VM placement/migration operations (50-60 VMs simultaneously).',
+        'root_cause': 'Two contributing factors identified: (1) OpenSearch/Elasticsearch logs filled the root disk partition entirely. When root disk is 100% full, critical services (libvirt, QEMU, morpheus-node agent) cannot write state files, PID files, or logs. This can cause VM domain definitions to be lost or corrupted. (2) Large-scale simultaneous VM migrations (50-60 at once) create high I/O and management plane load. Combined with full disk, some migrations may have completed at the hypervisor level but failed to properly register state back to Morpheus, leaving VMs in "Unknown" state. The VMs are not found in virsh list because they were either never properly defined on the target after migration, or their definition was lost when disk was full.',
+        'solution': '1. Free disk space immediately: check df -h / on all nodes\n2. Identify the log consumer: du -sh /var/log/* | sort -rh | head\n3. If OpenSearch: truncate or rotate logs, set log retention policy\n4. For Unknown VMs: check last known host in Morpheus UI\n5. Check virsh list --all on ALL nodes (VM may be on a different host than expected)\n6. If VM found on wrong host: update Morpheus server record\n7. If VM not found anywhere: may need to recreate from backup or re-register from qcow2 disk\n8. Prevention: monitor root disk usage, set OpenSearch log rotation, limit concurrent migrations to 10-20 max.',
+        'bug_id': 'MORPH-13907',
+        'affected_versions': 'Morpheus 9.0.0-2 RC (large-scale environments)',
+        'prevention': 'Monitor root disk usage on ALL nodes (alert at 80%). Configure OpenSearch log retention and max size. Limit concurrent VM migrations to small batches (10-20, not 50-60). Implement disk usage monitoring for /var/log specifically.',
+        'related_issues': 'Disk full conditions cause cascading failures. Similar to MORPHL4-25 where /var/log filling from election storm caused extended outage.',
+        'category': 'virtualization',
+        'resolution_type': 'Under investigation (MORPH-13907)',
+    },
 ]

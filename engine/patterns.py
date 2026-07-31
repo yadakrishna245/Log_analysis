@@ -986,6 +986,15 @@ BUILT_IN_PATTERNS: List[LogPattern] = [
         solution_hint='1. Confirm state: virsh domstate <domain> (should show "in shutdown" or similar)\n2. Force destroy: virsh destroy <domain>\n3. Verify: virsh domstate <domain> (should now show "shut off")\n4. Start: virsh start <domain>\n5. If destroy fails: check QEMU PID with pgrep -f <domain>, then kill -9 <pid>\n6. Investigate: check syslog for "End of file from qemu monitor" or SIGKILL failures around the time it got stuck.',
         product='KVM',
     ),
+    LogPattern(
+        name='root_disk_full_logs',
+        regex=r'(No space left on device|disk.*full|/var/log.*100%|cannot write.*no space|opensearch.*fill|elasticsearch.*fill|log.*filled.*disk)',
+        severity='CRITICAL',
+        category='system',
+        description='Root disk or /var/log partition is full or nearly full. This is a critical condition that can cause cascading failures: libvirt cannot write VM state files, QEMU cannot write logs, Morpheus agent cannot update heartbeat status, Pacemaker logs can trigger election storms. In large environments, OpenSearch/Elasticsearch logs are a common culprit. VMs may go to "Unknown" state when their management daemons cannot function due to full disk.',
+        solution_hint='1. IMMEDIATE: identify and truncate the largest log files: du -sh /var/log/* | sort -rh | head\n2. Common offenders: OpenSearch (/var/log/opensearch/), Pacemaker, syslog\n3. Truncate without deleting: truncate -s 0 /var/log/<large-file>\n4. After freeing space: restart affected services (morpheus-node, libvirtd)\n5. Prevention: configure log rotation, set max sizes, monitor disk usage.',
+        product='general',
+    ),
 ]
 
 
