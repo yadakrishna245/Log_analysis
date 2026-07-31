@@ -330,4 +330,17 @@ KNOWN_ISSUES = [
         'category': 'cluster',
         'resolution_type': 'Software bug',
     },
+    {
+        'title': 'Faulty NIC link flapping causes DLM stateful merge cluster-wide kill (36.5-hour outage)',
+        'products': ['Pacemaker', 'Corosync', 'DLM', 'GFS2'],
+        'symptoms': 'NIC link flapping (hundreds of link-down events escalating daily). Corosync KNET links dropping. TOTEM token timeouts. Cluster splits into two partitions. When partitions rejoin, DLM detects stateful merge and kills ALL nodes via corosync. Corosync exits with status -1/255 and does NOT restart (no Restart= in systemd unit). Pacemaker retries corosync connection every second indefinitely. All VMs on GFS2 become Unknown/Off/Corrupted. 36+ hour outage until manual intervention.',
+        'root_cause': 'Faulty NIC port (e.g., Intel ICE 25GbE) suffers escalating link failures (20/day → 314/day over one week). The NIC carries cluster heartbeat traffic via LACP bond. Each flap disrupts LACP negotiation and causes packet loss exceeding Corosync TOTEM token timeout (3712ms). Eventually a prolonged link-down (6+ minutes) causes cluster split-brain. When the NIC briefly recovers, partitions attempt to rejoin. DLM detects that lock states diverged during the split (stateful merge condition). DLMs defined response is to kill ALL nodes to prevent corrupted lock state. dlm_controld instructs corosync to remove nodes, causing corosync to exit with status -1. Since corosync.service has no Restart= directive, it stays dead. Pacemaker cannot manage any resources. All VMs become unmanaged.',
+        'solution': '1. Immediate: Manually restart corosync on all nodes (systemctl start corosync)\n2. Verify cluster reforms and GFS2 journals replay successfully\n3. Run fsck on affected VM guest volumes (potential corruption from abrupt I/O severance)\n4. Replace faulty NIC (check bond slave stats for link failure count)\n5. Add Restart=on-failure to corosync.service systemd unit on ALL nodes\n6. Add redundant Corosync ring (configure rrp_mode or second ring_addr)\n7. Consider changing no-quorum-policy from freeze to fence/stop\n8. Monitor NIC link failure count proactively (alert at >10/day)',
+        'bug_id': 'MORPHL4-25',
+        'affected_versions': 'All Pacemaker/Corosync/DLM/GFS2 cluster configurations with single corosync ring',
+        'prevention': 'Monitor NIC link failure counts daily. Alert on any non-zero link failures. Configure redundant corosync rings. Add Restart=on-failure to corosync.service. Replace NICs showing any link instability before they cause cluster events.',
+        'related_issues': 'MORPHL4-21 (GFS2 deadlock), MORPHL4-85 (GFS2 reclassification). Contributing factor: SCSI ALUA storage event 3.5 hours before added I/O stress.',
+        'category': 'cluster',
+        'resolution_type': 'Hardware fault + Configuration gap',
+    },
 ]
