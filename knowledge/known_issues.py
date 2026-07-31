@@ -408,4 +408,17 @@ KNOWN_ISSUES = [
         'category': 'application',
         'resolution_type': 'Software bug',
     },
+    {
+        'title': 'PCBE upgrade creates Pacemaker version mismatch — infinite DC election storm, node stuck in pending',
+        'products': ['Pacemaker', 'VME', 'Corosync'],
+        'symptoms': 'After PCBE Single Click Upgrade upgrades one node (Pacemaker 2.1.2 → 2.1.6), the upgraded node cannot rejoin the cluster. pcs status shows node as "pending". Logs show "Discarding update with feature set 3.17.4 greater than our own 3.11.0" and "Protocol not supported (rc=-93)". Infinite DC election cycle (31+ million rounds). /var/log fills completely from election log spam. rsyslog begins losing messages. Current DC shows NONE on upgraded node.',
+        'root_cause': 'Pacemaker version-based DC election algorithm causes the newer node (2.1.6, feature set 3.17.4) to consistently win DC elections. When it becomes DC, it distributes its CIB with feature set 3.17.4. The older nodes (2.1.2, feature set 3.11.0) immediately reject it. The CIB sync failure triggers a new election. This creates an infinite loop that fills disk with logs and prevents the cluster from stabilizing. The PCBE SCU upgrade script upgraded one node but then failed to continue upgrading the remaining nodes, leaving the cluster in a mixed-version state.',
+        'solution': '1. IMMEDIATE: Stop pacemaker and corosync on the upgraded node (systemctl stop pacemaker corosync)\n2. Truncate logs: truncate -s 0 /var/log/pacemaker/pacemaker.log\n3. Reduce log verbosity: set PCMK_logpriority=warning in /etc/default/pacemaker\n4. Verify remaining nodes form healthy cluster\n5. RESOLUTION: Upgrade remaining nodes to same Pacemaker version (manual upgrade via DSCVM if SCU cannot proceed)\n6. After all nodes on same version: start corosync first, then pacemaker on upgraded node\n7. Alternative: if downtime acceptable, stop all cluster services, upgrade all nodes, restart in order\n8. Do NOT attempt to downgrade the already-upgraded node.',
+        'bug_id': 'MORPH-13840',
+        'affected_versions': 'PCBE with VME Host OS upgrade from 1.0.0.42 (Ubuntu 22.04, Pacemaker 2.1.2) to 3.0.0.12 (Ubuntu 24.04, Pacemaker 2.1.6)',
+        'prevention': 'PCBE SCU must upgrade all nodes in rapid succession without allowing mixed-version operation. Pin Pacemaker version in OS image builds. Test upgrade path in lab before production. Ensure upgrade script does not allow partial completion that leaves cluster in mixed state.',
+        'related_issues': 'MORPHL4-30, MORPHL4-71 (similar SCU upgrade failure). The cluster CANNOT operate with mixed Pacemaker versions — all nodes MUST be on the same version.',
+        'category': 'cluster',
+        'resolution_type': 'Operational (upgrade remaining nodes)',
+    },
 ]

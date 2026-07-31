@@ -929,6 +929,25 @@ BUILT_IN_PATTERNS: List[LogPattern] = [
         solution_hint='WORKAROUND: Use Morpheus API with "imageId": -1 to bypass image validation.\nClone: curl -k -X PUT "https://<appliance>/api/instances/<id>/clone" -H "Authorization: Bearer <token>" -H "Content-Type: application/json" -d \'{"name": "<name>", "config": {"imageId": -1}, "provisionPoweredOff": true}\'\nPermanent fix: upgrade to 9.0.1.22+.',
         product='Morpheus',
     ),
+    # --- Pacemaker Version Mismatch / Election Storm ---
+    LogPattern(
+        name='pacemaker_feature_set_mismatch',
+        regex=r'(Discarding update with feature set.*greater than our own|feature set.*greater than|CIB.*feature set.*mismatch|Protocol not supported.*rc=-93)',
+        severity='CRITICAL',
+        category='cluster',
+        description='Pacemaker CIB feature set mismatch detected between cluster nodes. A node with a newer Pacemaker version is trying to distribute its CIB, but older nodes reject it. This creates an INFINITE DC election loop that will fill /var/log and make the cluster non-functional. Typically caused by a partial cluster upgrade (one node upgraded, others not).',
+        solution_hint='1. IMMEDIATELY stop pacemaker on the newer node: systemctl stop pacemaker corosync\n2. Truncate logs: truncate -s 0 /var/log/pacemaker/pacemaker.log\n3. The ONLY fix is to upgrade ALL nodes to the same Pacemaker version\n4. Do NOT downgrade the already-upgraded node\n5. Upgrade remaining nodes, then restart cluster services on all nodes.',
+        product='Pacemaker',
+    ),
+    LogPattern(
+        name='dc_election_storm',
+        regex=r'(election.*round.*\d{6,}|election.*count.*exceed|DC.*election.*storm|Starting.*election.*round \d{4,}|Joining.*election.*round)',
+        severity='HIGH',
+        category='cluster',
+        description='DC (Designated Controller) election storm detected — the cluster is cycling through elections at very high rate (millions of rounds). This typically indicates a Pacemaker version mismatch where nodes cannot agree on a DC because the newer node wins but cannot distribute its CIB to older nodes. The election log spam will fill /var/log and crash rsyslog.',
+        solution_hint='1. Stop pacemaker on the node causing the storm (usually the newer version)\n2. Truncate logs immediately: truncate -s 0 /var/log/pacemaker/pacemaker.log\n3. Reduce log verbosity: set PCMK_logpriority=warning in /etc/default/pacemaker\n4. Check df -h /var/log — if full, truncate syslog too\n5. Fix root cause: all nodes must be on same Pacemaker version.',
+        product='Pacemaker',
+    ),
 ]
 
 
