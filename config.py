@@ -1,15 +1,34 @@
 """Application configuration for LogSherlock Pro."""
 
 import os
+import secrets
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+
+
+def _get_secret_key():
+    """Get or generate a secret key. Checks env var first, then .secret_key file."""
+    env_key = os.environ.get('SECRET_KEY')
+    if env_key:
+        return env_key
+    secret_key_file = os.path.join(BASE_DIR, '.secret_key')
+    if os.path.exists(secret_key_file):
+        with open(secret_key_file, 'r') as f:
+            key = f.read().strip()
+            if key:
+                return key
+    # Generate and persist a new key
+    key = secrets.token_hex(32)
+    with open(secret_key_file, 'w') as f:
+        f.write(key)
+    return key
 
 
 class Config:
     """Main application configuration."""
 
     # Flask
-    SECRET_KEY = os.environ.get('SECRET_KEY', 'logsherlock-pro-secret-key-change-in-production')
+    SECRET_KEY = _get_secret_key()
     DEBUG = os.environ.get('FLASK_DEBUG', 'False').lower() in ('true', '1', 'yes')
 
     # Database
@@ -40,6 +59,13 @@ class Config:
     # Pagination
     DEFAULT_PAGE_SIZE = 25
     MAX_PAGE_SIZE = 100
+
+    # Rate limiting
+    RATELIMIT_DEFAULT = '100/hour'
+    RATELIMIT_STORAGE_URI = 'memory://'
+    
+    # API Key (set via environment variable)
+    API_KEY = os.environ.get('LOGSHERLOCK_API_KEY', '')
 
 
 class DevelopmentConfig(Config):

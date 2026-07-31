@@ -11,8 +11,13 @@ venv/
 .venv/
 env/
 
-# Environment files
+# Security
+.secret_key
 .env
+
+# Database
+*.db
+logsherlock.db
 
 # Data directories
 data/

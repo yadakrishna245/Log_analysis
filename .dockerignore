@@ -1,0 +1,17 @@
+.git
+__pycache__
+*.pyc
+*.pyo
+.env
+.secret_key
+uploads/
+data/
+logs/
+reports/
+extracted/
+*.db
+.pytest_cache/
+test_uploads/
+venv/
+.venv/
+node_modules/

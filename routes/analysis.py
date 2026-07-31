@@ -49,6 +49,11 @@ def quick_analyze():
                 extract_dir = os.path.join(analysis_folder, os.path.splitext(filename)[0])
                 os.makedirs(extract_dir, exist_ok=True)
                 with zipfile.ZipFile(filepath, 'r') as zf:
+                    # Validate paths to prevent zip-slip
+                    for info in zf.infolist():
+                        member_path = os.path.join(extract_dir, info.filename)
+                        if not os.path.abspath(member_path).startswith(os.path.abspath(extract_dir)):
+                            raise ValueError(f'Path traversal detected in archive: {info.filename}')
                     zf.extractall(extract_dir)
                 os.remove(filepath)
             elif filename.endswith('.tar.gz') or filename.endswith('.tgz'):
@@ -56,6 +61,11 @@ def quick_analyze():
                 extract_dir = os.path.join(analysis_folder, filename.replace('.tar.gz', '').replace('.tgz', ''))
                 os.makedirs(extract_dir, exist_ok=True)
                 with tarfile.open(filepath, 'r:gz') as tf:
+                    # Validate paths to prevent zip-slip
+                    for member in tf.getmembers():
+                        member_path = os.path.join(extract_dir, member.name)
+                        if not os.path.abspath(member_path).startswith(os.path.abspath(extract_dir)):
+                            raise ValueError(f'Path traversal detected in archive: {member.name}')
                     tf.extractall(extract_dir)
                 os.remove(filepath)
             elif filename.endswith('.tar'):
@@ -63,6 +73,11 @@ def quick_analyze():
                 extract_dir = os.path.join(analysis_folder, filename.replace('.tar', ''))
                 os.makedirs(extract_dir, exist_ok=True)
                 with tarfile.open(filepath, 'r:') as tf:
+                    # Validate paths to prevent zip-slip
+                    for member in tf.getmembers():
+                        member_path = os.path.join(extract_dir, member.name)
+                        if not os.path.abspath(member_path).startswith(os.path.abspath(extract_dir)):
+                            raise ValueError(f'Path traversal detected in archive: {member.name}')
                     tf.extractall(extract_dir)
                 os.remove(filepath)
             elif filename.endswith('.gz') and not filename.endswith('.tar.gz'):
@@ -239,6 +254,11 @@ def analyze_folder():
 
     if not os.path.isdir(folder_path):
         return jsonify({'error': f'Path is not a directory: {folder_path}'}), 400
+
+    allowed_base = os.path.abspath(current_app.config['UPLOAD_FOLDER'])
+    abs_folder = os.path.abspath(folder_path)
+    if not abs_folder.startswith(allowed_base):
+        return jsonify({'error': 'Access denied: folder path must be within the uploads directory'}), 403
 
     # Run analysis directly on the folder
     from engine.ingestion import detect_log_type, stream_file

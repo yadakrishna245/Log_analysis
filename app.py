@@ -2,7 +2,7 @@
 
 import os
 import click
-from flask import Flask, send_from_directory, jsonify, render_template
+from flask import Flask, send_from_directory, jsonify, render_template, request
 from config import Config
 from models import db
 
@@ -31,6 +31,50 @@ def create_app(config_class=Config):
     # Create database tables
     with app.app_context():
         db.create_all()
+
+    # API authentication - require API key or session auth for all /api/ routes
+    @app.before_request
+    def require_api_auth():
+        """Require authentication for all API endpoints."""
+        # Skip auth for health check, static files, and login
+        exempt_paths = ['/api/health', '/static/', '/login', '/']
+        if any(request.path == p or request.path.startswith(p) for p in ['/static/']):
+            return None
+        if request.path == '/' or request.path == '/api/health':
+            return None
+        if not request.path.startswith('/api/'):
+            return None
+            
+        # Check for API key in header
+        api_key = request.headers.get('X-API-Key', '')
+        valid_key = app.config.get('API_KEY', os.environ.get('LOGSHERLOCK_API_KEY', ''))
+        if valid_key and api_key == valid_key:
+            return None
+            
+        # Check for session auth (from flask-login)
+        try:
+            from flask_login import current_user
+            if current_user and current_user.is_authenticated:
+                return None
+        except Exception:
+            pass
+            
+        # For development mode, allow unauthenticated access
+        if app.config.get('DEBUG') or os.environ.get('LOGSHERLOCK_DEV_MODE', '').lower() in ('true', '1', 'yes'):
+            return None
+            
+        return jsonify({'error': 'Authentication required. Provide X-API-Key header or login.'}), 401
+
+    # Security headers
+    @app.after_request
+    def add_security_headers(response):
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+        response.headers['X-XSS-Protection'] = '1; mode=block'
+        response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+        if not app.config.get('DEBUG'):
+            response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com;"
+        return response
 
     # Health check endpoint
     @app.route('/api/health', methods=['GET'])
@@ -115,4 +159,4 @@ def _init_database(app):
 app = create_app()
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=False)
