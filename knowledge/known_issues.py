@@ -538,4 +538,17 @@ KNOWN_ISSUES = [
         'category': 'storage',
         'resolution_type': 'Infrastructure (iSCSI/storage stability)',
     },
+    {
+        'title': 'VM creation fails with clone timeout when cluster is under sustained I/O load (iSCSI port saturation)',
+        'products': ['VME', 'Alletra', 'Morpheus'],
+        'symptoms': 'VM provisioning fails with timeout error after creating ~23 VMs. Subsequent single VM creation also fails. Provisioning works fine when there is no I/O load on the cluster. iSCSI port service time reaches ~275ms (high). The clone/copy operation during VM creation takes too long and exceeds the provisioning timeout. Low CPU and memory utilization on hosts — the bottleneck is storage I/O, not compute.',
+        'root_cause': 'The iSCSI storage array (Alletra) has limited port count (4 ports) serving all cluster nodes. Under sustained I/O workload from existing VMs, the storage ports become saturated. When a new VM is provisioned, the disk clone operation competes with existing I/O for the same limited ports. The clone takes longer than the provisioning timeout (typically 30-60 minutes), causing the VM creation to fail. This is NOT a Morpheus/VME bug — it is a storage infrastructure capacity limitation.',
+        'solution': '1. Confirm by testing: disable I/O load (stop fio/workload), try VM creation — if it works, this is the issue\n2. Fix: increase iSCSI port count on the storage array to distribute load\n3. Alternative: schedule VM provisioning during low I/O periods\n4. Workaround: reduce concurrent I/O during provisioning operations\n5. Monitor: track iSCSI port service time — alert if >100ms\n6. Consider thin provisioning to reduce clone data transfer.',
+        'bug_id': 'MORPH-9626',
+        'affected_versions': 'VME 8.1.2.15 with Alletra R5 (4 iSCSI ports serving 4+ nodes under load)',
+        'prevention': 'Size iSCSI port count for peak load + provisioning overhead. Monitor storage port service time. Schedule batch VM creation during maintenance windows if port count is limited.',
+        'related_issues': 'General storage performance issue. Not related to GFS2/DLM/cluster failures.',
+        'category': 'storage',
+        'resolution_type': 'Infrastructure (add iSCSI ports)',
+    },
 ]
