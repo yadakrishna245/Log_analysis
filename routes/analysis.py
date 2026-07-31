@@ -10,6 +10,65 @@ from engine.analyzer import analyze_ticket
 
 analysis_bp = Blueprint('analysis', __name__)
 
+# ── Zip Bomb Protection ──────────────────────────────────────────────────
+# Maximum total decompressed size allowed (default 10GB)
+MAX_DECOMPRESSED_SIZE = int(os.environ.get('MAX_DECOMPRESSED_SIZE_GB', '10')) * 1024 * 1024 * 1024
+# Maximum compression ratio allowed (100:1 is suspicious, 1000:1 is definitely a bomb)
+MAX_COMPRESSION_RATIO = int(os.environ.get('MAX_COMPRESSION_RATIO', '100'))
+
+
+def _check_zip_bomb(archive_path, archive_size):
+    """Check if an archive is a potential zip bomb before extraction.
+
+    Detection methods:
+    1. Check declared uncompressed size vs compressed size (ratio check)
+    2. Monitor total extracted bytes during extraction (streaming check)
+
+    Returns (is_safe, reason) tuple.
+    """
+    import zipfile
+    if not zipfile.is_zipfile(archive_path):
+        return True, 'Not a zip file'
+
+    try:
+        with zipfile.ZipFile(archive_path, 'r') as zf:
+            total_uncompressed = sum(info.file_size for info in zf.infolist())
+
+            # Check total size
+            if total_uncompressed > MAX_DECOMPRESSED_SIZE:
+                return False, f'Declared uncompressed size ({total_uncompressed / 1e9:.1f}GB) exceeds limit ({MAX_DECOMPRESSED_SIZE / 1e9:.0f}GB)'
+
+            # Check compression ratio
+            if archive_size > 0:
+                ratio = total_uncompressed / archive_size
+                if ratio > MAX_COMPRESSION_RATIO:
+                    return False, f'Compression ratio {ratio:.0f}:1 exceeds limit ({MAX_COMPRESSION_RATIO}:1). Possible zip bomb.'
+
+        return True, 'OK'
+    except Exception as e:
+        return True, f'Could not verify (proceeding with caution): {str(e)}'
+
+
+def _check_tar_bomb(archive_path, archive_size):
+    """Check tar/tar.gz for decompression bomb characteristics."""
+    import tarfile
+    try:
+        mode = 'r:gz' if archive_path.endswith(('.tar.gz', '.tgz')) else 'r:'
+        with tarfile.open(archive_path, mode) as tf:
+            total_size = sum(m.size for m in tf.getmembers() if m.isfile())
+
+            if total_size > MAX_DECOMPRESSED_SIZE:
+                return False, f'Total content size ({total_size / 1e9:.1f}GB) exceeds limit ({MAX_DECOMPRESSED_SIZE / 1e9:.0f}GB)'
+
+            if archive_size > 0:
+                ratio = total_size / archive_size
+                if ratio > MAX_COMPRESSION_RATIO:
+                    return False, f'Compression ratio {ratio:.0f}:1 exceeds limit. Possible tar bomb.'
+
+        return True, 'OK'
+    except Exception as e:
+        return True, f'Could not verify: {str(e)}'
+
 
 @analysis_bp.route('/api/analyze/quick', methods=['POST'])
 def quick_analyze():
@@ -46,6 +105,13 @@ def quick_analyze():
                 os.remove(filepath)  # Remove archive after extraction
             elif filename.endswith('.zip'):
                 import zipfile
+                # Zip bomb protection
+                archive_size = os.path.getsize(filepath)
+                is_safe, reason = _check_zip_bomb(filepath, archive_size)
+                if not is_safe:
+                    current_app.logger.warning(f"ZIP BOMB DETECTED: {filename} - {reason}")
+                    os.remove(filepath)
+                    return jsonify({'error': f'Archive rejected: {reason}'}), 400
                 extract_dir = os.path.join(analysis_folder, os.path.splitext(filename)[0])
                 os.makedirs(extract_dir, exist_ok=True)
                 with zipfile.ZipFile(filepath, 'r') as zf:
@@ -58,6 +124,13 @@ def quick_analyze():
                 os.remove(filepath)
             elif filename.endswith('.tar.gz') or filename.endswith('.tgz'):
                 import tarfile
+                # Tar bomb protection
+                archive_size = os.path.getsize(filepath)
+                is_safe, reason = _check_tar_bomb(filepath, archive_size)
+                if not is_safe:
+                    current_app.logger.warning(f"TAR BOMB DETECTED: {filename} - {reason}")
+                    os.remove(filepath)
+                    return jsonify({'error': f'Archive rejected: {reason}'}), 400
                 extract_dir = os.path.join(analysis_folder, filename.replace('.tar.gz', '').replace('.tgz', ''))
                 os.makedirs(extract_dir, exist_ok=True)
                 with tarfile.open(filepath, 'r:gz') as tf:

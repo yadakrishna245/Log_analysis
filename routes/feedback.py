@@ -16,7 +16,7 @@ No AI. Just structured human feedback → regex → future auto-detection.
 import re
 from datetime import datetime, timezone
 from flask import Blueprint, request, jsonify
-from models import db, Pattern, KnowledgeEntry, Finding, Ticket
+from models import db, Pattern, KnowledgeEntry, Finding, Ticket, Suppression
 
 feedback_bp = Blueprint('feedback', __name__)
 
@@ -337,7 +337,97 @@ def test_pattern():
 
 
 # ──────────────────────────────────────────────────────────────
-# 5. Get Feedback Statistics
+# 5. False Positive Suppression (Mute noisy patterns)
+# ──────────────────────────────────────────────────────────────
+
+@feedback_bp.route('/api/feedback/suppress', methods=['POST'])
+def suppress_pattern():
+    """Suppress a pattern (mark as false positive).
+
+    When a pattern fires but isn't relevant (false positive), engineers
+    can mute it globally or per-ticket.
+
+    Required fields:
+        - pattern_name: Name of the pattern to suppress
+        - reason: Why it's a false positive
+
+    Optional fields:
+        - scope: 'global' (default) or 'ticket'
+        - ticket_id: Required if scope='ticket'
+        - suppressed_by: Engineer name
+        - expires_days: Auto-expire after N days (0 = permanent)
+    """
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Request body required'}), 400
+
+    pattern_name = data.get('pattern_name', '').strip()
+    reason = data.get('reason', '').strip()
+
+    if not pattern_name:
+        return jsonify({'error': 'pattern_name is required'}), 400
+    if not reason:
+        return jsonify({'error': 'reason is required (explain why this is a false positive)'}), 400
+
+    # Verify pattern exists
+    pattern = Pattern.query.filter_by(name=pattern_name).first()
+    if not pattern:
+        return jsonify({'error': f'Pattern "{pattern_name}" not found'}), 404
+
+    scope = data.get('scope', 'global')
+    ticket_id = data.get('ticket_id')
+    expires_days = data.get('expires_days', 0)
+
+    if scope == 'ticket' and not ticket_id:
+        return jsonify({'error': 'ticket_id required when scope is "ticket"'}), 400
+
+    # Calculate expiry
+    expires_at = None
+    if expires_days and expires_days > 0:
+        from datetime import timedelta
+        expires_at = datetime.now(timezone.utc) + timedelta(days=expires_days)
+
+    suppression = Suppression(
+        pattern_name=pattern_name,
+        scope=scope,
+        ticket_id=ticket_id,
+        reason=reason,
+        suppressed_by=data.get('suppressed_by', 'unknown'),
+        expires_at=expires_at,
+        active=True,
+    )
+    db.session.add(suppression)
+    db.session.commit()
+
+    return jsonify({
+        'message': f'Pattern "{pattern_name}" suppressed ({scope}). It will no longer fire in future analyses.',
+        'suppression': suppression.to_dict(),
+    }), 201
+
+
+@feedback_bp.route('/api/feedback/suppressions', methods=['GET'])
+def list_suppressions():
+    """List all active suppressions."""
+    suppressions = Suppression.query.filter_by(active=True).all()
+    return jsonify({
+        'suppressions': [s.to_dict() for s in suppressions],
+        'total': len(suppressions),
+    })
+
+
+@feedback_bp.route('/api/feedback/suppress/<int:suppression_id>', methods=['DELETE'])
+def remove_suppression(suppression_id):
+    """Re-enable a suppressed pattern."""
+    suppression = Suppression.query.get_or_404(suppression_id)
+    suppression.active = False
+    db.session.commit()
+    return jsonify({
+        'message': f'Suppression removed. Pattern "{suppression.pattern_name}" is active again.',
+    })
+
+
+# ──────────────────────────────────────────────────────────────
+# 6. Get Feedback Statistics
 # ──────────────────────────────────────────────────────────────
 
 @feedback_bp.route('/api/feedback/stats', methods=['GET'])
@@ -371,6 +461,75 @@ def feedback_stats():
         'top_patterns': [p.to_dict() for p in top_patterns],
         'recently_added': [p.to_dict() for p in recent_patterns],
         'growth_message': f'The team has built {total_patterns} patterns and {total_knowledge} known issues. Each new addition makes future tickets faster to resolve.',
+    })
+
+
+# ──────────────────────────────────────────────────────────────
+# 7. Pattern Effectiveness Report (Dead patterns, top performers)
+# ──────────────────────────────────────────────────────────────
+
+@feedback_bp.route('/api/feedback/effectiveness', methods=['GET'])
+def pattern_effectiveness():
+    """Show which patterns are actually useful and which are dead weight.
+
+    This answers the manager question: "Are all 101 patterns useful?"
+
+    Returns:
+        - top_performers: Patterns with most matches (most valuable)
+        - dead_patterns: Patterns with 0 matches (candidates for review/removal)
+        - low_performers: Patterns with <5 matches (may need tuning)
+        - effectiveness_score: Overall health metric
+    """
+    all_patterns = Pattern.query.all()
+    total = len(all_patterns)
+
+    if total == 0:
+        return jsonify({'message': 'No patterns in database. Run flask init-db first.'})
+
+    # Categorize
+    dead_patterns = [p for p in all_patterns if (p.times_matched or 0) == 0]
+    low_performers = [p for p in all_patterns if 0 < (p.times_matched or 0) <= 5]
+    active_patterns = [p for p in all_patterns if (p.times_matched or 0) > 5]
+    top_performers = sorted(all_patterns, key=lambda p: p.times_matched or 0, reverse=True)[:15]
+
+    # Effectiveness score = % of patterns that have fired at least once
+    active_count = total - len(dead_patterns)
+    effectiveness_score = round((active_count / total) * 100, 1) if total > 0 else 0
+
+    # Category breakdown
+    from collections import defaultdict
+    category_effectiveness = defaultdict(lambda: {'total': 0, 'active': 0, 'total_matches': 0})
+    for p in all_patterns:
+        cat = p.category or 'uncategorized'
+        category_effectiveness[cat]['total'] += 1
+        category_effectiveness[cat]['total_matches'] += (p.times_matched or 0)
+        if (p.times_matched or 0) > 0:
+            category_effectiveness[cat]['active'] += 1
+
+    return jsonify({
+        'summary': {
+            'total_patterns': total,
+            'active_patterns': active_count,
+            'dead_patterns_count': len(dead_patterns),
+            'low_performers_count': len(low_performers),
+            'effectiveness_score': f'{effectiveness_score}%',
+            'total_matches_all_time': sum(p.times_matched or 0 for p in all_patterns),
+        },
+        'top_performers': [
+            {'name': p.name, 'category': p.category, 'severity': p.severity,
+             'times_matched': p.times_matched, 'product': p.product}
+            for p in top_performers
+        ],
+        'dead_patterns': [
+            {'name': p.name, 'category': p.category, 'severity': p.severity,
+             'product': p.product, 'recommendation': 'Review regex — may need tuning or removal'}
+            for p in dead_patterns[:20]
+        ],
+        'low_performers': [
+            {'name': p.name, 'category': p.category, 'times_matched': p.times_matched}
+            for p in low_performers[:10]
+        ],
+        'category_effectiveness': dict(category_effectiveness),
     })
 
 

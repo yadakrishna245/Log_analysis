@@ -197,3 +197,39 @@ class KnowledgeEntry(db.Model):
             'related_tickets': self.related_tickets,
             'created_at': self.created_at.isoformat() if self.created_at else None,
         }
+
+
+class Suppression(db.Model):
+    """Pattern suppression / false positive mute.
+
+    When engineers identify a false positive, they can suppress a pattern
+    globally or per-ticket so it doesn't fire again.
+    """
+    __tablename__ = 'suppressions'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    pattern_name = db.Column(db.String(200), nullable=False, index=True)
+    scope = db.Column(db.String(50), default='global', index=True)  # 'global' or 'ticket'
+    ticket_id = db.Column(db.Integer, nullable=True, index=True)  # If scope='ticket'
+    reason = db.Column(db.Text, nullable=True)
+    suppressed_by = db.Column(db.String(200), nullable=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    expires_at = db.Column(db.DateTime, nullable=True)  # Optional expiry
+    active = db.Column(db.Boolean, default=True, index=True)
+
+    __table_args__ = (
+        db.Index('idx_suppression_pattern_scope', 'pattern_name', 'scope', 'active'),
+    )
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'pattern_name': self.pattern_name,
+            'scope': self.scope,
+            'ticket_id': self.ticket_id,
+            'reason': self.reason,
+            'suppressed_by': self.suppressed_by,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'expires_at': self.expires_at.isoformat() if self.expires_at else None,
+            'active': self.active,
+        }
