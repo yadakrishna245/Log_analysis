@@ -603,4 +603,17 @@ KNOWN_ISSUES = [
         'category': 'storage',
         'resolution_type': 'Operational (clear stale PR keys)',
     },
+    {
+        'title': 'VM memory and storage metrics not reported without Morpheus Agent — virtual appliances cannot be monitored',
+        'products': ['Morpheus', 'VME'],
+        'symptoms': 'VM shows CPU, Network, and Disk I/O (IOPS) metrics in Morpheus UI but Memory (RAM) and Storage utilization are blank/missing. Affects vendor-supplied virtual appliances (Qualys, OneView, OpsRamp Gateway) where Morpheus Agent cannot be installed. Customer cannot determine if a VM is running out of memory or storage.',
+        'root_cause': 'By design, Morpheus requires the Morpheus Agent installed inside the guest OS to report Memory and Storage metrics. Without the agent, only hypervisor-level metrics are available (CPU via libvirt stats, Network TX/RX via tap device stats, basic Disk I/O). Memory utilization requires guest cooperation (balloon driver or agent) because the hypervisor cannot distinguish between allocated-but-unused and actively-used memory inside the guest. Storage utilization requires filesystem-level visibility that only an in-guest agent can provide.',
+        'solution': "1. If agent can be installed: install Morpheus Agent → memory and storage will report\\n2. If agent CANNOT be installed (hardened appliance):\\n   - CPU, Network, IOPS still visible from hypervisor\\n   - Memory: use QEMU guest agent (qemu-ga) if available — some vendors include it\\n   - Storage: not available without in-guest agent or QEMU guest agent\\n   - Alternative: use OpsRamp or external monitoring (SNMP, agentless) for these VMs\\n3. Note: network stats are in bytes/sec (not bits/sec)\\n4. Note: CPU graph data is averaged over wider time windows (97% in 24h view = ~50% in 1-week view due to downsampling)",
+        'bug_id': 'MORPH-14621 (enhancement request)',
+        'affected_versions': 'All Morpheus/VME versions (by design limitation)',
+        'prevention': 'Document which VM types require external monitoring. For vendor appliances that support QEMU guest agent but not Morpheus agent, enable qemu-ga for basic memory reporting. Plan monitoring strategy that does not solely rely on Morpheus for appliance VMs.',
+        'related_issues': 'MORPH-7272 (network stats not displaying in cluster view). Product limitation, not a bug.',
+        'category': 'application',
+        'resolution_type': 'Product limitation (enhancement requested)',
+    },
 ]
