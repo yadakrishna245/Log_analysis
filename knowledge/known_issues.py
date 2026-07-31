@@ -577,4 +577,17 @@ KNOWN_ISSUES = [
         'category': 'virtualization',
         'resolution_type': 'Configuration (virsh edit workaround)',
     },
+    {
+        'title': 'Morpheus shows stale 169.254.x.x (APIPA) IP on VM networking tab — causes Veeam backup failures',
+        'products': ['Morpheus', 'VME'],
+        'symptoms': 'Morpheus UI shows two IPs for a VM under Networking tab: the correct static IP (e.g., 172.x.x.x) and a stale APIPA address (169.254.x.x). The VM itself only has one NIC with the correct IP (confirmed via ipconfig /all and Get-NetAdapter). virsh dumpxml shows only one interface. Veeam backup fails because it sees two conflicting IPs. The stale entry persists after cloud sync, VM reconfigure, and QEMU guest agent restart.',
+        'root_cause': 'Likely a bug in Morpheus cluster sync interface cleanup logic. When a VM has an interface with an IP address that is later removed (e.g., during migration from VMware, or after network reconfiguration), Morpheus retains the old address in its database (compute_server_interface / net_address tables). The cluster sync code does not properly remove addresses that no longer exist on the live VM. The APIPA address may have been briefly assigned during a network transition and captured by the QEMU guest agent before the real IP was configured.',
+        'solution': "1. Confirm stale IP is NOT in the VM: ipconfig /all, Get-NetIPAddress, registry check\\n2. Try: restart QEMU Guest Agent service → trigger cloud sync → check if cleared\\n3. Try: Reconfigure VM in Morpheus (save without changes)\\n4. If still showing: database fix required:\\n   SELECT from compute_server_interface csi JOIN net_address na WHERE na.address LIKE '169.254%'\\n   DELETE the stale net_address record after confirming it matches the phantom IP\\n5. Bug: MORPH-13993 — cluster sync does not remove addresses that disappear from VM interfaces.",
+        'bug_id': 'MORPH-13993',
+        'affected_versions': 'VME 8.1.0 and potentially all Morpheus versions',
+        'prevention': 'Ensure QEMU guest agent is installed and running before any network changes. Avoid network state transitions that create temporary APIPA addresses. For VMware-to-KVM migrations: verify Morpheus interface records match actual VM config post-migration.',
+        'related_issues': 'Similar to MORPHL4-33 (stale records in Morpheus database). Affects Veeam integration when it uses Morpheus API to determine VM network config.',
+        'category': 'application',
+        'resolution_type': 'Database fix / Bug (MORPH-13993)',
+    },
 ]
