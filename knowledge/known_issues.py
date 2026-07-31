@@ -629,4 +629,17 @@ KNOWN_ISSUES = [
         'category': 'system',
         'resolution_type': 'OS-level bug (workaround available)',
     },
+    {
+        'title': 'VMware to VME migration drops Secure Boot — migrated VMs boot UEFI but Secure Boot unsupported',
+        'products': ['VME', 'Morpheus'],
+        'symptoms': 'VMs migrated from VMware using Bulk Migration tool always have Secure Boot disabled on destination. Source VM has Secure Boot enabled in vCenter. Migration completes successfully with no errors. Destination VM boots in UEFI mode but guest OS reports "Secure Boot State: Unsupported". VMs deployed fresh in same VME environment have Secure Boot working correctly. Database shows source compute_server.secure_boot=0x01 but destination compute_server.secure_boot=0x00 or NULL.',
+        'root_cause': 'Product defect in the Morpheus migration workflow (MigrationPlanService). During VMware → VME migration, the instance config payload includes uefi:true but does NOT propagate the secure_boot attribute from the source VM. KvmProvisionService.groovy defaults secureBoot=false when the attribute is absent from the config. The source VMs secure_boot value (read via VmwareComputeService from vCenter) is not passed through the migration create payload to KvmComputeUtility.',
+        'solution': "WORKAROUND (post-migration):\\n1. Shut down the migrated VM\\n2. Edit VM XML: virsh edit <domain>\\n3. Find the <os> section and ensure it has:\\n   <os firmware='efi'>\\n     <firmware>\\n       <feature enabled='yes' name='secure-boot'/>\\n     </firmware>\\n   </os>\\n4. Or add: <loader readonly='yes' secure='yes' type='pflash'>/usr/share/OVMF/OVMF_CODE_4M.secboot.fd</loader>\\n5. Save and start VM\\n6. Verify in guest: Confirm-SecureBootUEFI (PowerShell) or msinfo32\\n\\nPermanent fix: awaiting engineering fix (MORPH-14756).",
+        'bug_id': 'MORPH-14756',
+        'affected_versions': 'VME 8.1.2 and 9.0.0 (Bulk Migration tool)',
+        'prevention': 'After any VMware → VME migration: verify Secure Boot status in guest OS. If missing, apply virsh edit workaround. Track MORPH-14756 for permanent fix.',
+        'related_issues': 'MORPHL4-49. Similar to MORPH-14550 (Hyper-V enlightenments not propagated) — pattern of VM attributes not being preserved during migration/provisioning.',
+        'category': 'virtualization',
+        'resolution_type': 'Software bug (MORPH-14756)',
+    },
 ]
