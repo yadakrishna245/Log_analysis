@@ -434,4 +434,17 @@ KNOWN_ISSUES = [
         'category': 'filesystem',
         'resolution_type': 'Kernel bug (fixed in 6.8.0-117)',
     },
+    {
+        'title': 'Post-upgrade false heartbeat failure on single host causes automatic VM shutdown despite healthy cluster (VME 9.0.1.17)',
+        'products': ['VME', 'Morpheus'],
+        'symptoms': 'After upgrading to VME 9.0.1.17 with agents 3.2.6, a SINGLE host fails all heartbeat checks. VMs provisioned on or migrated to that host are automatically powered off. VM start fails ("server start failed"). Migration away fails ("domain is not running"). Quorum is healthy (4/4 nodes). ALL datastores are mounted and online. DLM is healthy. Memory is abundant (706 GiB free). The issue is HOST-SPECIFIC — other hosts work fine. Logs show: "File exists check timed out after 5 seconds" followed by "All heartbeat datastore paths have been unhealthy for 6 checks. Shutting down all VMs to protect data integrity".',
+        'root_cause': 'After upgrade to Morpheus 9.0.1.17 with agent 3.2.6, the Morpheus agent on the affected host cannot complete heartbeat file existence/write validation within the 5-second timeout. All configured heartbeat targets are marked unhealthy for that specific host. After 6 consecutive failed checks (MAX_ISOLATION_FAIL_COUNT=6), the agent triggers protective VM shutdown. This is a false positive — the cluster, storage, and quorum are all healthy. The heartbeat timeout is host-local (possibly agent state corruption, I/O scheduling issue, or mount point stale handle after upgrade).',
+        'solution': '1. IMMEDIATE: Remove affected host from workload placement / DRS\n2. Stop migrating VMs to the affected host\n3. Investigate heartbeat path on affected host: ls -la <heartbeat_mount>/hb.properties, time stat <file>\n4. Restart Morpheus agent on affected host: systemctl restart morpheus-node\n5. If agent restart does not fix: check mount health (mount | grep gfs2), check for stale NFS/GFS2 handles\n6. Verify heartbeat writes succeed before re-enabling placement\n7. Escalate to engineering if issue persists after agent restart (MORPH-13805)',
+        'bug_id': 'MORPH-13805',
+        'affected_versions': 'VME 9.0.1.17 with agent 3.2.6, cluster layout 1.3',
+        'prevention': 'After any VME upgrade: verify heartbeat health on ALL hosts before enabling DRS. Monitor agent logs for "Unable to Write Heartbeat" on any host. Do not enable DRS until all hosts show clean heartbeat writes for at least 15 minutes.',
+        'related_issues': 'MORPHL4-21 (same heartbeat mechanism, different trigger — GFS2 deadlock). Same protective shutdown logic: MvmHeartbeatFailover with MAX_ISOLATION_FAIL_COUNT=6.',
+        'category': 'cluster',
+        'resolution_type': 'Under investigation (MORPH-13805)',
+    },
 ]
