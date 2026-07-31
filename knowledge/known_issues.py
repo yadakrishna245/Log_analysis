@@ -616,4 +616,17 @@ KNOWN_ISSUES = [
         'category': 'application',
         'resolution_type': 'Product limitation (enhancement requested)',
     },
+    {
+        'title': 'HVM 9.0 installer (S5Q83-11078) crashes during SAN boot with multipath — Ubuntu subiquity regression',
+        'products': ['VME'],
+        'symptoms': 'HVM 9.0 OS installation fails during "configure multipath" phase when boot LUN is presented over multiple FC/SAS paths (SAN boot). Installer hangs or crashes with Python exception in subiquity. Same hardware + same config works fine with HVM 8.1.2 installer (S5Q83-11056). Issue reproduces on Synergy Gen12, Gen11, and ProLiant DL380 Gen11. Local disk installation works fine. Single-path installation succeeds but enabling additional paths post-install causes reboot loop.',
+        'root_cause': 'Ubuntu 24.04.4 subiquity installer has a regression in its curtin storage backend. When the installer encounters a SAN boot LUN across multiple active FC paths, curtin crashes during multipath configuration due to a race condition between multipathd path scanning and LVM volume group creation. Additionally, when installing with single path, the installer writes /boot references as raw device paths (/dev/sda2) instead of multipath device paths, and hardcodes GRUB hardware hints (hd0,gpt2). This breaks boot when additional paths are enabled.',
+        'solution': "WORKAROUND (install with single path, then fix):\\n1. Reduce to SINGLE FC path in OneView/Virtual Connect profile\\n2. Install HVM 9.0 with single path (will succeed)\\n3. After install, FIX multipath config:\\n   - Add boot LUN WWID to /etc/multipath/wwids\\n   - Set user_friendly_names=no in /etc/multipath.conf\\n   - Update /etc/fstab: change /dev/disk/by-uuid/ to /dev/disk/by-id/dm-uuid-part*-mpath-<WWID>\\n   - Update /etc/default/grub: add iommu=pt intel_iommu=on\\n   - Run: update-grub && update-initramfs -u -k all\\n   - Remove GRUB hardware hints (--hint-bios, --hint-efi)\\n4. Reboot with single path to verify\\n5. Re-enable all FC paths in OneView\\n6. Verify: multipath -ll shows all paths active\\n\\nALTERNATIVE: Install HVM 8.1.2 first, then upgrade to 9.0.",
+        'bug_id': 'Ubuntu subiquity/curtin regression (no MORPH ticket — OS-level issue)',
+        'affected_versions': 'HVM 9.0 installer (HPE_HVM_Install_24.04_S5Q83-11078). Also stock Ubuntu 24.04 installer.',
+        'prevention': 'Use HVM 8.1.2 installer for SAN boot environments, then upgrade. Or use single-path install + post-fix procedure. Issue is in Ubuntu installer, not HPE-specific.',
+        'related_issues': 'Ubuntu community reports same issue on Cisco UCS M480 with FC SAN. Not HPE-specific bug.',
+        'category': 'system',
+        'resolution_type': 'OS-level bug (workaround available)',
+    },
 ]
