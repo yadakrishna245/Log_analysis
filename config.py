@@ -11,7 +11,11 @@ def _get_secret_key():
     env_key = os.environ.get('SECRET_KEY')
     if env_key:
         return env_key
-    secret_key_file = os.path.join(BASE_DIR, '.secret_key')
+    # Use /tmp on Lambda (read-only /var/task), otherwise use BASE_DIR
+    if os.environ.get('AWS_LAMBDA_FUNCTION_NAME'):
+        secret_key_file = '/tmp/.secret_key'
+    else:
+        secret_key_file = os.path.join(BASE_DIR, '.secret_key')
     if os.path.exists(secret_key_file):
         with open(secret_key_file, 'r') as f:
             key = f.read().strip()
@@ -19,8 +23,11 @@ def _get_secret_key():
                 return key
     # Generate and persist a new key
     key = secrets.token_hex(32)
-    with open(secret_key_file, 'w') as f:
-        f.write(key)
+    try:
+        with open(secret_key_file, 'w') as f:
+            f.write(key)
+    except OSError:
+        pass  # If we can't write, just use the generated key in-memory
     return key
 
 
