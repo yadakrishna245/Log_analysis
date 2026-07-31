@@ -948,6 +948,16 @@ BUILT_IN_PATTERNS: List[LogPattern] = [
         solution_hint='1. Stop pacemaker on the node causing the storm (usually the newer version)\n2. Truncate logs immediately: truncate -s 0 /var/log/pacemaker/pacemaker.log\n3. Reduce log verbosity: set PCMK_logpriority=warning in /etc/default/pacemaker\n4. Check df -h /var/log — if full, truncate syslog too\n5. Fix root cause: all nodes must be on same Pacemaker version.',
         product='Pacemaker',
     ),
+    # --- GFS2 Space Leak ---
+    LogPattern(
+        name='gfs2_space_accounting_discrepancy',
+        regex=r'(Gap DF-DU|df.*used.*GiB.*du.*GiB|space.*not.*reclaimed|GFS2.*accounting.*discrepancy|orphaned.*allocation|rgrplvb)',
+        severity='MEDIUM',
+        category='filesystem',
+        description='GFS2 filesystem space accounting discrepancy detected — df reports significantly more used space than du shows allocated to files. This is a known GFS2 kernel bug where space from deleted-while-open files is never reclaimed. The gap grows over time as files are deleted. Only fsck.gfs2 can recover the space. Fixed in kernel 6.8.0-117-generic.',
+        solution_hint='1. Measure gap: compare df -B1 <mount> vs du -sxB1 <mount>\n2. If gap >10% of filesystem: schedule fsck\n3. Exclude memfd from lsof: lsof +L1 <mount> | grep -v memfd\n4. Fix requires offline fsck: unmount on all nodes, then fsck.gfs2 -y\n5. Long-term: upgrade kernel to 6.8.0-117+ and install linux-modules-extra.',
+        product='GFS2',
+    ),
 ]
 
 

@@ -421,4 +421,17 @@ KNOWN_ISSUES = [
         'category': 'cluster',
         'resolution_type': 'Operational (upgrade remaining nodes)',
     },
+    {
+        'title': 'GFS2 space not reclaimed after file deletion — orphaned allocation metadata (kernel bug)',
+        'products': ['GFS2', 'VME'],
+        'symptoms': 'df shows significantly more used space than du reports. Large gap between GFS2 reported usage and visible file allocation (e.g., 903 GiB gap). Deleting files from Morpheus GUI does not free space. fstrim/discard reclaims negligible space. Space discrepancy is consistent across ALL cluster nodes. No hidden mounts, no qualifying open-deleted files (memfd excluded). Space never comes back without fsck.',
+        'root_cause': 'GFS2 kernel bug: When a file is deleted while still open by a process (e.g., QEMU, libvirt, or Morpheus operations), the space is not returned to the filesystem after the process exits. GFS2 with rgrplvb (Resource Group Lock Value Block) caching does not properly reclaim blocks from open-deleted files. The filesystem believes blocks are still allocated even though no visible file references them. sync, drop_caches, remount, and fstrim do NOT fix this. Only fsck.gfs2 recovers the space. Fixed in kernel 6.8.0-117-generic with linux-modules-extra package.',
+        'solution': '1. CONFIRM: Compare df vs du on the GFS2 mount (large gap = this issue)\n2. VERIFY: lsof +L1 <mount> | grep -v memfd (exclude QEMU memory objects)\n3. SHORT-TERM: Schedule maintenance window, unmount GFS2 on all nodes\n4. RUN: fsck.gfs2 -n /dev/mapper/<device> (read-only check first)\n5. If inconsistencies found: fsck.gfs2 -y /dev/mapper/<device>\n6. LONG-TERM FIX: Upgrade kernel to 6.8.0-117-generic or later\n7. Also install: apt install linux-modules-extra-6.8.0-117-generic (GFS2 module)',
+        'bug_id': 'MORPHL4-31 (kernel bug, fixed in 6.8.0-117)',
+        'affected_versions': 'All GFS2 on kernels before 6.8.0-117-generic with rgrplvb mount option',
+        'prevention': 'Upgrade kernel to 6.8.0-117+. Monitor df vs du gap weekly. Alert if gap exceeds 10% of filesystem size. Schedule periodic fsck during maintenance windows if kernel upgrade is not immediately possible.',
+        'related_issues': 'MORPHL4-28 (Danfoss GFS2 corruption). Similar symptom but different root cause — this is a space leak, not metadata corruption from power loss.',
+        'category': 'filesystem',
+        'resolution_type': 'Kernel bug (fixed in 6.8.0-117)',
+    },
 ]
