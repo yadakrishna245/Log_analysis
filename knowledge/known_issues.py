@@ -304,4 +304,17 @@ KNOWN_ISSUES = [
         'category': 'storage',
         'resolution_type': 'Config issue',
     },
+    {
+        'title': 'VME 8.1.0 GFS2 glock deadlock causes mass VM shutdown (heartbeat isolation)',
+        'products': ['VME', 'GFS2', 'Pacemaker', 'Alletra'],
+        'symptoms': 'All VMs on a host shut down automatically without failover. Agent logs show "Unable to Write Heartbeat" followed by "All heartbeat datastore paths have been unhealthy for 6 checks. Shutting down all VMs to protect data integrity". Kernel logs show processes blocked in D-state in gfs2_glock_wait/gfs2_create_inode for 122+ seconds. No network errors. 2-3 minute gap in syslog between VM start and mass shutdown. Some VMs may survive if their QEMU processes are also hung in D-state (cannot receive shutdown signal).',
+        'root_cause': 'After upgrade to VME 8.1.0, concurrent operations on GFS2 filesystem trigger a glock (global lock) deadlock. The typical trigger sequence is: VM start -> SCSI host rescan (echo "- - -" > /sys/class/scsi_host/host*/scan) -> GFS2 pool refresh (virsh pool-refresh) -> Pacemaker resource meta update on live GFS2 clone. This creates glock contention that deadlocks the entire GFS2 filesystem. Since the heartbeat agent (MvmHeartbeatFailover) writes hb.properties to GFS2, it cannot write heartbeats. After 6 consecutive failures (MAX_ISOLATION_FAIL_COUNT=6, every 20 seconds), the agent triggers emergency shutdown of all VMs. The VME Manager VM is also shut down, preventing cluster-wide failover. Other nodes cannot read the affected host hb.properties file (also on deadlocked GFS2), so they never detect the host as offline and never initiate recovery.',
+        'solution': '1. Immediate: Controlled reboot of affected host to clear stale GFS2 locks\n2. Manually restart VMs after confirming GFS2 is healthy\n3. Upgrade to VME 8.1.2+ which contains fix for MORPH-11774\n4. Configuration tuning: Increase morphd heartbeat timeout for larger buffer\n5. Ensure VME Manager VM has memory reservation to survive resource contention\n6. Long-term: HPE replacing Pacemaker/GFS2-based coordination in VME 9.0+',
+        'bug_id': 'MORPH-11774',
+        'affected_versions': 'VME 8.1.0 (regression from 8.0.13 upgrade)',
+        'prevention': 'Upgrade to VME 8.1.2+. Avoid concurrent SCSI rescans + GFS2 pool refreshes + pcs resource updates. Pin VME Manager memory. Monitor GFS2 glock statistics.',
+        'related_issues': 'MORPHL4-21, MORPHL4-85 (GFS2 datastore reclassification). Affects HVM 1.2 cluster layouts where GFS2 used for heartbeat even when VM data is on Alletra MP.',
+        'category': 'cluster',
+        'resolution_type': 'Software bug',
+    },
 ]

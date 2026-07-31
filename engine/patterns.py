@@ -671,6 +671,42 @@ BUILT_IN_PATTERNS: List[LogPattern] = [
         solution_hint='Verify PR keys exist on storage LUN. Check sg_persist output. Ensure all nodes have registered reservation keys.',
         product='GFS2',
     ),
+    LogPattern(
+        name='gfs2_glock_deadlock',
+        regex=r'(gfs2_glock_wait|gfs2_create_inode|gfs2_glock_nq.*blocked|glock.*contention|DLM.*glock.*deadlock)',
+        severity='CRITICAL',
+        category='filesystem',
+        description='GFS2 global lock (glock) deadlock detected. Processes are stuck waiting to acquire GFS2 filesystem locks. This freezes ALL filesystem I/O on the GFS2 mount, including heartbeat writes. Commonly triggered by concurrent SCSI rescans + storage pool refreshes + pacemaker resource updates happening simultaneously.',
+        solution_hint='Check dmesg for D-state processes with gfs2 in call trace. Identify what triggered the lock contention (SCSI rescan, pool refresh, pcs resource update). Immediate fix: controlled reboot of affected host. Long-term: upgrade to VME 8.1.2+ (MORPH-11774 fix) or avoid concurrent GFS2 operations.',
+        product='GFS2',
+    ),
+    LogPattern(
+        name='heartbeat_write_failure',
+        regex=r'(Unable to Write Heartbeat|Failed to write heartbeat file|heartbeat.*datastore.*unhealthy|File exists check timed out|MvmHeartbeatFailover.*Error creating heartbeat)',
+        severity='CRITICAL',
+        category='cluster',
+        description='VME agent (MvmHeartbeatFailover) cannot write heartbeat to GFS2 datastore. After 6 consecutive failures (MAX_ISOLATION_FAIL_COUNT=6, every 20 seconds = ~2 minutes), the agent will trigger emergency VM shutdown to protect data integrity. This is a split-brain prevention mechanism.',
+        solution_hint='Check GFS2 mount health (mount | grep gfs2). Look for D-state processes (ps aux | grep D). Check if GFS2 is in deadlock state. If heartbeat failures are caused by GFS2 deadlock, a host reboot is needed. Upgrade to VME 8.1.2+ for fix (MORPH-11774).',
+        product='VME',
+    ),
+    LogPattern(
+        name='agent_isolation_shutdown',
+        regex=r'(All heartbeat datastore paths have been unhealthy.*Shutting down all VMs|isolation.*shutdown|MvmHeartbeatFailover.*Shutting down all VMs to protect data integrity)',
+        severity='CRITICAL',
+        category='cluster',
+        description='VME agent triggered emergency isolation shutdown of ALL VMs on this host. This happens when the agent cannot write heartbeats for 6 consecutive checks (~2 minutes). The agent assumes it has lost cluster membership and shuts down all VMs to prevent split-brain data corruption. The VME Manager VM may also be shut down, preventing failover to other nodes.',
+        solution_hint='1. Check why heartbeat writes failed (GFS2 deadlock, storage issue, network) 2. Reboot affected host to clear stale locks 3. Manually restart VMs after verifying storage health 4. Check if VME Manager is affected (prevents cluster-wide failover) 5. Upgrade to VME 8.1.2+ (MORPH-11774).',
+        product='VME',
+    ),
+    LogPattern(
+        name='dstate_blocked_process',
+        regex=r'(task:\w+\s+state:D|blocked for more than \d+ seconds|hung_task_timeout_secs|INFO: task.*blocked for more than)',
+        severity='HIGH',
+        category='kernel',
+        description='Process stuck in uninterruptible sleep (D-state) for extended period. The kernel hung task detector has triggered. This often indicates I/O subsystem deadlock, typically GFS2 glock contention or storage path failure. Multiple D-state processes suggest a systemic issue like filesystem deadlock.',
+        solution_hint='Check call trace in dmesg for the blocked process. If it shows gfs2_glock_wait or gfs2_create_inode, it is a GFS2 deadlock. Check storage paths (multipath -ll). If GFS2 deadlock, reboot the host. If storage path issue, check iSCSI connectivity.',
+        product='general',
+    ),
 ]
 
 
