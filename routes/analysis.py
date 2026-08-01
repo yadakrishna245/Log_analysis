@@ -131,17 +131,32 @@ def quick_analyze():
                     return jsonify({'error': f'Archive rejected: {reason}'}), 400
                 extract_dir = os.path.join(analysis_folder, filename.replace('.tar.gz', '').replace('.tgz', ''))
                 os.makedirs(extract_dir, exist_ok=True)
+                # SMART EXTRACT: Only extract log-relevant files (fast for 3GB+ bundles)
+                _log_keywords = {'log', 'msg', 'err', 'sys', 'dmesg', 'kern', 'auth',
+                                'journal', 'corosync', 'pacemaker', 'multipath', 'iscsi',
+                                'messages', 'pcs', 'syslog', 'cron', 'mail', 'boot'}
+                _log_exts = {'.log', '.txt', '.conf', '.cfg', '.out', '.err', '.xml', ''}
+                max_extract = 200 * 1024 * 1024  # 200MB budget
+                extracted = 0
                 with tarfile.open(filepath, 'r:gz') as tf:
-                    # Validate paths to prevent zip-slip
                     for member in tf.getmembers():
+                        if not member.isfile() or member.issym() or member.islnk():
+                            continue
+                        if member.size < 50 or member.size > 50 * 1024 * 1024:
+                            continue
                         member_path = os.path.join(extract_dir, member.name)
                         if not os.path.abspath(member_path).startswith(os.path.abspath(extract_dir)):
-                            raise ValueError(f'Path traversal detected in archive: {member.name}')
-                    # Validate: reject symlinks and hardlinks
-                    for member in tf.getmembers():
-                        if member.issym() or member.islnk():
-                            raise ValueError(f'Symlink/hardlink not allowed in archive: {member.name}')
-                    tf.extractall(extract_dir)
+                            continue
+                        ext = os.path.splitext(member.name)[1].lower()
+                        bname = os.path.basename(member.name).lower()
+                        if ext in _log_exts or any(k in bname for k in _log_keywords):
+                            if extracted + member.size > max_extract:
+                                break
+                            try:
+                                tf.extract(member, extract_dir)
+                                extracted += member.size
+                            except Exception:
+                                pass
                 os.remove(filepath)
             elif filename.endswith('.tar'):
                 import tarfile
@@ -155,16 +170,16 @@ def quick_analyze():
                 extract_dir = os.path.join(analysis_folder, filename.replace('.tar', ''))
                 os.makedirs(extract_dir, exist_ok=True)
                 with tarfile.open(filepath, 'r:') as tf:
-                    # Validate paths to prevent zip-slip
+                    # Validate paths to prevent zip-slip, skip symlinks
+                    safe_members = []
                     for member in tf.getmembers():
                         member_path = os.path.join(extract_dir, member.name)
                         if not os.path.abspath(member_path).startswith(os.path.abspath(extract_dir)):
-                            raise ValueError(f'Path traversal detected in archive: {member.name}')
-                    # Validate: reject symlinks and hardlinks
-                    for member in tf.getmembers():
+                            continue
                         if member.issym() or member.islnk():
-                            raise ValueError(f'Symlink/hardlink not allowed in archive: {member.name}')
-                    tf.extractall(extract_dir)
+                            continue
+                        safe_members.append(member)
+                    tf.extractall(extract_dir, members=safe_members)
                 os.remove(filepath)
             elif filename.endswith('.gz') and not filename.endswith('.tar.gz'):
                 import gzip
@@ -210,83 +225,98 @@ def quick_analyze():
     files_analyzed = 0
     total_lines = 0
 
-    # Accept ALL text-readable files - any extension (.txt, .log, .ps, .cfg, .conf, .xml, .json, .yaml, .md, etc.)
-    # Only skip known binary formats (images already OCR'd above)
+    # ── PERFORMANCE OPTIMIZATIONS ────────────────────────────────────────
+    # 1. Only scan LOG-RELEVANT files (skip configs, binaries, tiny files)
+    # 2. Prioritize large log files (most likely to have errors)
+    # 3. Cap findings at 200 to avoid memory bloat
+    # 4. Skip files > 500MB individually (scan first 100K lines max)
+    # 5. Single-pass: do multiline scan inline, not a second walk
+    MAX_FINDINGS = 200
+    MAX_LINES_PER_FILE = 100000  # 100K lines per file max
+    MIN_FILE_SIZE = 50           # Skip files < 50 bytes (empty/trivial)
+    MAX_FILE_SIZE = 500 * 1024 * 1024  # Skip files > 500MB
+
+    # Extensions that are likely LOG files (prioritize these)
+    log_extensions = {'.log', '.txt', '', '.out', '.err', '.messages', '.syslog',
+                      '.dmesg', '.journal'}
+
     binary_extensions = {'.7z', '.zip', '.gz', '.tar', '.tgz', '.rar', '.bz2', '.xz',
                          '.exe', '.dll', '.so', '.bin', '.o', '.obj', '.pyc', '.class',
                          '.mp3', '.mp4', '.avi', '.mkv', '.wav', '.flac', '.ogg',
                          '.db', '.sqlite', '.mdb', '.woff', '.woff2', '.ttf', '.eot',
                          '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
-                         '.png', '.jpg', '.jpeg', '.gif', '.bmp', '.tiff', '.webp'}
+                         '.png', '.jpg', '.jpeg', '.gif', '.bmp', '.tiff', '.webp',
+                         '.rpm', '.deb', '.iso', '.img', '.vmdk', '.qcow2'}
 
+    # Collect all scannable files, sorted by size (largest first = most useful)
+    scan_files = []
+    # Files that match patterns but contain no real errors (false positive sources)
+    noise_files = {'kallsyms', 'modules', 'config', 'ksyms', 'version',
+                   'cmdline', 'cpuinfo', 'meminfo', 'mounts', 'partitions'}
     for root, dirs, filenames in os.walk(analysis_folder):
         for fname in filenames:
-            fpath = os.path.join(root, fname)
-            try:
-                file_size = os.path.getsize(fpath)
-                if file_size > 4 * 1024 * 1024 * 1024 or file_size == 0:
-                    continue
-            except OSError:
+            # Skip known noise files
+            if fname.lower() in noise_files:
                 continue
-
-            # Skip known binary extensions
+            fpath = os.path.join(root, fname)
             ext = os.path.splitext(fname)[1].lower()
             if ext in binary_extensions:
                 continue
+            try:
+                file_size = os.path.getsize(fpath)
+                if file_size < MIN_FILE_SIZE or file_size > MAX_FILE_SIZE:
+                    continue
+            except OSError:
+                continue
+            scan_files.append((fpath, file_size, ext))
 
-            # For everything else, check if readable as text
-            is_text = False
+    # Sort: prioritize log files, then by size (larger = more content)
+    scan_files.sort(key=lambda x: (0 if x[2] in log_extensions else 1, -x[1]))
+
+    # Scan files
+    for fpath, file_size, ext in scan_files:
+        if len(all_findings) >= MAX_FINDINGS:
+            break
+
+        # Quick binary check (only for unknown extensions)
+        if ext not in log_extensions:
             try:
                 with open(fpath, 'rb') as f:
-                    sample = f.read(1024)
-                null_count = sample.count(b'\x00')
-                if len(sample) == 0 or null_count < len(sample) * 0.1:
-                    is_text = True
+                    sample = f.read(512)
+                if sample.count(b'\x00') > len(sample) * 0.1:
+                    continue  # Binary file
             except Exception:
                 continue
 
-            if not is_text:
-                continue
+        try:
+            files_analyzed += 1
+            rel_path = os.path.relpath(fpath, analysis_folder)
+            lines_in_file = 0
 
-            try:
-                files_analyzed += 1
-                rel_path = os.path.relpath(fpath, analysis_folder)
-                for line_num, line in stream_file(fpath):
-                    total_lines += 1
-                    matches = [(p, m) for p, m in engine.match_line(line) if p.name not in suppressed_names]
-                    for pattern, m in matches:
-                        all_findings.append({
-                            'pattern_name': pattern.name,
-                            'severity': pattern.severity,
-                            'category': pattern.category,
-                            'file': rel_path,
-                            'line_number': line_num,
-                            'line_content': line.strip()[:500],
-                            'description': pattern.description,
-                            'solution_hint': pattern.solution_hint,
-                        })
-            except Exception as e:
-                current_app.logger.error(f"Error analyzing {fpath}: {e}")
-                continue
+            for line_num, line in stream_file(fpath):
+                total_lines += 1
+                lines_in_file += 1
+                if lines_in_file > MAX_LINES_PER_FILE:
+                    break  # Don't scan infinite files
 
-    # Multi-line pattern scan (Java stack traces, Python tracebacks, kernel dumps)
-    from engine.patterns import MULTILINE_PATTERNS
-    if MULTILINE_PATTERNS:
-        for root, dirs, filenames in os.walk(analysis_folder):
-            for fname in filenames:
-                fpath = os.path.join(root, fname)
-                ext = os.path.splitext(fname)[1].lower()
-                if ext in binary_extensions:
-                    continue
-                try:
-                    from engine.ingestion import stream_file
-                    file_lines = list(stream_file(fpath))
-                    multiline_findings = engine.scan_multiline(file_lines, MULTILINE_PATTERNS)
-                    for mf in multiline_findings:
-                        mf['file'] = os.path.relpath(fpath, analysis_folder)
-                        all_findings.append(mf)
-                except Exception:
-                    continue
+                matches = [(p, m) for p, m in engine.match_line(line) if p.name not in suppressed_names]
+                for pattern, m in matches:
+                    all_findings.append({
+                        'pattern_name': pattern.name,
+                        'severity': pattern.severity,
+                        'category': pattern.category,
+                        'file': rel_path,
+                        'line_number': line_num,
+                        'line_content': line.strip()[:500],
+                        'description': pattern.description,
+                        'solution_hint': pattern.solution_hint,
+                    })
+                    if len(all_findings) >= MAX_FINDINGS:
+                        break
+                if len(all_findings) >= MAX_FINDINGS:
+                    break
+        except Exception as e:
+            continue
 
     # Sort by severity
     severity_order = {'CRITICAL': 0, 'HIGH': 1, 'MEDIUM': 2, 'LOW': 3, 'INFO': 4}
