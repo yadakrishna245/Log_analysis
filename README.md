@@ -244,6 +244,14 @@ graph TB
 | Jira integration | ✅ One-click | Plugin | Plugin | ❌ |
 | Severity heatmap | ✅ | ✅ | ✅ | ❌ |
 | Cascade analysis | ✅ | ❌ | ❌ | ❌ |
+| **Data residency** | ✅ Browser only | ❌ Cloud (US/EU) | ❌ Cloud (US/EU) | ✅ Local |
+| **GDPR compliant** | ✅ No PII collected | ⚠️ DPA required | ⚠️ DPA required | ✅ |
+| **No vendor lock-in** | ✅ Open source | ❌ Proprietary | ❌ Proprietary | ✅ |
+| **Air-gap capable** | ✅ | ❌ | ❌ | ✅ |
+| **No 3rd-party APIs** | ✅ Zero external calls | ❌ Cloud APIs | ❌ Cloud APIs | ✅ |
+| **Customer data in logs** | ❌ Never leaves browser | ⚠️ Indexed in cloud | ⚠️ Indexed in cloud | ✅ Local only |
+| **SOC2 / ISO 27001 risk** | ✅ No risk (no data sent) | ⚠️ Vendor audit needed | ⚠️ Vendor audit needed | ✅ |
+| **Compliance approval time** | 0 days | Weeks–Months | Weeks–Months | 0 days |
 
 ---
 
