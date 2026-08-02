@@ -839,21 +839,169 @@ function render(data){
             </div>
         </div>`).join('')||'<p style="color:var(--text-500)">No patterns matched.</p>';
 
-    // Jira
+    // Jira RCA Report - Professional L4 Format
     let j=data.jira_report||'';
-    if(!j){
-        j=`h2. Root Cause Analysis (RCA)\n*Date:* ${new Date().toISOString().split('T')[0]}\n*Findings:* ${f.length} (${c} Critical, ${h} High, ${m} Medium, ${l} Low)\n*Files:* ${data.files_analyzed||0}\n\n`;
-        j+=`h3. 1. Problem Statement\n${$('#ticketContext').value||'Log analysis.'}\n\n`;
-        j+=`h3. 4. Root Cause\n`;
-        f.filter(x=>x.severity==='CRITICAL'||x.severity==='HIGH').slice(0,5).forEach(x=>{
-            j+=`*[${x.severity}]* ${x.pattern_name||''}\n{noformat}${x.line_content||''}{noformat}\n_${x.description||''}_\n${x.solution_hint?'_Fix:_ '+x.solution_hint+'\n':''}\n`;
-        });
-        j+=`h3. 5. Evidence\n`;
-        f.slice(0,10).forEach(x=>{j+=`* ${x.file}:${x.line_number} — ${x.pattern_name}\n`;});
-    }
+    if(!j){ j = buildProfessionalRCA(f, c, h, m, l, data); }
     $('#jiraReportRaw').value=j;
     $('#jiraReportRendered').innerHTML=renderJiraMarkup(j);
     saveHistory(data);
+}
+
+function buildProfessionalRCA(findings, critCount, highCount, medCount, lowCount, data) {
+    const today = new Date().toISOString().split('T')[0];
+    const ticketDesc = $('#ticketContext').value || '';
+    const totalFindings = findings.length;
+    const filesAnalyzed = data.files_analyzed || 0;
+    const critFindings = findings.filter(x => x.severity === 'CRITICAL');
+    const categories = [...new Set(findings.map(x => x.category || 'unknown'))];
+    const affectedFiles = [...new Set(findings.map(x => x.file || ''))];
+
+    const patternCounts = {};
+    findings.forEach(x => {
+        const key = x.pattern_name || '';
+        if (!patternCounts[key]) patternCounts[key] = {name: key, severity: x.severity, category: x.category, description: x.description || '', solution: x.solution_hint || '', count: 0, files: new Set(), lines: []};
+        patternCounts[key].count++;
+        patternCounts[key].files.add(x.file || '');
+        if (x.line_content && patternCounts[key].lines.length < 3) patternCounts[key].lines.push(x.line_content);
+    });
+    const rankedPatterns = Object.values(patternCounts).sort((a, b) => {
+        const ss = {CRITICAL: 4, HIGH: 3, MEDIUM: 2, LOW: 1};
+        return (ss[b.severity] * 100 + b.count) - (ss[a.severity] * 100 + a.count);
+    });
+    const primary = rankedPatterns[0] || {};
+    const contributing = rankedPatterns.slice(1, 4);
+
+    let severity = '3-MEDIUM';
+    if (critCount > 5) severity = '1-CRITICAL-DOWN';
+    else if (critCount > 0) severity = '2-HIGH';
+
+    const componentMap = {'cluster':'Cluster/Pacemaker','storage':'Storage/Multipath','filesystem':'GFS2/Filesystem','virtualization':'HVM/KVM','network':'Networking','kernel':'Kernel/OS','application':'Morpheus Application','security':'Security/Auth','hardware':'Hardware','service':'Systemd Services','backup':'Backup/VME','system':'System'};
+    const components = categories.map(ct => componentMap[ct] || ct).slice(0, 3).join(', ');
+
+    let rca = '';
+
+    rca += `h2. Root Cause Analysis (RCA)\n`;
+    rca += `*Product:* HPE VM Essentials / Morpheus Enterprise\n`;
+    rca += `*Component:* ${components}\n`;
+    rca += `*Severity:* ${severity}\n`;
+    rca += `*Date:* ${today}\n`;
+    rca += `*Findings:* ${totalFindings} (${critCount} Critical, ${highCount} High, ${medCount} Medium, ${lowCount} Low)\n`;
+    rca += `*Files Analyzed:* ${filesAnalyzed}\n\n`;
+
+    rca += `h3. 1. Problem Statement\n`;
+    if (ticketDesc) {
+        rca += `${ticketDesc}\n\n`;
+    } else {
+        rca += `Automated log analysis detected ${totalFindings} issues across ${filesAnalyzed} files. ${critCount} critical findings require immediate attention. Affected subsystems: ${categories.join(', ')}.\n\n`;
+    }
+
+    rca += `h3. 2. Impact\n`;
+    rca += `* ${affectedFiles.length} file(s) contain error indicators across ${categories.length} subsystem(s)\n`;
+    rca += `* ${critCount} CRITICAL events detected — system stability at risk\n`;
+    if (categories.includes('cluster')) rca += `* Cluster integrity compromised — potential quorum loss, fencing, or split-brain condition\n`;
+    if (categories.includes('storage')) rca += `* Storage paths degraded — data availability and I/O continuity at risk\n`;
+    if (categories.includes('filesystem')) rca += `* Filesystem errors detected — GFS2 withdraw or read-only state may cause VM failures\n`;
+    if (categories.includes('virtualization')) rca += `* Virtual machine operations impacted — VMs may be crashed, stuck, or unreachable\n`;
+    if (categories.includes('network')) rca += `* Network connectivity issues — inter-node cluster communication affected\n`;
+    if (categories.includes('kernel')) rca += `* Kernel-level errors — system panic, OOM, or watchdog events detected\n`;
+    if (categories.includes('application')) rca += `* Application-layer failures — Morpheus services experiencing errors\n`;
+    rca += `\n`;
+
+    rca += `h3. 3. Timeline\n`;
+    rca += `||Time||Event||Severity||Source File||\n`;
+    const timelineEvents = findings.filter(x => x.severity === 'CRITICAL' || x.severity === 'HIGH').slice(0, 12);
+    timelineEvents.forEach(ev => {
+        const tsMatch = (ev.line_content || '').match(/(\d{2}:\d{2}:\d{2}|\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2})/);
+        const time = tsMatch ? tsMatch[1] : today;
+        const file = (ev.file || '').split('/').pop();
+        const desc = (ev.description || ev.pattern_name || '').substring(0, 80);
+        rca += `|${time}|${ev.pattern_name} — ${desc}|${ev.severity}|${file}|\n`;
+    });
+    rca += `\n`;
+
+    rca += `h3. 4. Root Cause\n`;
+    rca += `*Primary Root Cause:* ${primary.name || 'Unknown'}\n`;
+    rca += `${primary.description || 'See evidence below.'}\n`;
+    rca += `_Detected ${primary.count || 0} time(s) across ${primary.files ? primary.files.size : 0} file(s)._\n\n`;
+    if (contributing.length > 0) {
+        rca += `*Contributing Factors:*\n`;
+        contributing.forEach(cf => {
+            rca += `* *${cf.name}* (${cf.severity}, ${cf.count} occurrences) — ${cf.description.substring(0, 150)}\n`;
+        });
+        rca += `\n`;
+    }
+    rca += `*Evidence (log excerpts):*\n`;
+    critFindings.filter(x => x.line_content).slice(0, 5).forEach(x => {
+        rca += `{noformat}${(x.line_content || '').substring(0, 250)}{noformat}\n`;
+    });
+    rca += `\n`;
+
+    rca += `h3. 5. Cascade Chain\n`;
+    rca += `_The following failure cascade was identified from log correlation:_\n\n`;
+    rankedPatterns.slice(0, 7).forEach((cp, i) => {
+        const connector = i < 6 ? ' ↓' : ' ⛔';
+        rca += `* *Step ${i + 1}:* [${cp.severity}] *${cp.name}* — ${cp.description.substring(0, 100)}${connector}\n`;
+    });
+    rca += `\n`;
+
+    rca += `h3. 6. Recommended Fix\n`;
+    const solutions = rankedPatterns.filter(p => p.solution).slice(0, 5);
+    if (solutions.length > 0) {
+        solutions.forEach((sol, i) => {
+            rca += `*${i + 1}. Fix for ${sol.name}:*\n`;
+            rca += `${sol.solution}\n\n`;
+        });
+    } else {
+        rca += `Refer to HPE support documentation for remediation steps.\n\n`;
+    }
+
+    rca += `h3. 7. Remediation Plan\n`;
+    rca += `||Step||Action||Command||Priority||\n`;
+    let step = 1;
+    if (categories.includes('cluster')) {
+        rca += `|${step++}|Check cluster status|pcs status|CRITICAL|\n`;
+        rca += `|${step++}|Verify quorum|corosync-quorumtool -s|CRITICAL|\n`;
+        rca += `|${step++}|Review fencing history|pcs stonith history|HIGH|\n`;
+    }
+    if (categories.includes('storage')) {
+        rca += `|${step++}|Check multipath status|multipath -ll|HIGH|\n`;
+        rca += `|${step++}|Verify iSCSI sessions|iscsiadm -m session|HIGH|\n`;
+        rca += `|${step++}|Check LVM status|pvs; vgs; lvs|HIGH|\n`;
+    }
+    if (categories.includes('filesystem')) {
+        rca += `|${step++}|Check filesystem status|mount; df -h|HIGH|\n`;
+        rca += `|${step++}|Verify GFS2/DLM state|dlm_tool ls; gfs2_tool freeze check|CRITICAL|\n`;
+    }
+    if (categories.includes('network')) {
+        rca += `|${step++}|Verify iptables rules|iptables -L -n -v|HIGH|\n`;
+        rca += `|${step++}|Check network config|ip addr; ip route|HIGH|\n`;
+        rca += `|${step++}|Install iptables-persistent|apt-get install iptables-persistent|HIGH|\n`;
+    }
+    if (categories.includes('virtualization')) {
+        rca += `|${step++}|Check VM status|virsh list --all|HIGH|\n`;
+        rca += `|${step++}|Review libvirt logs|journalctl -u libvirtd --since today|MEDIUM|\n`;
+    }
+    if (categories.includes('kernel')) {
+        rca += `|${step++}|Check kernel errors|dmesg -T | grep -i error|HIGH|\n`;
+        rca += `|${step++}|Review OOM events|grep -i oom /var/log/messages|HIGH|\n`;
+    }
+    rca += `|${step++}|Collect sosreport|sosreport --batch|MEDIUM|\n`;
+    rca += `|${step++}|Schedule maintenance window|Coordinate with customer|MEDIUM|\n`;
+    rca += `\n*Important:* Apply fixes in rolling fashion (one node at a time) to maintain cluster quorum.\n\n`;
+
+    rca += `h3. 8. Prevention / Long-Term Recommendations\n`;
+    if (categories.includes('network')) rca += `* Install iptables-persistent to survive reboots: apt-get install iptables-persistent && iptables-save > /etc/iptables/rules.v4\n`;
+    if (categories.includes('cluster')) rca += `* Implement cluster health monitoring with automated alerting on quorum loss or fencing events\n`;
+    if (categories.includes('storage')) rca += `* Configure multipath path-checking with email alerts; verify iSCSI timeouts are appropriate\n`;
+    if (categories.includes('filesystem')) rca += `* Schedule regular GFS2 filesystem checks; monitor DLM lock health and journal space\n`;
+    if (categories.includes('virtualization')) rca += `* Set memory limits per VM to prevent OOM kills; enable VM HA restart policies\n`;
+    if (categories.includes('kernel')) rca += `* Configure kdump for kernel crash analysis; monitor watchdog timeouts\n`;
+    if (categories.includes('application')) rca += `* Monitor Morpheus application heap usage; configure proper JVM memory limits\n`;
+    rca += `* Add post-reboot health check script that validates all services before declaring node healthy\n`;
+    rca += `* Include pre-upgrade checklist verification in maintenance runbooks\n`;
+    rca += `* Schedule regular proactive log analysis scans using LogSherlock Pro\n`;
+
+    return rca;
 }
 
 // PDF Export
@@ -866,60 +1014,82 @@ function exportPDF() {
 // Jira Wiki Markup to HTML renderer
 function renderJiraMarkup(text) {
     let html = '';
-    let inNoformat = false;
-    let noformatBuf = '';
     const lines = text.split('\n');
+    let inTable = false;
     for (let i = 0; i < lines.length; i++) {
         let line = lines[i];
         // Handle {noformat} blocks
         if (line.includes('{noformat}')) {
+            if (inTable) { html += '</table>'; inTable = false; }
             const parts = line.split('{noformat}');
             let out = '';
             for (let p = 0; p < parts.length; p++) {
                 if (p % 2 === 0) {
-                    // Outside noformat
                     out += formatJiraInline(esc(parts[p]));
                 } else {
-                    // Inside noformat
-                    out += '<code style="background:var(--bg-0);padding:2px 6px;border-radius:4px;font-size:11px;color:var(--text-200)">' + esc(parts[p]) + '</code>';
+                    out += '<code style="display:block;background:var(--bg-0);padding:6px 10px;border-radius:6px;font-size:11px;color:var(--text-200);margin:4px 0;border:1px solid var(--border-subtle);font-family:var(--mono)">' + esc(parts[p]) + '</code>';
                 }
             }
             html += '<div style="margin-bottom:4px">' + out + '</div>';
             continue;
         }
+        // Table header row: ||col1||col2||
+        if (/^\|\|.+\|\|$/.test(line)) {
+            if (!inTable) { html += '<table style="width:100%;border-collapse:collapse;margin:8px 0;font-size:11px">'; inTable = true; }
+            const cells = line.split('||').filter(c => c !== '');
+            html += '<tr>' + cells.map(c => `<th style="background:var(--bg-2);border:1px solid var(--border-subtle);padding:6px 10px;text-align:left;font-weight:600;color:var(--text-100);font-size:11px">${formatJiraInline(esc(c.trim()))}</th>`).join('') + '</tr>';
+            continue;
+        }
+        // Table data row: |col1|col2|
+        if (/^\|[^|]/.test(line) && line.endsWith('|')) {
+            if (!inTable) { html += '<table style="width:100%;border-collapse:collapse;margin:8px 0;font-size:11px">'; inTable = true; }
+            const cells = line.slice(1, -1).split('|');
+            html += '<tr>' + cells.map(c => {
+                let cellStyle = 'border:1px solid var(--border-subtle);padding:5px 10px;color:var(--text-200);font-size:11px';
+                const val = c.trim();
+                if (val === 'CRITICAL') cellStyle += ';color:var(--crit);font-weight:600';
+                else if (val === 'HIGH') cellStyle += ';color:var(--high);font-weight:600';
+                else if (val === 'MEDIUM') cellStyle += ';color:var(--med)';
+                return `<td style="${cellStyle}">${formatJiraInline(esc(val))}</td>`;
+            }).join('') + '</tr>';
+            continue;
+        }
+        // Close table if we're no longer in table rows
+        if (inTable) { html += '</table>'; inTable = false; }
         // h1, h2, h3 headers
         if (/^h1\.\s*(.+)/.test(line)) {
-            html += '<h2 style="color:var(--hpe-green);font-size:18px;margin:16px 0 8px;border-bottom:1px solid var(--border-subtle);padding-bottom:6px">' + esc(line.replace(/^h1\.\s*/, '')) + '</h2>';
+            html += '<h2 style="color:var(--hpe-green);font-size:18px;margin:20px 0 8px;border-bottom:2px solid var(--hpe-green);padding-bottom:6px">' + esc(line.replace(/^h1\.\s*/, '')) + '</h2>';
             continue;
         }
         if (/^h2\.\s*(.+)/.test(line)) {
-            html += '<h3 style="color:var(--hpe-green);font-size:16px;margin:14px 0 6px;border-bottom:1px solid var(--border-subtle);padding-bottom:4px">' + esc(line.replace(/^h2\.\s*/, '')) + '</h3>';
+            html += '<h3 style="color:var(--hpe-green);font-size:16px;margin:18px 0 8px;border-bottom:1px solid var(--border-subtle);padding-bottom:4px">' + esc(line.replace(/^h2\.\s*/, '')) + '</h3>';
             continue;
         }
         if (/^h3\.\s*(.+)/.test(line)) {
-            html += '<h4 style="color:var(--text-100);font-size:14px;margin:12px 0 4px;font-weight:600">' + esc(line.replace(/^h3\.\s*/, '')) + '</h4>';
+            html += '<h4 style="color:var(--text-100);font-size:13px;margin:14px 0 6px;font-weight:600;text-transform:uppercase;letter-spacing:0.03em;border-left:3px solid var(--hpe-green);padding-left:8px">' + esc(line.replace(/^h3\.\s*/, '')) + '</h4>';
             continue;
         }
         // Bullet points
         if (/^\*\s+(.+)/.test(line)) {
-            html += '<div style="margin-left:12px;margin-bottom:4px;font-size:12px"><span style="color:var(--hpe-green)">●</span> ' + formatJiraInline(esc(line.replace(/^\*\s+/, ''))) + '</div>';
+            html += '<div style="margin-left:12px;margin-bottom:5px;font-size:12px;line-height:1.6"><span style="color:var(--hpe-green);margin-right:6px">●</span>' + formatJiraInline(esc(line.replace(/^\*\s+/, ''))) + '</div>';
             continue;
         }
         // Empty line
         if (line.trim() === '') {
-            html += '<div style="height:8px"></div>';
+            html += '<div style="height:6px"></div>';
             continue;
         }
         // Normal line
-        html += '<div style="margin-bottom:4px;font-size:12px;color:var(--text-200)">' + formatJiraInline(esc(line)) + '</div>';
+        html += '<div style="margin-bottom:4px;font-size:12px;color:var(--text-200);line-height:1.6">' + formatJiraInline(esc(line)) + '</div>';
     }
+    if (inTable) html += '</table>';
     return html;
 }
 function formatJiraInline(s) {
     // *bold*
     s = s.replace(/\*([^*]+)\*/g, '<strong style="color:var(--text-100)">$1</strong>');
     // _italic_
-    s = s.replace(/(?<!\w)_([^_]+)_(?!\w)/g, '<em style="color:var(--text-300)">$1</em>');
+    s = s.replace(/(?<!\w)_([^_]+)_(?!\w)/g, '<em style="color:var(--text-300);font-style:italic">$1</em>');
     // [SEVERITY] badges
     s = s.replace(/\[CRITICAL\]/g, '<span class="badge crit">CRITICAL</span>');
     s = s.replace(/\[HIGH\]/g, '<span class="badge high">HIGH</span>');
