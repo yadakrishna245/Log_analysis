@@ -381,10 +381,10 @@
 <div class="shell">
     <!-- Icon rail -->
     <nav class="rail">
-        <div class="rail-logo" style="background:none;" title="HPE LogSherlock Pro">
-            <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-                <rect x="2" y="8" width="28" height="16" rx="2" fill="#01A982"/>
-                <text x="16" y="19" text-anchor="middle" font-family="Inter,sans-serif" font-size="7" font-weight="600" fill="#fff">HPE</text>
+        <div class="rail-logo" style="background:none;width:auto;height:auto;" title="HPE LogSherlock Pro">
+            <svg width="36" height="20" viewBox="0 0 180 60">
+                <rect x="2" y="2" width="176" height="56" fill="none" stroke="#01A982" stroke-width="4" rx="2"/>
+                <rect x="30" y="18" width="120" height="24" fill="#01A982" rx="1"/>
             </svg>
         </div>
         <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle Dark/Light Theme" aria-label="Toggle theme">🌙</button>
@@ -402,6 +402,17 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12l2 2 4-4"/></svg>
         </div>
 
+        <!-- Ollama AI Status Indicator -->
+        <div class="rail-item" id="ollamaStatus" onclick="showOllamaPopover()" tabindex="0" title="AI Status: Checking..." style="position:relative;">
+            <span style="font-size:16px;">🤖</span>
+            <span id="ollamaStatusDot" style="position:absolute;top:6px;right:6px;width:8px;height:8px;border-radius:50%;background:#71717a;border:2px solid var(--bg-1);"></span>
+        </div>
+
+        <!-- Quick Reference Docs -->
+        <div class="rail-item" onclick="toggleQuickRef()" tabindex="0" title="Quick Reference Commands">
+            <span style="font-size:16px;">📚</span>
+        </div>
+
         <div class="rail-footer" title="Hewlett Packard Enterprise" style="width:auto;height:auto;border-radius:0;background:none;padding:8px 4px;flex-direction:column;display:flex;align-items:center;gap:4px;">
             <span style="font-size:8px;color:var(--text-500);text-align:center;line-height:1.2;writing-mode:vertical-rl;transform:rotate(180deg);">Hewlett Packard Enterprise</span>
         </div>
@@ -415,14 +426,19 @@
             <div id="page-analyze" class="page active">
                 <div class="pg-header">
                     <div style="display:flex;align-items:center;gap:24px;margin-bottom:16px;">
-                        <svg width="140" height="70" viewBox="0 0 140 70" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <rect x="0" y="0" width="140" height="70" rx="6" fill="#01A982"/>
-                            <text x="70" y="42" text-anchor="middle" font-family="Inter,sans-serif" font-size="24" font-weight="700" fill="#ffffff">HPE</text>
-                        </svg>
+                        <div style="display:flex;flex-direction:column;align-items:flex-start;">
+                            <svg width="180" height="60" viewBox="0 0 180 60">
+                                <rect x="2" y="2" width="176" height="56" fill="none" stroke="#01A982" stroke-width="4" rx="2"/>
+                                <rect x="30" y="18" width="120" height="24" fill="#01A982" rx="1"/>
+                            </svg>
+                            <div style="margin-top:8px">
+                                <div style="font-size:22px;font-weight:700;color:var(--text-100);letter-spacing:-0.5px">Hewlett Packard</div>
+                                <div style="font-size:22px;font-weight:400;color:#01A982">Enterprise</div>
+                            </div>
+                        </div>
                         <div>
-                            <div style="font-size:32px;font-weight:700;color:var(--text-100);letter-spacing:-0.03em;line-height:1.2;">LogSherlock Pro</div>
-                            <div style="font-size:15px;color:var(--hpe-green);font-weight:500;margin-top:4px;">Hewlett Packard Enterprise</div>
-                            <div style="font-size:13px;color:var(--text-400);margin-top:2px;">VME Log Analysis Suite</div>
+                            <div style="font-size:28px;font-weight:700;color:var(--text-100);margin-top:16px">LogSherlock Pro</div>
+                            <div style="font-size:14px;color:var(--text-400)">VME Log Analysis Suite</div>
                         </div>
                     </div>
                     <div class="pg-desc">Drop archives — scanned locally in your browser. Zero data uploaded. 113 pattern signatures.</div>
@@ -586,12 +602,15 @@
             <div id="page-knowledge" class="page">
                 <div class="pg-header">
                     <div style="display:flex;align-items:center;gap:24px;margin-bottom:12px">
-                        <svg width="140" height="70" viewBox="0 0 140 70" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <rect x="0" y="0" width="140" height="70" rx="6" fill="#01A982"/>
-                            <text x="70" y="42" text-anchor="middle" font-family="Inter,sans-serif" font-size="24" font-weight="700" fill="#ffffff">HPE</text>
-                        </svg>
-                        <div>
-                            <div style="font-size:15px;color:var(--hpe-green);font-weight:500;">Hewlett Packard Enterprise</div>
+                        <div style="display:flex;flex-direction:column;align-items:flex-start;">
+                            <svg width="180" height="60" viewBox="0 0 180 60">
+                                <rect x="2" y="2" width="176" height="56" fill="none" stroke="#01A982" stroke-width="4" rx="2"/>
+                                <rect x="30" y="18" width="120" height="24" fill="#01A982" rx="1"/>
+                            </svg>
+                            <div style="margin-top:8px">
+                                <div style="font-size:22px;font-weight:700;color:var(--text-100);letter-spacing:-0.5px">Hewlett Packard</div>
+                                <div style="font-size:22px;font-weight:400;color:#01A982">Enterprise</div>
+                            </div>
                         </div>
                     </div>
                     <div class="pg-title">Knowledge Base</div><div class="pg-desc">66 known issues across Morpheus, KVM, Alletra, GFS2, VME, Pacemaker.</div></div>
@@ -606,12 +625,15 @@
             <div id="page-runbooks" class="page">
                 <div class="pg-header">
                     <div style="display:flex;align-items:center;gap:24px;margin-bottom:12px">
-                        <svg width="140" height="70" viewBox="0 0 140 70" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <rect x="0" y="0" width="140" height="70" rx="6" fill="#01A982"/>
-                            <text x="70" y="42" text-anchor="middle" font-family="Inter,sans-serif" font-size="24" font-weight="700" fill="#ffffff">HPE</text>
-                        </svg>
-                        <div>
-                            <div style="font-size:15px;color:var(--hpe-green);font-weight:500;">Hewlett Packard Enterprise</div>
+                        <div style="display:flex;flex-direction:column;align-items:flex-start;">
+                            <svg width="180" height="60" viewBox="0 0 180 60">
+                                <rect x="2" y="2" width="176" height="56" fill="none" stroke="#01A982" stroke-width="4" rx="2"/>
+                                <rect x="30" y="18" width="120" height="24" fill="#01A982" rx="1"/>
+                            </svg>
+                            <div style="margin-top:8px">
+                                <div style="font-size:22px;font-weight:700;color:var(--text-100);letter-spacing:-0.5px">Hewlett Packard</div>
+                                <div style="font-size:22px;font-weight:400;color:#01A982">Enterprise</div>
+                            </div>
                         </div>
                     </div>
                     <div class="pg-title">Runbooks</div><div class="pg-desc">Step-by-step investigation guides for junior and senior engineers.</div></div>
@@ -623,6 +645,88 @@
 
 <!-- Sidebar expand handle (visible when collapsed) -->
 <div class="rail-expand-handle" id="railExpandHandle" onclick="toggleSidebar()" title="Expand sidebar" aria-label="Expand sidebar">▶</div>
+
+<!-- Ollama Status Popover -->
+<div id="ollamaPopover" style="display:none;position:fixed;left:64px;top:50%;transform:translateY(-50%);z-index:10000;background:var(--bg-2);border:1px solid var(--border-default);border-radius:12px;padding:16px 20px;box-shadow:0 12px 40px rgba(0,0,0,0.4);width:280px;">
+    <div style="font-size:14px;font-weight:600;color:var(--text-100);margin-bottom:8px;display:flex;align-items:center;gap:8px;">🤖 Local AI (Ollama)</div>
+    <div style="font-size:12px;color:var(--text-300);margin-bottom:12px;" id="ollamaPopoverStatus">Status: Checking...</div>
+    <div style="font-size:11px;color:var(--text-400);line-height:1.6;background:var(--bg-0);padding:10px 12px;border-radius:8px;border:1px solid var(--border-subtle);font-family:var(--mono);">
+        To enable: <span style="color:var(--hpe-green);">ollama pull llama3.1:8b</span><br><br>
+        Your data never leaves your machine.
+    </div>
+    <button class="btn-ghost" style="margin-top:12px;font-size:11px;width:100%;" onclick="hideOllamaPopover()">Close</button>
+</div>
+<div id="ollamaPopoverOverlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;" onclick="hideOllamaPopover()"></div>
+
+<!-- Quick Reference Panel -->
+<div id="quickRefPanel" style="display:none;position:fixed;left:56px;top:0;bottom:0;width:360px;z-index:9997;background:var(--bg-1);border-right:1px solid var(--border-default);box-shadow:4px 0 24px rgba(0,0,0,0.3);overflow-y:auto;padding:20px 16px;transition:transform 0.3s ease;font-family:var(--mono);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <div style="font-size:16px;font-weight:600;color:var(--text-100);font-family:var(--font);">📚 Quick Reference</div>
+        <button class="btn-ghost" style="font-size:11px;padding:4px 10px;" onclick="toggleQuickRef()">✕ Close</button>
+    </div>
+
+    <div class="qr-section">
+        <div style="font-size:12px;font-weight:600;color:var(--hpe-green);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.04em;">Cluster</div>
+        <pre style="font-size:11px;color:var(--text-200);line-height:1.8;margin-bottom:16px;white-space:pre-wrap;">pcs status
+pcs resource show
+corosync-quorumtool -s
+pcs stonith history
+crm_mon -1</pre>
+    </div>
+
+    <div class="qr-section">
+        <div style="font-size:12px;font-weight:600;color:var(--hpe-green);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.04em;">GFS2 / DLM</div>
+        <pre style="font-size:11px;color:var(--text-200);line-height:1.8;margin-bottom:16px;white-space:pre-wrap;">dlm_tool ls
+dlm_tool lockdebug
+gfs2_tool freeze &lt;mountpoint&gt;
+gfs2_tool journals &lt;mountpoint&gt;
+mount -t gfs2</pre>
+    </div>
+
+    <div class="qr-section">
+        <div style="font-size:12px;font-weight:600;color:var(--hpe-green);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.04em;">Libvirt / KVM</div>
+        <pre style="font-size:11px;color:var(--text-200);line-height:1.8;margin-bottom:16px;white-space:pre-wrap;">virsh list --all
+virsh dominfo &lt;vm&gt;
+virsh start/shutdown/destroy &lt;vm&gt;
+virsh console &lt;vm&gt;
+virt-top</pre>
+    </div>
+
+    <div class="qr-section">
+        <div style="font-size:12px;font-weight:600;color:var(--hpe-green);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.04em;">Storage / Multipath</div>
+        <pre style="font-size:11px;color:var(--text-200);line-height:1.8;margin-bottom:16px;white-space:pre-wrap;">multipath -ll
+iscsiadm -m session
+sg_persist -in -k /dev/mapper/&lt;mpath&gt;
+lsblk
+pvs / vgs / lvs</pre>
+    </div>
+
+    <div class="qr-section">
+        <div style="font-size:12px;font-weight:600;color:var(--hpe-green);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.04em;">Network</div>
+        <pre style="font-size:11px;color:var(--text-200);line-height:1.8;margin-bottom:16px;white-space:pre-wrap;">ip addr
+ip route
+iptables -L -n -v
+iptables-save &gt; /etc/iptables/rules.v4
+netplan apply</pre>
+    </div>
+
+    <div class="qr-section">
+        <div style="font-size:12px;font-weight:600;color:var(--hpe-green);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.04em;">Morpheus</div>
+        <pre style="font-size:11px;color:var(--text-200);line-height:1.8;margin-bottom:16px;white-space:pre-wrap;">morpheus-ctl status
+morpheus-ctl restart
+morpheus-ctl logs
+journalctl -u morpheus-ui</pre>
+    </div>
+
+    <div class="qr-section">
+        <div style="font-size:12px;font-weight:600;color:var(--hpe-green);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.04em;">System</div>
+        <pre style="font-size:11px;color:var(--text-200);line-height:1.8;margin-bottom:16px;white-space:pre-wrap;">sosreport --batch
+dmesg -T | tail -100
+journalctl -xe --since '1 hour ago'
+free -h
+df -h</pre>
+    </div>
+</div>
 
 
 <!-- pako for gzip decompression in browser -->
@@ -2140,6 +2244,23 @@ function copyFixCommand(btn) {
     opacity: 1 !important;
 }
 
+/* Quick Reference Panel */
+#quickRefPanel .qr-section {
+    padding: 12px 14px;
+    background: var(--bg-2);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    margin-bottom: 12px;
+}
+#quickRefPanel .qr-section pre {
+    margin: 0;
+    cursor: text;
+    user-select: all;
+}
+#quickRefPanel .qr-section:hover {
+    border-color: var(--hpe-green);
+}
+
 /* FIX 7: Time saved message */
 #timeSavedMsg {
     text-align: center;
@@ -2273,12 +2394,54 @@ const OLLAMA_URL = 'http://localhost:11434';
     .then(data => {
         _ollamaAvailable = true;
         console.log('[LogSherlock] Ollama detected locally. Models:', data.models?.map(m => m.name).join(', '));
+        // Update sidebar indicator
+        updateOllamaIndicator(true, data.models || []);
     })
     .catch(() => {
         _ollamaAvailable = false;
         console.log('[LogSherlock] Ollama not detected on localhost:11434. AI features disabled.');
+        // Update sidebar indicator
+        updateOllamaIndicator(false, []);
     });
 })();
+
+// Update Ollama sidebar indicator
+function updateOllamaIndicator(connected, models) {
+    const dot = document.getElementById('ollamaStatusDot');
+    const statusEl = document.getElementById('ollamaStatus');
+    const popoverStatus = document.getElementById('ollamaPopoverStatus');
+    if (dot) {
+        dot.style.background = connected ? '#01A982' : '#71717a';
+    }
+    if (statusEl) {
+        statusEl.title = connected ? 'AI: Connected (' + (models.length || 0) + ' models)' : 'AI: Not detected — Install Ollama for AI features';
+    }
+    if (popoverStatus) {
+        popoverStatus.innerHTML = connected
+            ? '<span style="color:#01A982;font-weight:600;">● Connected</span> — ' + (models.length || 0) + ' model(s) available'
+            : '<span style="color:#71717a;font-weight:600;">● Not detected</span>';
+    }
+}
+
+function showOllamaPopover() {
+    document.getElementById('ollamaPopover').style.display = 'block';
+    document.getElementById('ollamaPopoverOverlay').style.display = 'block';
+}
+
+function hideOllamaPopover() {
+    document.getElementById('ollamaPopover').style.display = 'none';
+    document.getElementById('ollamaPopoverOverlay').style.display = 'none';
+}
+
+// Quick Reference Panel Toggle
+function toggleQuickRef() {
+    const panel = document.getElementById('quickRefPanel');
+    if (panel.style.display === 'none' || panel.style.display === '') {
+        panel.style.display = 'block';
+    } else {
+        panel.style.display = 'none';
+    }
+}
 
 // Show AI panel when results are displayed (only if Ollama is available)
 const _aiObserver = new MutationObserver(function() {
