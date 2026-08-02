@@ -256,6 +256,55 @@
         html.light-theme .finding-code{background:#f1f3f5;border-color:#dee2e6;color:#495057;}
         html.light-theme .theme-toggle{background:#ffffff;border-color:#ced4da;}
 
+        /* ═══ FEATURE: SEARCH BAR (Splunk-style) ═══ */
+        #searchBar .search-input{width:100%;background:var(--bg-0);border:1px solid var(--border-default);color:var(--text-100);padding:10px 50px 10px 14px;border-radius:8px;font-size:12px;font-family:var(--mono);transition:border-color 150ms,box-shadow 150ms;}
+        #searchBar .search-input:focus{border-color:var(--hpe-green);outline:none;box-shadow:0 0 0 3px var(--hpe-green-dim);}
+        #searchBar .search-input::placeholder{color:var(--text-500);}
+
+        /* ═══ FEATURE: PATTERN GROUPING (Datadog-style) ═══ */
+        .group-toggle-btn{background:transparent;border:1px solid var(--border-default);color:var(--text-300);padding:7px 12px;border-radius:8px;font-size:11px;cursor:pointer;font-family:var(--font);transition:all 150ms;white-space:nowrap;}
+        .group-toggle-btn:hover{border-color:var(--hpe-green);color:var(--hpe-green);}
+        .group-toggle-btn.active{background:var(--hpe-green-dim);border-color:var(--hpe-green);color:var(--hpe-green);}
+        .pattern-group{background:var(--bg-2);border:1px solid var(--border-subtle);border-radius:10px;margin-bottom:10px;overflow:hidden;transition:border-color 150ms;}
+        .pattern-group:hover{border-color:var(--border-hover);}
+        .pattern-group-header{display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer;transition:background 150ms;user-select:none;}
+        .pattern-group-header:hover{background:var(--bg-3);}
+        .pattern-group-header .chevron{color:var(--text-500);font-size:12px;transition:transform 200ms;width:16px;}
+        .pattern-group-header .chevron.open{transform:rotate(90deg);}
+        .pattern-group-header .pg-name{font-size:12px;font-weight:500;color:var(--text-100);flex:1;}
+        .pattern-group-header .pg-count{font-family:var(--mono);font-size:10px;color:var(--text-400);background:var(--bg-4);padding:2px 8px;border-radius:10px;}
+        .pattern-group-header .pg-files{font-size:10px;color:var(--text-500);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+        .pattern-group-body{display:none;border-top:1px solid var(--border-subtle);padding:8px 16px;}
+        .pattern-group-body.open{display:block;}
+
+        /* ═══ FEATURE: SEVERITY DONUT CHART ═══ */
+        .donut-chart-container{display:flex;align-items:center;justify-content:center;gap:24px;margin:16px 0 24px;padding:16px;background:var(--bg-2);border:1px solid var(--border-subtle);border-radius:10px;}
+        .donut-chart{position:relative;width:120px;height:120px;border-radius:50%;}
+        .donut-chart .donut-hole{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:70px;height:70px;border-radius:50%;background:var(--bg-2);display:flex;align-items:center;justify-content:center;flex-direction:column;}
+        .donut-chart .donut-hole .donut-total{font-family:var(--mono);font-size:18px;font-weight:600;color:var(--text-100);}
+        .donut-chart .donut-hole .donut-label{font-size:9px;color:var(--text-500);text-transform:uppercase;letter-spacing:0.05em;}
+        .donut-legend{display:flex;flex-direction:column;gap:8px;}
+        .donut-legend-item{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text-300);}
+        .donut-legend-item .dot{width:10px;height:10px;border-radius:3px;}
+        .donut-legend-item .pct{font-family:var(--mono);font-size:10px;color:var(--text-400);min-width:36px;text-align:right;}
+
+        /* ═══ FEATURE: AI ONE-LINER SUMMARY ═══ */
+        .ai-oneliner{background:linear-gradient(135deg,var(--bg-2),var(--bg-3));border:1px solid var(--hpe-green);border-radius:12px;padding:16px 24px;margin-bottom:16px;display:flex;align-items:center;gap:12px;box-shadow:0 4px 16px rgba(1,169,130,0.1);animation:onelinerGlow 3s ease-in-out infinite alternate;}
+        @keyframes onelinerGlow{0%{box-shadow:0 4px 16px rgba(1,169,130,0.1);}100%{box-shadow:0 4px 24px rgba(1,169,130,0.2);}}
+        .ai-oneliner .oneliner-icon{font-size:24px;flex-shrink:0;}
+        .ai-oneliner .oneliner-text{font-size:15px;font-weight:500;color:var(--text-100);line-height:1.5;letter-spacing:-0.01em;}
+
+        /* ═══ FEATURE: EXPANDABLE SOLUTION CARDS ═══ */
+        .finding-fix-wrapper{margin-top:6px;}
+        .finding-fix-toggle{background:transparent;border:1px solid var(--low);color:var(--low);padding:4px 10px;border-radius:6px;font-size:10px;font-family:var(--font);cursor:pointer;transition:all 150ms;display:inline-flex;align-items:center;gap:4px;}
+        .finding-fix-toggle:hover{background:var(--low-bg);transform:translateY(-1px);}
+        .finding-fix-toggle.expanded{background:var(--low-bg);}
+        .finding-fix-expanded{display:none;margin-top:8px;background:var(--bg-0);border:1px solid var(--border-subtle);border-radius:8px;padding:12px 14px;font-family:var(--mono);font-size:11px;color:var(--low);line-height:1.6;}
+        .finding-fix-expanded.open{display:block;}
+        .fix-copy-btn{background:var(--bg-4);border:1px solid var(--border-default);color:var(--text-300);padding:4px 10px;border-radius:4px;font-size:10px;font-family:var(--font);cursor:pointer;transition:all 150ms;margin-top:8px;display:inline-flex;align-items:center;gap:4px;}
+        .fix-copy-btn:hover{border-color:var(--hpe-green);color:var(--hpe-green);}
+        .fix-copy-btn.copied{border-color:var(--low);color:var(--low);}
+
         /* ═══ SCAN HISTORY PANEL ═══ */
         .scan-history-panel{background:var(--bg-2);border:1px solid var(--border-subtle);border-radius:10px;padding:14px 18px;margin-top:16px;margin-bottom:16px;}
         .scan-history-panel-title{font-size:11px;font-weight:500;color:var(--text-400);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
@@ -460,9 +509,16 @@
                         <div class="findings-header">
                             <span class="findings-count" id="findingsCount"></span>
                             <div style="display:flex;gap:8px;align-items:center;">
+                                <button class="group-toggle-btn" id="groupToggleBtn" onclick="toggleGroupView()" title="Group findings by pattern name">⊞ Group by Pattern</button>
                                 <button class="btn-ghost" onclick="copyFindings()">Copy all</button>
                                 <button class="btn-csv" onclick="exportCSV()">📊 Export CSV</button>
                                 <button class="btn-pdf" onclick="exportPDF()">📄 Download PDF Report</button>
+                            </div>
+                        </div>
+                        <div id="searchBar" style="display:none;margin-bottom:12px">
+                            <div style="position:relative">
+                                <input type="text" id="searchInput" class="search-input" placeholder="🔍  Search findings... (pattern, file, severity, text)" />
+                                <span id="searchCount" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--text-400)"></span>
                             </div>
                         </div>
                         <div id="findingsList"></div>
@@ -1594,6 +1650,387 @@ document.addEventListener('keydown', function(e) {
             }
         }
     } catch(e) {}
+})();
+
+// ══════════════════════════════════════════════════════════════════
+// FEATURE 1: Real-time Search Bar (Splunk-style)
+// ══════════════════════════════════════════════════════════════════
+let _isGroupView = false;
+
+(function initSearchBar() {
+    const searchInput = document.getElementById('searchInput');
+    if (!searchInput) return;
+
+    searchInput.addEventListener('keyup', function(e) {
+        const query = this.value.trim().toLowerCase();
+        const countEl = document.getElementById('searchCount');
+
+        if (!query) {
+            countEl.textContent = '';
+            if (_isGroupView) {
+                renderGroupedView(_allFindings);
+            } else {
+                renderFindingsList(_allFindings, _allFindings.length + ' findings (all)');
+            }
+            return;
+        }
+
+        const filtered = _allFindings.filter(f => {
+            const searchFields = [
+                (f.pattern_name || ''),
+                (f.file || ''),
+                (f.description || ''),
+                (f.line_content || ''),
+                (f.severity || ''),
+                (f.solution_hint || '')
+            ].join(' ').toLowerCase();
+            return searchFields.includes(query);
+        });
+
+        countEl.textContent = filtered.length + ' / ' + _allFindings.length + ' matches';
+
+        if (_isGroupView) {
+            renderGroupedView(filtered);
+        } else {
+            renderFindingsList(filtered, filtered.length + ' matches for "' + esc(this.value) + '"');
+        }
+    });
+
+    // Escape to clear search
+    searchInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            this.value = '';
+            this.dispatchEvent(new Event('keyup'));
+            this.blur();
+        }
+    });
+})();
+
+// MutationObserver to show search bar when results become active
+(function observeResults() {
+    const resultsEl = document.getElementById('results');
+    if (!resultsEl) return;
+
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                if (resultsEl.classList.contains('active')) {
+                    // Show search bar
+                    const searchBar = document.getElementById('searchBar');
+                    if (searchBar) searchBar.style.display = 'block';
+                    // Render donut chart
+                    if (_allFindings && _allFindings.length > 0) {
+                        const c = _allFindings.filter(x => x.severity === 'CRITICAL').length;
+                        const h = _allFindings.filter(x => x.severity === 'HIGH').length;
+                        const m = _allFindings.filter(x => x.severity === 'MEDIUM').length;
+                        const l = _allFindings.filter(x => x.severity === 'LOW').length;
+                        renderDonutChart(c, h, m, l);
+                        generateOneLiner(_allFindings);
+                        enhanceSolutionCards();
+                    }
+                }
+            }
+        });
+    });
+
+    observer.observe(resultsEl, { attributes: true, attributeFilter: ['class'] });
+})();
+
+// ══════════════════════════════════════════════════════════════════
+// FEATURE 2: Smart Pattern Grouping (Datadog-style)
+// ══════════════════════════════════════════════════════════════════
+function toggleGroupView() {
+    _isGroupView = !_isGroupView;
+    const btn = document.getElementById('groupToggleBtn');
+    if (btn) btn.classList.toggle('active', _isGroupView);
+
+    const query = (document.getElementById('searchInput') || {}).value || '';
+    let findings = _allFindings;
+    if (query.trim()) {
+        const q = query.trim().toLowerCase();
+        findings = _allFindings.filter(f => {
+            return [f.pattern_name, f.file, f.description, f.line_content, f.severity, f.solution_hint]
+                .join(' ').toLowerCase().includes(q);
+        });
+    }
+
+    if (_isGroupView) {
+        renderGroupedView(findings);
+    } else {
+        renderFindingsList(findings, findings.length + ' findings' + (query.trim() ? ' (filtered)' : ' (all)'));
+        enhanceSolutionCards();
+    }
+}
+
+function renderGroupedView(findings) {
+    const groups = {};
+    findings.forEach(f => {
+        const key = f.pattern_name || 'Unknown Pattern';
+        if (!groups[key]) {
+            groups[key] = { pattern_name: key, severity: f.severity, findings: [], files: new Set() };
+        }
+        groups[key].findings.push(f);
+        groups[key].files.add(f.file || 'unknown');
+    });
+
+    // Sort groups: by severity then count
+    const sevOrder = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
+    const sorted = Object.values(groups).sort((a, b) => {
+        const sevDiff = (sevOrder[a.severity] || 4) - (sevOrder[b.severity] || 4);
+        if (sevDiff !== 0) return sevDiff;
+        return b.findings.length - a.findings.length;
+    });
+
+    let html = '';
+    sorted.forEach((group, idx) => {
+        const filesArr = [...group.files];
+        const filesStr = filesArr.map(f => f.split('/').pop()).slice(0, 3).join(', ') + (filesArr.length > 3 ? ` +${filesArr.length - 3} more` : '');
+        html += `<div class="pattern-group" data-group-idx="${idx}">
+            <div class="pattern-group-header" onclick="togglePatternGroup(${idx})">
+                <span class="chevron" id="chevron-${idx}">▶</span>
+                <span class="pg-name">${esc(group.pattern_name)}</span>
+                <span class="badge badge-${group.severity.toLowerCase()}">${group.severity}</span>
+                <span class="pg-count">${group.findings.length} hit${group.findings.length > 1 ? 's' : ''}</span>
+                <span class="pg-files" title="${esc(filesArr.join(', '))}">${esc(filesStr)}</span>
+            </div>
+            <div class="pattern-group-body" id="group-body-${idx}">
+                ${group.findings.map(x => `
+                    <div class="finding">
+                        <div><span class="badge badge-${x.severity.toLowerCase()}">${x.severity}</span></div>
+                        <div class="finding-content">
+                            <div class="finding-source">${esc(x.file || '')}:${x.line_number || '?'}</div>
+                            <div class="finding-text">${esc(x.description || x.pattern_name || '')}</div>
+                            <div class="finding-code">${esc(x.line_content || '')}</div>
+                            ${x.solution_hint ? `<div class="finding-fix">${esc(x.solution_hint)}</div>` : ''}
+                        </div>
+                    </div>`).join('')}
+            </div>
+        </div>`;
+    });
+
+    document.getElementById('findingsList').innerHTML = html;
+    document.getElementById('findingsCount').innerHTML = `<span style="color:var(--text-100);font-weight:600">${sorted.length} pattern groups (${findings.length} findings)</span>`;
+}
+
+function togglePatternGroup(idx) {
+    const body = document.getElementById('group-body-' + idx);
+    const chevron = document.getElementById('chevron-' + idx);
+    if (body && chevron) {
+        body.classList.toggle('open');
+        chevron.classList.toggle('open');
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// FEATURE 3: Severity Donut Chart (CSS-only, conic-gradient)
+// ══════════════════════════════════════════════════════════════════
+function renderDonutChart(c, h, m, l) {
+    const total = c + h + m + l;
+    if (total === 0) return;
+
+    // Remove existing donut if present
+    const existing = document.getElementById('donutChartContainer');
+    if (existing) existing.remove();
+
+    const cp = ((c / total) * 100).toFixed(1);
+    const hp = ((h / total) * 100).toFixed(1);
+    const mp = ((m / total) * 100).toFixed(1);
+    const lp = ((l / total) * 100).toFixed(1);
+
+    // Conic gradient segments
+    const cEnd = (c / total) * 360;
+    const hEnd = cEnd + (h / total) * 360;
+    const mEnd = hEnd + (m / total) * 360;
+
+    const gradient = `conic-gradient(
+        var(--critical) 0deg ${cEnd}deg,
+        var(--high) ${cEnd}deg ${hEnd}deg,
+        var(--medium) ${hEnd}deg ${mEnd}deg,
+        var(--low) ${mEnd}deg 360deg
+    )`;
+
+    const container = document.createElement('div');
+    container.id = 'donutChartContainer';
+    container.className = 'donut-chart-container';
+    container.innerHTML = `
+        <div class="donut-chart" style="background:${gradient}">
+            <div class="donut-hole">
+                <span class="donut-total">${total}</span>
+                <span class="donut-label">Total</span>
+            </div>
+        </div>
+        <div class="donut-legend">
+            <div class="donut-legend-item"><span class="dot" style="background:var(--critical)"></span><span class="pct">${cp}%</span> Critical (${c})</div>
+            <div class="donut-legend-item"><span class="dot" style="background:var(--high)"></span><span class="pct">${hp}%</span> High (${h})</div>
+            <div class="donut-legend-item"><span class="dot" style="background:var(--medium)"></span><span class="pct">${mp}%</span> Medium (${m})</div>
+            <div class="donut-legend-item"><span class="dot" style="background:var(--low)"></span><span class="pct">${lp}%</span> Low (${l})</div>
+        </div>
+    `;
+
+    // Insert after the metricsGrid subtitle text
+    const metricsGrid = document.getElementById('metricsGrid');
+    if (metricsGrid && metricsGrid.nextElementSibling) {
+        metricsGrid.nextElementSibling.insertAdjacentElement('afterend', container);
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// FEATURE 4: AI One-Liner Summary
+// ══════════════════════════════════════════════════════════════════
+function generateOneLiner(findings) {
+    if (!findings || findings.length === 0) return;
+
+    // Remove existing one-liner if present
+    const existing = document.getElementById('aiOneliner');
+    if (existing) existing.remove();
+
+    const critFindings = findings.filter(x => x.severity === 'CRITICAL');
+    const highFindings = findings.filter(x => x.severity === 'HIGH');
+    const topFindings = critFindings.length > 0 ? critFindings : highFindings;
+
+    if (topFindings.length === 0) return;
+
+    // Extract unique patterns and categories
+    const patterns = [...new Set(topFindings.map(f => f.pattern_name || '').filter(Boolean))];
+    const categories = [...new Set(topFindings.map(f => f.category || '').filter(Boolean))];
+    const affectedFiles = [...new Set(topFindings.map(f => f.file || '').filter(Boolean))].length;
+    const totalEvents = topFindings.length;
+
+    // Build a cascade sentence from patterns
+    let cascadeText = '';
+    if (patterns.length >= 3) {
+        cascadeText = patterns.slice(0, 4).join(' → ');
+    } else if (patterns.length === 2) {
+        cascadeText = patterns[0] + ' → ' + patterns[1];
+    } else {
+        cascadeText = patterns[0] || 'System failure detected';
+    }
+
+    // Determine impact based on categories
+    let impact = '';
+    if (categories.includes('cluster')) impact = ' → cluster integrity compromised';
+    else if (categories.includes('storage')) impact = ' → storage path degradation';
+    else if (categories.includes('filesystem')) impact = ' → filesystem failure';
+    else if (categories.includes('virtualization')) impact = ' → VM operations impacted';
+    else if (categories.includes('network')) impact = ' → network connectivity disrupted';
+
+    const severity = critFindings.length > 0 ? 'CRITICAL' : 'HIGH';
+    const emoji = severity === 'CRITICAL' ? '⚡' : '🔶';
+    const onelinerText = `${emoji} Root Cause: ${cascadeText}${impact} (${totalEvents} ${severity.toLowerCase()} events across ${affectedFiles} file${affectedFiles > 1 ? 's' : ''})`;
+
+    const onelinerDiv = document.createElement('div');
+    onelinerDiv.id = 'aiOneliner';
+    onelinerDiv.className = 'ai-oneliner';
+    onelinerDiv.innerHTML = `
+        <span class="oneliner-icon">${emoji}</span>
+        <span class="oneliner-text">${esc(onelinerText.replace(emoji + ' ', ''))}</span>
+    `;
+
+    // Insert before #rcaSummary
+    const rcaSummary = document.getElementById('rcaSummary');
+    if (rcaSummary && rcaSummary.parentNode) {
+        rcaSummary.parentNode.insertBefore(onelinerDiv, rcaSummary);
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// FEATURE 5: Expandable Solution Cards with Copy Button
+// ══════════════════════════════════════════════════════════════════
+function enhanceSolutionCards() {
+    const findingsList = document.getElementById('findingsList');
+    if (!findingsList) return;
+
+    // Find all .finding-fix elements and enhance them
+    const fixElements = findingsList.querySelectorAll('.finding-fix');
+    fixElements.forEach((el, idx) => {
+        // Skip if already enhanced
+        if (el.dataset.enhanced) return;
+        el.dataset.enhanced = 'true';
+
+        const fixText = el.textContent.replace(/^→\s*/, '').trim();
+        if (!fixText) return;
+
+        // Hide original fix text
+        el.style.display = 'none';
+
+        // Create wrapper
+        const wrapper = document.createElement('div');
+        wrapper.className = 'finding-fix-wrapper';
+
+        // Create toggle button
+        const toggleBtn = document.createElement('button');
+        toggleBtn.className = 'finding-fix-toggle';
+        toggleBtn.innerHTML = '💡 Show Fix ▸';
+        toggleBtn.setAttribute('data-fix-idx', idx);
+
+        // Create expanded solution panel
+        const expandedPanel = document.createElement('div');
+        expandedPanel.className = 'finding-fix-expanded';
+        expandedPanel.id = 'fix-panel-' + idx;
+
+        // Extract potential command from fix text (text after colon or the whole thing)
+        const commandMatch = fixText.match(/(?:run|execute|use|check|verify|try)[\s:]+(.+)/i);
+        const command = commandMatch ? commandMatch[1].trim() : fixText;
+
+        expandedPanel.innerHTML = `
+            <div style="color:var(--text-200);margin-bottom:8px;font-family:var(--font);font-size:12px">→ ${esc(fixText)}</div>
+            <div style="background:var(--bg-2);border:1px solid var(--border-subtle);border-radius:6px;padding:8px 12px;font-family:var(--mono);font-size:11px;color:var(--hpe-green);display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                <code style="flex:1;word-break:break-all">${esc(command)}</code>
+                <button class="fix-copy-btn" data-command="${esc(command).replace(/"/g, '&quot;')}" onclick="copyFixCommand(this)">📋 Copy</button>
+            </div>
+        `;
+
+        // Toggle logic
+        toggleBtn.addEventListener('click', function() {
+            const panel = document.getElementById('fix-panel-' + idx);
+            const isOpen = panel.classList.contains('open');
+            panel.classList.toggle('open');
+            this.classList.toggle('expanded');
+            this.innerHTML = isOpen ? '💡 Show Fix ▸' : '💡 Hide Fix ▾';
+        });
+
+        wrapper.appendChild(toggleBtn);
+        wrapper.appendChild(expandedPanel);
+
+        // Insert after the hidden fix element
+        el.parentNode.insertBefore(wrapper, el.nextSibling);
+    });
+}
+
+function copyFixCommand(btn) {
+    const command = btn.getAttribute('data-command');
+    navigator.clipboard.writeText(command).then(() => {
+        btn.innerHTML = '✓ Copied';
+        btn.classList.add('copied');
+        setTimeout(() => {
+            btn.innerHTML = '📋 Copy';
+            btn.classList.remove('copied');
+        }, 2000);
+    }).catch(() => {
+        // Fallback for older browsers
+        const ta = document.createElement('textarea');
+        ta.value = command;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        btn.innerHTML = '✓ Copied';
+        btn.classList.add('copied');
+        setTimeout(() => { btn.innerHTML = '📋 Copy'; btn.classList.remove('copied'); }, 2000);
+    });
+}
+
+// Also enhance solution cards whenever findingsList content changes (e.g. after filter)
+(function observeFindingsList() {
+    const findingsList = document.getElementById('findingsList');
+    if (!findingsList) return;
+
+    const observer = new MutationObserver(function() {
+        // Delay slightly to let DOM settle
+        setTimeout(enhanceSolutionCards, 50);
+    });
+
+    observer.observe(findingsList, { childList: true });
 })();
 </script>
 </body>
