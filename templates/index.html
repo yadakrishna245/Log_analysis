@@ -115,7 +115,8 @@
 
         /* Metric cards */
         .metrics{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:24px;}
-        .metric{background:var(--bg-2);border:1px solid var(--border-subtle);border-radius:10px;padding:16px;text-align:center;}
+        .metric{background:var(--bg-2);border:1px solid var(--border-subtle);border-radius:10px;padding:16px;text-align:center;transition:all 0.2s;cursor:pointer;}
+        .metric:hover{border-color:var(--hpe-green);transform:translateY(-2px);box-shadow:0 4px 12px rgba(1,169,130,0.15);}
         .metric-val{font-size:28px;font-weight:600;font-family:var(--mono);letter-spacing:-0.02em;}
         .metric-val.crit{color:var(--critical);}
         .metric-val.high{color:var(--high);}
@@ -193,8 +194,10 @@
         .heatmap-title{font-size:11px;font-weight:500;color:var(--text-400);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:14px;}
         .heatmap-grid{display:grid;grid-template-columns:200px repeat(4, 1fr);gap:2px;font-size:10px;}
         .heatmap-header{font-family:var(--mono);font-size:9px;color:var(--text-400);text-transform:uppercase;padding:6px 8px;text-align:center;}
-        .heatmap-file{font-family:var(--mono);font-size:10px;color:var(--text-300);padding:6px 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-        .heatmap-cell{border-radius:3px;padding:6px 8px;text-align:center;font-family:var(--mono);font-size:10px;font-weight:500;}
+        .heatmap-file{font-family:var(--mono);font-size:10px;color:var(--text-300);padding:6px 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;transition:color 0.2s;}
+        .heatmap-file:hover{color:var(--hpe-green);}
+        .heatmap-cell{border-radius:3px;padding:6px 8px;text-align:center;font-family:var(--mono);font-size:10px;font-weight:500;cursor:pointer;transition:transform 0.15s;}
+        .heatmap-cell:hover{transform:scale(1.1);}
         .heatmap-cell.intensity-0{background:var(--bg-0);color:var(--text-500);}
         .heatmap-cell.intensity-1{background:var(--low-bg);color:var(--low);}
         .heatmap-cell.intensity-2{background:var(--medium-bg);color:var(--medium);}
@@ -703,9 +706,11 @@ function analyzeFolder(){
         .catch(e=>setStatus('error','Error: '+e.message));
 }
 
+let _allFindings = []; // Global for filtering
 function render(data){
     hideProgress();
     const f=data.findings||[];
+    _allFindings = f; // Store for filter functions
     const c=f.filter(x=>x.severity==='CRITICAL').length;
     const h=f.filter(x=>x.severity==='HIGH').length;
     const m=f.filter(x=>x.severity==='MEDIUM').length;
@@ -752,17 +757,19 @@ function render(data){
 
     // Metrics
     $('#metricsGrid').innerHTML=`
-        <div class="metric"><div class="metric-val crit">${c}</div><div class="metric-label">Critical</div></div>
-        <div class="metric"><div class="metric-val high">${h}</div><div class="metric-label">High</div></div>
-        <div class="metric"><div class="metric-val med">${m}</div><div class="metric-label">Medium</div></div>
-        <div class="metric"><div class="metric-val low">${l}</div><div class="metric-label">Low</div></div>
-        <div class="metric"><div class="metric-val neutral">${data.files_analyzed||0}</div><div class="metric-label">Files</div></div>`;
+        <div class="metric" style="cursor:pointer" onclick="filterFindings('CRITICAL')" title="Click to show only CRITICAL findings"><div class="metric-val crit">${c}</div><div class="metric-label">Critical</div></div>
+        <div class="metric" style="cursor:pointer" onclick="filterFindings('HIGH')" title="Click to show only HIGH findings"><div class="metric-val high">${h}</div><div class="metric-label">High</div></div>
+        <div class="metric" style="cursor:pointer" onclick="filterFindings('MEDIUM')" title="Click to show only MEDIUM findings"><div class="metric-val med">${m}</div><div class="metric-label">Medium</div></div>
+        <div class="metric" style="cursor:pointer" onclick="filterFindings('LOW')" title="Click to show only LOW findings"><div class="metric-val low">${l}</div><div class="metric-label">Low</div></div>
+        <div class="metric" style="cursor:pointer" onclick="filterFindings('')" title="Click to show ALL findings"><div class="metric-val neutral">${data.files_analyzed||0}</div><div class="metric-label">Files</div></div>`;
 
     // Severity Heatmap
     const fileMap = {};
+    const fileFullPaths = {}; // Map short name -> full path
     f.forEach(x => {
-        const fname = (x.file || 'unknown').split('/').pop();
-        if (!fileMap[fname]) fileMap[fname] = {CRITICAL:0, HIGH:0, MEDIUM:0, LOW:0};
+        const fullPath = x.file || 'unknown';
+        const fname = fullPath.split('/').pop();
+        if (!fileMap[fname]) { fileMap[fname] = {CRITICAL:0, HIGH:0, MEDIUM:0, LOW:0}; fileFullPaths[fname] = fullPath; }
         if (fileMap[fname][x.severity] !== undefined) fileMap[fname][x.severity]++;
     });
     const heatFiles = Object.entries(fileMap).sort((a,b) => {
@@ -775,7 +782,8 @@ function render(data){
         $('#heatmapPanel').style.display = 'block';
         let heatHTML = '<div class="heatmap-header"></div><div class="heatmap-header">Critical</div><div class="heatmap-header">High</div><div class="heatmap-header">Medium</div><div class="heatmap-header">Low</div>';
         heatFiles.forEach(([fname, counts]) => {
-            heatHTML += `<div class="heatmap-file" title="${esc(fname)}">${esc(fname)}</div>`;
+            const fullPath = fileFullPaths[fname] || fname;
+            heatHTML += `<div class="heatmap-file" style="cursor:pointer;text-decoration:underline;text-decoration-color:var(--border-subtle)" title="Click to filter: ${esc(fullPath)}" onclick="filterByFile('${esc(fname)}')">${esc(fname)}</div>`;
             ['CRITICAL','HIGH','MEDIUM','LOW'].forEach(sev => {
                 const val = counts[sev] || 0;
                 let intensity = 0;
@@ -783,7 +791,7 @@ function render(data){
                 if (val >= 3) intensity = 2;
                 if (val >= 6) intensity = 3;
                 if (val >= 10) intensity = 4;
-                heatHTML += `<div class="heatmap-cell intensity-${intensity}">${val || '·'}</div>`;
+                heatHTML += `<div class="heatmap-cell intensity-${intensity}" style="cursor:pointer" onclick="filterByFile('${esc(fname)}','${sev}')" title="Show ${sev} findings in ${esc(fname)}">${val || '·'}</div>`;
             });
         });
         $('#heatmapGrid').innerHTML = heatHTML;
@@ -1110,6 +1118,55 @@ function hideProgress(){$('#progressBar').classList.remove('active');}
 function copyFindings(){navigator.clipboard.writeText($('#findingsList').innerText).then(()=>flash('Copied'));}
 function copyJira(){navigator.clipboard.writeText($('#jiraReportRaw').value).then(()=>flash('Copied — paste into Jira'));}
 function flash(msg){const t=$('#statusText');const prev=t.textContent;t.textContent=msg;setTimeout(()=>t.textContent=prev,2000);}
+
+// ── FILTERING (clickable cards) ─────────────────────────────────────
+function filterFindings(severity) {
+    const filtered = severity ? _allFindings.filter(x => x.severity === severity) : _allFindings;
+    renderFindingsList(filtered, severity ? `${filtered.length} ${severity} findings` : `${filtered.length} findings (all)`);
+    // Switch to findings tab and scroll
+    switchTabDirect('findings');
+    document.querySelector('#tab-findings').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+function filterByFile(fname, severity) {
+    let filtered = _allFindings.filter(x => (x.file || '').endsWith(fname));
+    const fullPath = filtered.length > 0 ? filtered[0].file : fname;
+    if (severity && severity !== 'undefined') filtered = filtered.filter(x => x.severity === severity);
+    const label = severity ? `${filtered.length} ${severity} findings in ${fname}` : `${filtered.length} findings in ${fname}`;
+    renderFindingsList(filtered, label, fullPath);
+    switchTabDirect('findings');
+    document.querySelector('#tab-findings').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+function renderFindingsList(findings, label, fullPath) {
+    let headerHTML = `<span style="color:var(--text-100);font-weight:600">${esc(label)}</span>`;
+    if (fullPath) {
+        headerHTML += `<div style="font-size:11px;color:var(--hpe-green);font-family:var(--mono);margin-top:4px;padding:4px 8px;background:var(--bg-0);border-radius:4px;border:1px solid var(--border-subtle)">📁 ${esc(fullPath)}</div>`;
+    }
+    if (findings.length !== _allFindings.length) {
+        headerHTML += ` <button class="btn-ghost" style="margin-left:12px;font-size:11px" onclick="filterFindings('')">✕ Clear filter</button>`;
+    }
+    $('#findingsCount').innerHTML = headerHTML;
+    $('#findingsList').innerHTML = findings.map(x => `
+        <div class="finding">
+            <div><span class="badge badge-${x.severity.toLowerCase()}">${x.severity}</span></div>
+            <div class="finding-content">
+                <div class="finding-source">${esc(x.file||'')}:${x.line_number||'?'}</div>
+                <div class="finding-text">${esc(x.description||x.pattern_name||'')}</div>
+                <div class="finding-code">${esc(x.line_content||'')}</div>
+                ${x.solution_hint?`<div class="finding-fix">${esc(x.solution_hint)}</div>`:''}
+            </div>
+        </div>`).join('');
+}
+
+function switchTabDirect(t) {
+    $$('.tab-item').forEach(x => x.classList.remove('active'));
+    $$('.tab-pane').forEach(x => x.classList.remove('active'));
+    const tabBtn = document.querySelector(`.tab-item[onclick*="${t}"]`);
+    if (tabBtn) tabBtn.classList.add('active');
+    const tabPane = document.querySelector('#tab-' + t);
+    if (tabPane) tabPane.classList.add('active');
+}
 
 // ── TICKET ADVISOR ──────────────────────────────────────────────────
 function getAdvice() {
