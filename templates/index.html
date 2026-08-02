@@ -647,14 +647,44 @@
 <div class="rail-expand-handle" id="railExpandHandle" onclick="toggleSidebar()" title="Expand sidebar" aria-label="Expand sidebar">▶</div>
 
 <!-- Ollama Status Popover -->
-<div id="ollamaPopover" style="display:none;position:fixed;left:64px;top:50%;transform:translateY(-50%);z-index:10000;background:var(--bg-2);border:1px solid var(--border-default);border-radius:12px;padding:16px 20px;box-shadow:0 12px 40px rgba(0,0,0,0.4);width:280px;">
-    <div style="font-size:14px;font-weight:600;color:var(--text-100);margin-bottom:8px;display:flex;align-items:center;gap:8px;">🤖 Local AI (Ollama)</div>
-    <div style="font-size:12px;color:var(--text-300);margin-bottom:12px;" id="ollamaPopoverStatus">Status: Checking...</div>
-    <div style="font-size:11px;color:var(--text-400);line-height:1.6;background:var(--bg-0);padding:10px 12px;border-radius:8px;border:1px solid var(--border-subtle);font-family:var(--mono);">
-        To enable: <span style="color:var(--hpe-green);">ollama pull llama3.1:8b</span><br><br>
-        Your data never leaves your machine.
+<div id="ollamaPopover" style="display:none;position:fixed;left:64px;top:50%;transform:translateY(-50%);z-index:10000;background:var(--bg-2);border:1px solid var(--border-default);border-radius:12px;padding:20px 24px;box-shadow:0 12px 40px rgba(0,0,0,0.4);width:360px;max-height:80vh;overflow-y:auto;">
+    <div style="font-size:15px;font-weight:600;color:var(--text-100);margin-bottom:8px;display:flex;align-items:center;gap:8px;">🤖 Local AI (Ollama)</div>
+    <div style="font-size:13px;color:var(--text-300);margin-bottom:14px;" id="ollamaPopoverStatus">Status: Checking...</div>
+
+    <div style="font-size:12px;color:var(--text-300);line-height:1.7;">
+        <div style="font-weight:600;color:var(--text-100);margin-bottom:6px;font-size:13px;">📋 One-Time Setup (2 minutes)</div>
+
+        <div style="background:var(--bg-0);padding:12px;border-radius:8px;border:1px solid var(--border-subtle);font-family:var(--mono);margin-bottom:12px;">
+            <div style="color:var(--text-400);margin-bottom:4px;"># Step 1: Install Ollama</div>
+            <div style="color:var(--hpe-green);">https://ollama.com/download</div>
+            <br>
+            <div style="color:var(--text-400);margin-bottom:4px;"># Step 2: Pull model (16GB RAM)</div>
+            <div style="color:var(--hpe-green);">ollama pull llama3.2:3b</div>
+            <br>
+            <div style="color:var(--text-400);margin-bottom:4px;"># Step 2: Pull model (32GB RAM)</div>
+            <div style="color:var(--hpe-green);">ollama pull llama3.1:8b</div>
+        </div>
+
+        <div style="font-weight:600;color:var(--text-100);margin-bottom:6px;font-size:13px;">🌐 Enable on CloudFront (one-time)</div>
+        <div style="background:var(--bg-0);padding:12px;border-radius:8px;border:1px solid var(--border-subtle);font-family:var(--mono);margin-bottom:12px;">
+            <div style="color:var(--text-400);margin-bottom:6px;">Chrome → paste in address bar:</div>
+            <div style="color:#f59e0b;word-break:break-all;">chrome://flags/#unsafely-treat-insecure-origin-as-secure</div>
+            <br>
+            <div style="color:var(--text-400);margin-bottom:4px;">Add this value:</div>
+            <div style="color:var(--hpe-green);">http://localhost:11434</div>
+            <br>
+            <div style="color:var(--text-400);">→ Set to <span style="color:var(--hpe-green);font-weight:600;">Enabled</span> → Relaunch Chrome</div>
+        </div>
+
+        <div style="font-weight:600;color:var(--text-100);margin-bottom:6px;font-size:13px;">🔒 Privacy Guarantee</div>
+        <div style="color:var(--text-400);font-size:11px;line-height:1.6;">
+            • AI runs 100% on YOUR laptop<br>
+            • Only pattern names sent (not logs)<br>
+            • Zero internet connection needed<br>
+            • No API keys or subscriptions
+        </div>
     </div>
-    <button class="btn-ghost" style="margin-top:12px;font-size:11px;width:100%;" onclick="hideOllamaPopover()">Close</button>
+    <button class="btn-ghost" style="margin-top:14px;font-size:12px;width:100%;padding:8px;" onclick="hideOllamaPopover()">Close</button>
 </div>
 <div id="ollamaPopoverOverlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;" onclick="hideOllamaPopover()"></div>
 
