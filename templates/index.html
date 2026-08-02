@@ -57,7 +57,7 @@
         .rail-footer{margin-top:auto;width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:var(--bg-3);color:var(--text-400);font-size:11px;font-weight:500;}
 
         /* Sidebar collapse toggle button */
-        .rail-toggle{width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:8px;cursor:pointer;color:var(--text-400);background:var(--bg-3);border:1px solid var(--border-subtle);transition:all 150ms;margin-top:12px;font-size:16px;}
+        .rail-toggle{width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:8px;cursor:pointer;color:var(--text-400);background:var(--bg-3);border:1px solid var(--border-subtle);transition:all 150ms;font-size:16px;}
         .rail-toggle:hover{background:var(--bg-4);color:var(--text-100);border-color:var(--border-hover);}
 
         /* Expand handle (visible when sidebar is collapsed) */
@@ -258,14 +258,14 @@
         .print-header{display:none;}
 
         /* ═══ THEME TOGGLE ═══ */
-        .theme-toggle{position:fixed;top:12px;right:12px;z-index:9999;width:36px;height:36px;border-radius:50%;border:2px solid var(--border-default);background:var(--bg-1);color:var(--text-300);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;transition:all 150ms;box-shadow:0 2px 12px rgba(0,0,0,0.3);}
-        .theme-toggle:hover{border-color:var(--hpe-green);color:var(--text-100);transform:scale(1.1);box-shadow:0 4px 16px rgba(0,0,0,0.4);}
+        .theme-toggle{width:40px;height:40px;border-radius:8px;border:none;background:transparent;color:var(--text-400);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;transition:all 150ms;}
+        .theme-toggle:hover{background:var(--bg-3);color:var(--text-200);}
         html.light-theme{--bg-0:#f8f9fa;--bg-1:#ffffff;--bg-2:#f1f3f5;--bg-3:#e9ecef;--bg-4:#dee2e6;--border-subtle:#dee2e6;--border-default:#ced4da;--border-hover:#adb5bd;--text-100:#1a1a2e;--text-200:#2d2d44;--text-300:#495057;--text-400:#6c757d;--text-500:#adb5bd;--accent:#7c3aed;--accent-dim:#7c3aed18;--critical-bg:#ef444418;--high-bg:#f59e0b18;--medium-bg:#3b82f618;--low-bg:#22c55e18;}
         html.light-theme .rail{background:#ffffff;border-right-color:#dee2e6;}
         html.light-theme .terminal{border-color:#ced4da;}
         html.light-theme .terminal-bar{background:#f1f3f5;border-bottom-color:#dee2e6;}
         html.light-theme .finding-code{background:#f1f3f5;border-color:#dee2e6;color:#495057;}
-        html.light-theme .theme-toggle{background:#ffffff;border-color:#ced4da;box-shadow:0 2px 12px rgba(0,0,0,0.1);}
+        html.light-theme .theme-toggle{background:var(--bg-3);color:var(--text-400);}
 
         /* ═══ FEATURE: SEARCH BAR (Splunk-style) ═══ */
         #searchBar .search-input{width:100%;background:var(--bg-0);border:1px solid var(--border-default);color:var(--text-100);padding:10px 50px 10px 14px;border-radius:8px;font-size:12px;font-family:var(--mono);transition:border-color 150ms,box-shadow 150ms;}
@@ -366,9 +366,6 @@
     </style>
 </head>
 <body>
-<!-- Theme Toggle Button -->
-<button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle Dark/Light Theme" aria-label="Toggle theme">🌙</button>
-
 <!-- Keyboard Shortcuts Hint -->
 <div class="shortcuts-hint" id="shortcutsHint" onclick="showShortcutsModal()">⌨ Shortcuts</div>
 
@@ -390,6 +387,8 @@
                 <text x="16" y="19" text-anchor="middle" font-family="Inter,sans-serif" font-size="7" font-weight="600" fill="#fff">HPE</text>
             </svg>
         </div>
+        <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle Dark/Light Theme" aria-label="Toggle theme">🌙</button>
+        <button class="rail-toggle" id="railToggleBtn" onclick="toggleSidebar()" title="Collapse sidebar" aria-label="Toggle sidebar" style="margin-top:0;margin-bottom:12px;">◀</button>
         <div class="rail-item active" onclick="showPage('analyze')" tabindex="0" title="Scan">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
         </div>
@@ -402,10 +401,15 @@
         <div class="rail-item" onclick="showPage('runbooks')" tabindex="0" title="Runbooks">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12l2 2 4-4"/></svg>
         </div>
+        <a class="rail-item" href="https://github.com/yadakrishna245/Log_analysis/blob/main/README.md" target="_blank" tabindex="0" title="Docs / Guide" style="text-decoration:none;">
+            <span style="font-size:18px;">📖</span>
+        </a>
+        <a class="rail-item" href="https://github.com/yadakrishna245/Log_analysis/commits/main" target="_blank" tabindex="0" title="Changelog" style="text-decoration:none;">
+            <span style="font-size:18px;">📋</span>
+        </a>
         <div class="rail-footer" title="Hewlett Packard Enterprise" style="width:auto;height:auto;border-radius:0;background:none;padding:8px 4px;flex-direction:column;display:flex;align-items:center;gap:4px;">
             <span style="font-size:8px;color:var(--text-500);text-align:center;line-height:1.2;writing-mode:vertical-rl;transform:rotate(180deg);">Hewlett Packard Enterprise</span>
         </div>
-        <button class="rail-toggle" id="railToggleBtn" onclick="toggleSidebar()" title="Collapse sidebar" aria-label="Toggle sidebar">◀</button>
     </nav>
 
 
@@ -415,19 +419,16 @@
             <!-- SCAN PAGE -->
             <div id="page-analyze" class="page active">
                 <div class="pg-header">
-                    <div style="display:flex;align-items:center;gap:20px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border-subtle);">
-                        <svg width="80" height="36" viewBox="0 0 80 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <rect x="0" y="0" width="80" height="36" rx="4" fill="#01A982"/>
-                            <rect x="6" y="6" width="68" height="24" rx="2" fill="var(--bg-0, #09090b)"/>
-                            <text x="40" y="22" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" font-weight="700" fill="#ffffff">HPE</text>
+                    <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
+                        <svg width="64" height="36" viewBox="0 0 64 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="0" y="0" width="64" height="36" rx="4" fill="#01A982"/>
+                            <text x="32" y="22" text-anchor="middle" font-family="Inter,sans-serif" font-size="12" font-weight="700" fill="#ffffff">HPE</text>
                         </svg>
                         <div>
-                            <div style="font-size:10px;color:var(--text-400);font-weight:500;letter-spacing:0.05em;text-transform:uppercase;">Hewlett Packard Enterprise</div>
-                            <div style="font-size:24px;font-weight:700;color:var(--text-100);letter-spacing:-0.03em;line-height:1.2;">LogSherlock Pro</div>
-                            <div style="font-size:11px;color:var(--hpe-green);font-weight:500;margin-top:2px;">VME Log Analysis Suite</div>
+                            <div style="font-size:28px;font-weight:700;color:var(--text-100);letter-spacing:-0.03em;line-height:1.2;">LogSherlock Pro</div>
+                            <div style="font-size:12px;color:var(--hpe-green);font-weight:500;margin-top:2px;">Hewlett Packard Enterprise</div>
                         </div>
                     </div>
-                    <div class="pg-title" style="font-size:16px;color:var(--text-300);font-weight:400;">Intelligent Log Scanner</div>
                     <div class="pg-desc">Drop archives — scanned locally in your browser. Zero data uploaded. 113 pattern signatures.</div>
                     <div id="valuePitch" style="margin-top:8px;font-size:11px;color:var(--text-500);line-height:1.6;max-width:680px;">
                         <span id="valuePitchToggle" style="cursor:pointer;color:var(--text-400);border-bottom:1px dashed var(--text-500);" onclick="document.getElementById('valuePitchText').style.display=document.getElementById('valuePitchText').style.display==='none'?'block':'none';this.textContent=document.getElementById('valuePitchText').style.display==='none'?'ℹ️ What is this?':'ℹ️ Hide'">ℹ️ What is this?</span>
