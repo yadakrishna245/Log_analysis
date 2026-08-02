@@ -17,7 +17,7 @@ with app.app_context():
     
     client = app.test_client()
     
-    tar_path = r'C:\Users\krishna\Downloads\collect_custpmorphvm101_20260720_090354.tar.gz'
+    tar_path = r'demo/collect_demovmehost01_20260802_100000.tar.gz'
     print(f'File: {os.path.basename(tar_path)}')
     print(f'Size: {os.path.getsize(tar_path) / (1024*1024):.1f} MB')
     print('Analyzing... (this may take a minute for 73MB)')
@@ -25,7 +25,7 @@ with app.app_context():
     with open(tar_path, 'rb') as f:
         response = client.post('/api/analyze/quick',
             data={
-                'files': (f, 'collect_custpmorphvm101_20260720_090354.tar.gz'),
+                'files': (f, 'collect_demovmehost01_20260802_100000.tar.gz'),
                 'description': 'VME morpheus node troubleshooting'
             },
             content_type='multipart/form-data'
@@ -60,3 +60,4 @@ with app.app_context():
         print(result['jira_report'][:500])
     
     print('\nDone!')
+

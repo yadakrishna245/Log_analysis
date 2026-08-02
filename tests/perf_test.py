@@ -9,7 +9,7 @@ Tests the optimized endpoint against a large tar.gz file and measures:
 Usage:
     python perf_test.py [path_to_tar_gz]
 
-Default test file: C:\\Users\\krishna\\Downloads\\collect_custpmorphvm101_20260720_090354.tar.gz
+Default test file: demo/collect_demovmehost01_20260802_100000.tar.gz
 """
 
 import os
@@ -19,7 +19,7 @@ import json
 import requests
 
 # Configuration
-DEFAULT_TEST_FILE = r"C:\Users\krishna\Downloads\collect_custpmorphvm101_20260720_090354.tar.gz"
+DEFAULT_TEST_FILE = r"demo/collect_demovmehost01_20260802_100000.tar.gz"
 BASE_URL = os.environ.get("LOGSHERLOCK_URL", "http://127.0.0.1:5000")
 API_KEY = os.environ.get("LOGSHERLOCK_API_KEY", "dev-key-123")
 
@@ -257,3 +257,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+

@@ -2,7 +2,7 @@
 import tarfile
 import os
 
-tar_path = r'C:\Users\krishna\Downloads\collect_custpmorphvm101_20260720_090354.tar.gz'
+tar_path = r'demo/collect_demovmehost01_20260802_100000.tar.gz'
 
 print(f'File: {tar_path}')
 print(f'Size: {os.path.getsize(tar_path) / (1024*1024):.1f} MB')
@@ -28,3 +28,4 @@ try:
                 print(f'  {s.name} -> {s.linkname}')
 except Exception as e:
     print(f'ERROR: {e}')
+

@@ -4,7 +4,7 @@ from collections import Counter
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-tar_path = r'C:\Users\krishna\Downloads\collect_custpmorphvm101_20260720_090354.tar.gz'
+tar_path = r'demo/collect_demovmehost01_20260802_100000.tar.gz'
 file_size_mb = os.path.getsize(tar_path) / (1024 * 1024)
 
 from routes.analysis import (_get_engine, _classify_member, _scan_buffer,
@@ -91,3 +91,4 @@ if elapsed < 30:
 else:
     print(f"  NEEDS WORK: {elapsed:.1f}s > 30s target")
 print(f"{'='*60}")
+

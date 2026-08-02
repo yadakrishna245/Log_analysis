@@ -326,7 +326,7 @@ KNOWN_ISSUES = [
         'bug_id': 'MORPH-13237',
         'affected_versions': 'Morpheus/VME versions using legacy Pacemaker-based storage orchestration (pre-9.x)',
         'prevention': 'Do NOT use Morpheus UI to decommission datastores with GFS2/Pacemaker integration. Always verify datastore has zero active I/O before decommission. Upgrade to VME 9.x. Maintain valid STONITH device paths even for retired storage.',
-        'related_issues': 'Related to MORPHL4-21 (GFS2 deadlock), MORPHL4-85 (GFS2 datastore reclassification). Grasten PC cluster P1 outage.',
+        'related_issues': 'Related to MORPHL4-21 (GFS2 deadlock), MORPHL4-85 (GFS2 datastore reclassification). production cluster P1 outage.',
         'category': 'cluster',
         'resolution_type': 'Software bug',
     },

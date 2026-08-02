@@ -5,7 +5,7 @@ os.environ['LOGSHERLOCK_DEV_MODE'] = 'true'
 from app import app
 
 TICKET_DESC = """
-Customer reports GFS2 filesystem went read-only on node custpmorphvm101 after 
+Customer reports GFS2 filesystem went read-only on node demovmehost01 after 
 a storage path failure. VMs on this node are paused with I/O error. 
 The cluster attempted to fence the node but fencing timed out.
 Customer is asking for urgent RCA as this is a P1 production outage.
@@ -35,3 +35,4 @@ with app.test_client() as c:
     print(f"\nKnown Issues ({len(d['related_known_issues'])}):")
     for ki in d['related_known_issues'][:3]:
         print(f"  - {ki['title'][:70]}")
+

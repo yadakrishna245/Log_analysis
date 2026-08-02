@@ -7,7 +7,7 @@ os.environ['LOGSHERLOCK_DEV_MODE'] = 'true'
 from app import app
 from collections import Counter
 
-tar_path = r'C:\Users\krishna\Downloads\collect_custpmorphvm101_20260720_090354.tar.gz'
+tar_path = r'demo/collect_demovmehost01_20260802_100000.tar.gz'
 file_size_mb = os.path.getsize(tar_path) / (1024 * 1024)
 
 print(f"{'='*60}")
@@ -27,7 +27,7 @@ with app.test_client() as client:
     with open(tar_path, 'rb') as f:
         resp = client.post(
             '/api/analyze/quick',
-            data={'file': (f, 'collect_custpmorphvm101_20260720_090354.tar.gz')},
+            data={'file': (f, 'collect_demovmehost01_20260802_100000.tar.gz')},
             content_type='multipart/form-data'
         )
     elapsed = time.time() - t0
@@ -57,3 +57,4 @@ with app.test_client() as client:
     else:
         print(f"  TOO SLOW: {elapsed:.1f}s - needs more optimization")
     print(f"{'='*60}")
+
