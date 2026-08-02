@@ -184,3 +184,170 @@ aws lambda put-function-concurrency \
 ---
 
 *This document will be updated as items are completed.*
+
+
+---
+
+## Phase 2 — AI Integration & Authentication Roadmap
+
+### Why NOT use Cloud AI APIs directly on logs
+
+| Risk | Impact |
+|------|--------|
+| Customer log data sent to third-party (OpenAI/Google/xAI) | ❌ Compliance violation — project killed |
+| Cost at scale ($0.10-$2.00 per scan) | ❌ $500-$1000/month for team usage |
+| Added latency (15-30s per AI call) | ❌ Current 0.8s scan becomes 30s |
+| AI hallucinations in RCA | ❌ Wrong fix suggestion → production outage |
+| Destroys "zero data upload" selling point | ❌ Security approval revoked |
+
+### Phase 2a: Authentication (Week 1)
+
+| Option | Implementation | Best For |
+|--------|---------------|----------|
+| **GitHub OAuth** | `flask-dance` + GitHub App | Dev teams, open source |
+| **HPE Azure AD SSO** | MSAL library + SAML/OIDC | Internal HPE (recommended) |
+| **API Key per user** | DynamoDB user table + key generation | Quick start |
+
+**Implementation plan:**
+```python
+# GitHub OAuth example (flask-dance)
+from flask_dance.contrib.github import make_github_blueprint, github
+
+github_bp = make_github_blueprint(
+    client_id="GITHUB_CLIENT_ID",
+    client_secret="GITHUB_CLIENT_SECRET",
+)
+app.register_blueprint(github_bp, url_prefix="/login")
+
+@app.route("/api/user")
+@login_required
+def user_info():
+    resp = github.get("/user")
+    return jsonify(resp.json())
+```
+
+**What this enables:**
+- Track who uses the tool (usage analytics)
+- Per-user scan history (cloud-synced)
+- Role-based access (admin can edit KB, user can only scan)
+- Audit trail for compliance
+
+### Phase 2b: Safe AI Integration — Local LLM (Week 2-3)
+
+**Approach:** Run a small LLM (Llama 3.1 8B / Mistral 7B) locally via Ollama. Zero data leaves the infrastructure.
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  YOUR INFRASTRUCTURE (no external calls)                │
+│                                                         │
+│  Browser → LogSherlock API → Ollama (local LLM)        │
+│                                                         │
+│  Input to LLM: pattern names + severity counts ONLY    │
+│  NOT: raw log content, customer IPs, hostnames          │
+└─────────────────────────────────────────────────────────┘
+```
+
+**What we send to LLM (safe):**
+```json
+{
+  "patterns_found": ["kernel_panic", "oom_kill", "gfs2_withdraw"],
+  "severity_counts": {"CRITICAL": 5, "HIGH": 12, "MEDIUM": 3},
+  "categories": ["cluster", "filesystem", "storage"],
+  "cascade": "cluster → filesystem → storage"
+}
+```
+
+**What we NEVER send to LLM:**
+- Raw log lines
+- Customer hostnames or IPs
+- File paths from customer systems
+- Ticket descriptions with customer names
+
+**Implementation:**
+```python
+# Ollama integration (runs locally, no cloud)
+import requests
+
+def ai_summarize(pattern_names, severity_counts, categories):
+    """Generate AI summary using LOCAL Ollama instance only."""
+    prompt = f"""You are an HPE VME L4 support engineer. 
+    Given these detected patterns: {pattern_names}
+    Severity: {severity_counts}
+    Affected subsystems: {categories}
+    
+    Write a 2-sentence root cause summary and top 3 recommended actions."""
+    
+    response = requests.post("http://localhost:11434/api/generate", json={
+        "model": "llama3.1:8b",
+        "prompt": prompt,
+        "stream": False
+    })
+    return response.json()["response"]
+```
+
+**UI integration:**
+- Add "🤖 AI Summary" toggle button (off by default)
+- When enabled, sends pattern names to local Ollama after scan
+- Shows AI-generated summary alongside the deterministic RCA
+- Clear label: "AI-generated (may contain inaccuracies)" vs "Pattern-based (deterministic)"
+
+### Phase 2c: AI-Powered Pattern Suggestions (Week 3-4)
+
+**Use AI to IMPROVE the tool, not replace it:**
+
+| Use Case | How | Data sent to AI |
+|----------|-----|-----------------|
+| Suggest new patterns | Feed AI a log line that didn't match → suggest regex | Single sanitized log line (no customer context) |
+| Improve descriptions | AI rewrites pattern descriptions for clarity | Pattern name + current description only |
+| Generate runbook steps | AI drafts investigation steps based on pattern type | Pattern metadata only |
+| KB enrichment | AI writes better solutions for known issues | Issue title + category only |
+
+### Phase 2d: Cloud AI Option (Month 2+, requires compliance approval)
+
+**Only after getting explicit security team sign-off:**
+
+| Provider | Model | Use Case | Monthly Cost Est. |
+|----------|-------|----------|-------------------|
+| AWS Bedrock (Claude) | Claude 3.5 Sonnet | RCA summary generation | ~$50/month |
+| Google Vertex AI | Gemini Pro | Pattern suggestion | ~$30/month |
+| Azure OpenAI | GPT-4o mini | KB enrichment (batch) | ~$20/month |
+| xAI | Grok | Alternative option | TBD |
+
+**Required before enabling:**
+- [ ] Security team written approval
+- [ ] Data Processing Agreement (DPA) with AI provider
+- [ ] Confirm: only pattern names sent, never raw logs
+- [ ] User opt-in toggle (not enabled by default)
+- [ ] Audit log of all AI API calls
+
+### GitHub Secrets Required (Future)
+
+| Secret | Purpose |
+|--------|---------|
+| `GITHUB_CLIENT_ID` | GitHub OAuth app ID |
+| `GITHUB_CLIENT_SECRET` | GitHub OAuth secret |
+| `OLLAMA_ENDPOINT` | Local LLM endpoint (default: localhost:11434) |
+| `AZURE_AD_CLIENT_ID` | HPE SSO integration |
+| `AZURE_AD_TENANT_ID` | HPE Azure AD tenant |
+| `BEDROCK_ACCESS_KEY` | AWS Bedrock (if approved) |
+
+### Decision Framework: When to use AI vs Regex
+
+```
+Is the question "what pattern is this?" → Use REGEX (deterministic)
+Is the question "what does this mean?" → Use LOCAL LLM (safe)
+Is the question "what should I do?"   → Use KB first, then LOCAL LLM
+Is the question "write me a report?"  → Use template + LOCAL LLM polish
+```
+
+### Timeline
+
+| Week | Milestone |
+|------|-----------|
+| Week 1 | GitHub OAuth login working |
+| Week 2 | Ollama local LLM integrated (optional toggle) |
+| Week 3 | AI pattern suggestions prototype |
+| Week 4 | Security review for Phase 2d (cloud AI) |
+| Month 2 | Cloud AI with compliance approval (if granted) |
+
+---
