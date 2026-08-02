@@ -1,0 +1,30 @@
+## sos_commands/networking/ip_addr
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000
+    inet 127.0.0.1/8 scope host lo
+2: ens192: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq master bond0 state UP group default qlen 1000
+    inet 192.168.100.10/24 brd 192.168.100.255 scope global ens192
+3: ens224: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP group default qlen 1000
+    inet 169.254.12.100/16 scope link ens224
+    inet 10.10.10.10/24 brd 10.10.10.255 scope global ens224
+4: bond0: <BROADCAST,MULTICAST,MASTER,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default qlen 1000
+    inet 192.168.100.10/24 brd 192.168.100.255 scope global bond0
+
+## sos_commands/networking/iptables_-L_-n_-v
+Chain INPUT (policy ACCEPT)
+Chain FORWARD (policy ACCEPT)
+Chain OUTPUT (policy ACCEPT)
+
+iptables: No chain/target/match by that name for 'VME-FIREWALL'
+netfilter-persistent not found - iptables-persistent not installed
+systemctl status netfilter failed: Unit netfilter.service could not be found
+
+## sos_commands/networking/ip_route
+default via 192.168.100.1 dev bond0 proto static metric 100
+10.10.10.0/24 dev ens224 proto kernel scope link src 10.10.10.10 metric 101
+192.168.100.0/24 dev bond0 proto kernel scope link src 192.168.100.10 metric 100
+Network is unreachable: No route to host 172.16.0.0/12 via 192.168.100.1
+
+## sos_commands/networking/netplan_status
+netplan apply failed: error in network definition /etc/netplan/01-config.yaml line 15 column 4
+Failed to apply network configuration
+aruba cx plugin stale network config detected - network plugin removed incompletely

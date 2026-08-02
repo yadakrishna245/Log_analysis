@@ -1,0 +1,26 @@
+Aug 02 09:14:45 demovmehost01 pacemaker-controld [1234]: notice: Cluster node demovmehost01 is now online
+Aug 02 09:14:45 demovmehost01 pacemaker-controld [1234]: notice: Cluster node demovmehost02 is now online
+Aug 02 09:14:45 demovmehost01 pacemaker-controld [1234]: notice: Cluster node demovmehost03 is now online
+Aug 02 09:14:50 demovmehost01 pacemaker-controld [1234]: warning: Node demovmehost02 state is now lost
+Aug 02 09:14:50 demovmehost01 pacemaker-controld [1234]: warning: member demovmehost02 left cluster partition
+Aug 02 09:14:51 demovmehost01 pacemaker-controld [1234]: warning: Node demovmehost03 state is now lost
+Aug 02 09:14:51 demovmehost01 pacemaker-controld [1234]: warning: lost quorum - only 1 of 3 nodes remain
+Aug 02 09:14:55 demovmehost01 pacemaker-fenced  [1235]: notice: Initiating stonith action 'reboot' targeting demovmehost02
+Aug 02 09:14:55 demovmehost01 pacemaker-fenced  [1235]: notice: STONITH operation reboot of node demovmehost02
+Aug 02 09:14:56 demovmehost01 pacemaker-fenced  [1235]: notice: fencing node demovmehost02 - fence_action succeeded
+Aug 02 09:14:57 demovmehost01 pacemaker-fenced  [1235]: notice: Peer demovmehost02 was terminated via fence_ilo
+Aug 02 09:15:00 demovmehost01 pacemaker-schedulerd [1236]: error: resource vm_webserver01 failed to start on demovmehost01
+Aug 02 09:15:00 demovmehost01 pacemaker-schedulerd [1236]: error: Failed to start vm_database01 on demovmehost01
+Aug 02 09:15:01 demovmehost01 pacemaker-schedulerd [1236]: error: Failed to stop gfs2_mount_shared on demovmehost02
+Aug 02 09:15:05 demovmehost01 pacemaker-schedulerd [1236]: error: operation monitor on dlm_controld failed: Timed Out
+Aug 02 09:15:05 demovmehost01 pacemaker-fenced  [1235]: notice: on-fail=fence triggered by dlm_monitor Timed Out
+Aug 02 09:15:10 demovmehost01 pacemaker-controld [1234]: error: split brain detected - multiple partitions active
+Aug 02 09:15:10 demovmehost01 pacemaker-controld [1234]: error: both sides of partition report as active
+Aug 02 09:15:15 demovmehost01 pacemaker-controld [1234]: warning: stonith fencing cascade detected - STONITH fencing multiple nodes
+Aug 02 09:15:15 demovmehost01 pacemaker-controld [1234]: warning: stonith action reboot - fenced node 2 via stonith
+Aug 02 09:15:20 demovmehost01 pacemaker-schedulerd [1236]: warning: VM is powered off and movePoweredOff is disabled, skipping
+Aug 02 09:15:20 demovmehost01 pacemaker-schedulerd [1236]: warning: Skipped VM vm_mailserver01 - powered off during cluster upgrade
+Aug 02 09:15:25 demovmehost01 dlm_controld [1237]: error: dlm service failure - DLM connection lost
+Aug 02 09:15:25 demovmehost01 dlm_controld [1237]: error: dlm lock space failed to join: connection refused
+Aug 02 09:15:30 demovmehost01 pacemaker-controld [1234]: error: VM vm_webserver01 running on multiple hosts detected
+Aug 02 09:15:30 demovmehost01 pacemaker-controld [1234]: error: duplicate VM instance - vm_webserver01 already running on other host demovmehost02

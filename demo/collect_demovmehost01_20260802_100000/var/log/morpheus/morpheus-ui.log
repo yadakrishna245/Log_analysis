@@ -1,0 +1,26 @@
+2026-08-02 09:15:00,123 INFO  [main] MorpheusApplication - Starting Morpheus v6.3.2 on demovmehost01
+2026-08-02 09:15:01,234 INFO  [main] DataSource - Connecting to postgres://192.168.100.20:5432/morpheus
+2026-08-02 09:15:05,345 ERROR [pool-1] DataSource - cannot connect to database: Connection refused to postgres at 192.168.100.20:5432
+2026-08-02 09:15:05,456 ERROR [pool-1] DataSource - failed to connect to database postgres - retrying in 5s
+2026-08-02 09:15:10,567 ERROR [pool-1] DataSource - database connection error: max retries exceeded
+2026-08-02 09:15:15,678 WARN  [scheduler] BackupService - backup error: Cannot create synthetic full backup - previous backup chain broken
+2026-08-02 09:15:15,789 ERROR [scheduler] BackupService - backup failed for job "Daily-VM-Backup": incomplete chain
+2026-08-02 09:15:20,890 ERROR [worker-3] ProvisionService - morpheus deploy failed for instance web-prod-01
+2026-08-02 09:15:20,901 ERROR [worker-3] ProvisionService - provision failed: timeout waiting for VM network
+2026-08-02 09:15:25,012 ERROR [worker-4] ProvisionService - instance creation failed for vm_testenv01
+2026-08-02 09:15:30,123 ERROR [worker-2] VMEService - VME error: backup failed for vm_database01
+2026-08-02 09:15:30,234 ERROR [worker-2] VMEService - vm-explorer error: snapshot creation timed out
+2026-08-02 09:15:35,345 WARN  [stats-collector] StatsService - cpuUsage: NaN detected for instance vm_app01
+2026-08-02 09:15:35,456 ERROR [stats-collector] ElasticSearch - mapper_parsing_exception: failed to parse field [cpuUsage] of type [double] with value [NaN]
+2026-08-02 09:15:40,567 ERROR [git-sync] CodeService - remoteGitFetch transport error: cannot open git-upload-pack for https://github.com/customer/infra.git
+2026-08-02 09:15:40,678 ERROR [git-sync] CodeService - TransportException: git-upload-pack not permitted for user 'morpheus-svc'
+2026-08-02 09:15:45,789 ERROR [worker-5] RestoreService - Cannot get property 'locations' on null object - findVirtualImageLocationRecord
+2026-08-02 09:15:45,890 ERROR [worker-5] RestoreService - Instance is not found during restore: source image null
+2026-08-02 09:15:50,901 ERROR [heap-monitor] JVM - java.lang.OutOfMemoryError: Java heap space
+2026-08-02 09:15:50,012 ERROR [heap-monitor] JVM - GC overhead limit exceeded - Metaspace full
+2026-08-02 09:15:55,123 WARN  [security] AuthService - authentication failed for user admin from 10.0.1.50
+2026-08-02 09:15:55,234 WARN  [security] AuthService - invalid password for user svc_backup - unauthorized access attempt
+2026-08-02 09:16:00,345 WARN  [cert-check] TLSService - certificate for morpheus-ui expired on 2026-07-01
+2026-08-02 09:16:00,456 ERROR [cert-check] TLSService - SSL certificate expired - HTTPS connections will fail
+2026-08-02 09:16:05,567 ERROR [storage] VvolService - vvol deploy failure: unable to deploy vmdk to vvol datastore
+2026-08-02 09:16:05,678 ERROR [storage] VvolService - VASA provider communication error - virtual volume not available

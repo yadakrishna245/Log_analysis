@@ -1,0 +1,40 @@
+## multipath -ll
+mpath0 (360060160abcd1234ef567890abcdef0) dm-3 HPE,VME-STORAGE
+size=500G features='1 queue_if_no_path' hwhandler='0' wp=rw
+`-+- policy='service-time 0' prio=0 status=disabled
+  |- 1:0:0:1 sdb 8:16 failed faulty running
+  `- 2:0:0:1 sdd 8:48 failed faulty running
+  
+mpath1 (360060160abcd5678ef901234abcdef1) dm-4 HPE,VME-STORAGE
+size=200G features='1 queue_if_no_path' hwhandler='0' wp=rw
+`-+- policy='service-time 0' prio=50 status=active
+  |- 1:0:0:2 sdc 8:32 active ready running
+  `- 2:0:0:2 sde 8:64 active ghost running
+
+## pvs
+  PV          VG        Fmt  Attr PSize    PFree
+  /dev/dm-3   vg_shared lvm2 a--  500.00g  50.00g
+  /dev/dm-4   vg_data   lvm2 a--  200.00g   0   
+  
+WARNING: PV /dev/sdc missing from VG vg_shared
+LVM error: VG vg_shared not found after path failure
+
+## vvol_status
+vVOL datastore 'VME-VVOL-DS01' status: DEGRADED
+vvol deploy failure: unable to deploy vmdk to vvol - virtual volume not available
+VASA provider communication error - vVOL operations suspended
+
+## PR reservation status
+PR reservation key mismatch on /dev/mapper/mpath0
+persistent reservation key not found for node demovmehost01
+SCSI PR key missing - reservation not held
+
+## lsblk summary
+Error: lsblk output too many lines (178234 lines) - Argument list too long
+Error Fetching block device info: exceeded buffer
+retryGetSCSIDevicesOfVolume took 45s to complete - multipath saturation timeout
+
+## datastore operations
+datastore stop removal in progress - resource delete before unmount detected
+pcs resource delete gfs2_mount_shared while filesystem still mounted
+morpheus: datastore decommission race condition detected
