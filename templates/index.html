@@ -408,6 +408,12 @@
                     </div>
                     <div class="pg-title">Log Scanner</div>
                     <div class="pg-desc">Drop archives — scanned locally in your browser. Zero data uploaded. 113 pattern signatures.</div>
+                    <div id="valuePitch" style="margin-top:8px;font-size:11px;color:var(--text-500);line-height:1.6;max-width:680px;">
+                        <span id="valuePitchToggle" style="cursor:pointer;color:var(--text-400);border-bottom:1px dashed var(--text-500);" onclick="document.getElementById('valuePitchText').style.display=document.getElementById('valuePitchText').style.display==='none'?'block':'none';this.textContent=document.getElementById('valuePitchText').style.display==='none'?'ℹ️ What is this?':'ℹ️ Hide'">ℹ️ What is this?</span>
+                        <div id="valuePitchText" style="display:none;margin-top:6px;padding:10px 14px;background:var(--bg-2);border:1px solid var(--border-subtle);border-radius:8px;color:var(--text-300);font-size:12px;line-height:1.7;">
+                            LogSherlock Pro instantly analyzes HPE VME support logs to find root causes, saving 2–4 hours of manual investigation per incident. Used by L4 support engineers for faster MTTR.
+                        </div>
+                    </div>
                     <div class="pattern-stats" id="patternStats">
                         <span class="stat-dot"></span><span>113 detection patterns</span>
                         <span class="stat-dot"></span><span>66 known issues</span>
@@ -432,6 +438,12 @@
                     </div>
                 </div>
                 <input type="file" id="fileInput" multiple hidden>
+
+                <!-- Try Demo Button -->
+                <div id="demoButtonWrapper" style="text-align:center;margin:-12px 0 16px;">
+                    <button id="demoBtn" onclick="loadDemo()" style="background:transparent;border:1px solid var(--hpe-green);color:var(--hpe-green);padding:8px 18px;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;font-family:var(--font);transition:all 150ms;">▶ Try with Demo Data</button>
+                    <span id="demoStatus" style="display:none;font-size:11px;color:var(--text-400);margin-left:10px;font-family:var(--mono);">Downloading...</span>
+                </div>
 
                 <!-- Scan History Panel (last 5 scans) -->
                 <div class="scan-history-panel" id="scanHistoryPanel" style="display:none;">
@@ -547,7 +559,7 @@
                     <div style="display:flex;align-items:center;gap:16px;margin-bottom:12px">
                         <svg width="100" height="44" viewBox="0 0 120 55" fill="none"><rect x="8" y="2" width="50" height="24" fill="#01A982" rx="2"/><rect x="15" y="7" width="36" height="14" fill="#09090b" rx="1"/><text x="8" y="40" font-family="Inter,sans-serif" font-size="9.5" fill="#fafafa" font-weight="600">Hewlett Packard</text><text x="8" y="51" font-family="Inter,sans-serif" font-size="9.5" fill="#01A982" font-weight="400">Enterprise</text></svg>
                     </div>
-                    <div class="pg-title">Knowledge Base</div><div class="pg-desc">31 known issues across Morpheus, KVM, Alletra, GFS2, VME, Pacemaker.</div></div>
+                    <div class="pg-title">Knowledge Base</div><div class="pg-desc">66 known issues across Morpheus, KVM, Alletra, GFS2, VME, Pacemaker.</div></div>
                 <div class="input-group" style="margin-bottom:20px;">
                     <input type="text" id="kbSearch" placeholder="Search... (iptables, GFS2, SCSI, migration, quorum)">
                     <button class="btn" onclick="searchKB()">Search</button>
@@ -2031,6 +2043,140 @@ function copyFixCommand(btn) {
     });
 
     observer.observe(findingsList, { childList: true });
+})();
+</script>
+
+<!-- ═══ FIX 3: Version Footer ═══ -->
+<div style="text-align:center;padding:16px;font-size:11px;color:var(--text-500);border-top:1px solid var(--border-subtle);margin-top:24px">LogSherlock Pro v1.0.0 • HPE VME L4 Support Engineering • Zero data uploaded</div>
+
+<!-- ═══ FIX 4, 6, 7: Additional enhancements ═══ -->
+<style>
+/* FIX 7: Make keyboard shortcuts hint less prominent */
+.shortcuts-hint {
+    opacity: 0.3 !important;
+    font-size: 9px !important;
+    transition: opacity 0.3s !important;
+}
+.shortcuts-hint:hover {
+    opacity: 1 !important;
+}
+
+/* FIX 7: Time saved message */
+#timeSavedMsg {
+    text-align: center;
+    font-size: 12px;
+    color: var(--hpe-green);
+    font-family: var(--mono);
+    padding: 10px 16px;
+    margin-top: 8px;
+    background: var(--hpe-green-dim);
+    border-radius: 8px;
+    border: 1px solid var(--hpe-green);
+    display: none;
+}
+#timeSavedMsg.active {
+    display: block;
+}
+</style>
+
+<script>
+// ═══ FIX 4: Show empty state message in scan history panel ═══
+(function fixEmptyScanHistory() {
+    const panel = document.getElementById('scanHistoryPanel');
+    const entries = document.getElementById('scanHistoryEntries');
+    if (!panel || !entries) return;
+    
+    const history = JSON.parse(localStorage.getItem('ls_scan_history') || '[]');
+    if (history.length === 0) {
+        panel.style.display = 'block';
+        entries.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-500);font-size:12px;">No scans yet — drop a file above to start</div>';
+    }
+    
+    // Also observe for future changes
+    const observer = new MutationObserver(function() {
+        const h = JSON.parse(localStorage.getItem('ls_scan_history') || '[]');
+        if (h.length === 0 && entries.innerHTML.trim() === '') {
+            panel.style.display = 'block';
+            entries.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-500);font-size:12px;">No scans yet — drop a file above to start</div>';
+        }
+    });
+    observer.observe(entries, { childList: true, subtree: true });
+})();
+
+// ═══ FIX 6: Load Demo function ═══
+async function loadDemo() {
+    const btn = document.getElementById('demoBtn');
+    const status = document.getElementById('demoStatus');
+    
+    btn.disabled = true;
+    btn.style.opacity = '0.5';
+    btn.textContent = '⏳ Downloading...';
+    status.style.display = 'inline';
+    status.textContent = 'Fetching demo bundle...';
+    
+    try {
+        const response = await fetch('https://raw.githubusercontent.com/yadakrishna245/Log_analysis/main/demo/collect_demovmehost01_20260802_100000.tar.gz');
+        if (!response.ok) throw new Error('Download failed: ' + response.status);
+        
+        status.textContent = 'Converting...';
+        const blob = await response.blob();
+        const file = new File([blob], 'collect_demovmehost01_20260802_100000.tar.gz', { type: 'application/gzip' });
+        
+        status.style.display = 'none';
+        btn.textContent = '✓ Demo loaded';
+        btn.style.opacity = '1';
+        
+        // Call the existing scan function
+        scanLocally(file);
+        
+        // Reset button after 3s
+        setTimeout(() => {
+            btn.textContent = '▶ Try with Demo Data';
+            btn.disabled = false;
+        }, 3000);
+    } catch (e) {
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        btn.textContent = '▶ Try with Demo Data';
+        status.textContent = '❌ ' + e.message;
+        setTimeout(() => { status.style.display = 'none'; }, 4000);
+    }
+}
+
+// ═══ FIX 7: Show time saved after scan completes ═══
+(function addTimeSavedIndicator() {
+    // Create the time-saved message element
+    const timeSavedDiv = document.createElement('div');
+    timeSavedDiv.id = 'timeSavedMsg';
+    
+    // Insert it after the terminal status bar
+    const termStatus = document.getElementById('termStatus');
+    if (termStatus && termStatus.parentNode) {
+        termStatus.parentNode.insertAdjacentElement('afterend', timeSavedDiv);
+    }
+    
+    // Observe status changes to show time saved
+    const statusEl = document.getElementById('termStatus');
+    if (!statusEl) return;
+    
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                if (statusEl.classList.contains('done')) {
+                    // Extract time from status text
+                    const statusText = document.getElementById('statusText').textContent || '';
+                    const timeMatch = statusText.match(/([\d.]+)s/);
+                    const elapsed = timeMatch ? timeMatch[1] : '?';
+                    timeSavedDiv.textContent = '⏱ Analyzed in ' + elapsed + 's — estimated 2-4 hours of manual work saved';
+                    timeSavedDiv.classList.add('active');
+                } else if (statusEl.classList.contains('scanning')) {
+                    timeSavedDiv.classList.remove('active');
+                }
+            }
+        });
+    });
+    
+    observer.observe(statusEl, { attributes: true, attributeFilter: ['class'] });
 })();
 </script>
 </body>
