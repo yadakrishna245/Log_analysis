@@ -150,6 +150,7 @@ flowchart TD
 | 11 | **Smart Pattern Grouping** | Datadog-style accordion — group by pattern name |
 | 12 | **AI One-Liner Summary** | Auto-generated root cause sentence (no LLM) |
 | 13 | **Expandable Solution Cards** | Copy-able remediation commands for each finding |
+| 14 | **Local AI Summary (Ollama)** | Optional — AI-powered root cause analysis running on your machine |
 
 ### UX & Export
 | # | Feature | Description |
@@ -284,6 +285,17 @@ sam deploy --guided
 ```
 
 See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for full deployment guide.
+
+### 🤖 Optional: Local AI (Ollama)
+
+For AI-powered root cause summaries (runs on your machine, zero cloud dependency):
+
+| Your RAM | Command |
+|----------|----------|
+| 16GB | `ollama pull llama3.2:3b` |
+| 32GB | `ollama pull llama3.1:8b` |
+
+See [docs/OLLAMA_SETUP.md](docs/OLLAMA_SETUP.md) for full guide.
 
 ---
 
