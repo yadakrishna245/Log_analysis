@@ -312,7 +312,17 @@ fi.addEventListener('change',e=>handleFiles(e.target.files));
 
 function handleFiles(files){
     if(!files.length)return;
-    setStatus('scanning','Uploading '+files.length+' file(s)...');
+    const totalSize=Array.from(files).reduce((s,f)=>s+f.size,0);
+    const sizeMB=(totalSize/1024/1024).toFixed(0);
+
+    // For large files (>10MB): use S3 presigned upload (fast direct upload)
+    if(totalSize > 10*1024*1024 && files.length===1){
+        handleLargeFile(files[0]);
+        return;
+    }
+
+    // Small files: direct upload (original flow)
+    setStatus('scanning','Uploading '+files.length+' file(s) ('+sizeMB+'MB)...');
     showProgress(15);
     const fd=new FormData();
     for(let f of files)fd.append('files',f);
@@ -322,6 +332,84 @@ function handleFiles(files){
         .then(r=>r.json())
         .then(d=>{showProgress(100);setTimeout(()=>render(d),200);})
         .catch(e=>setStatus('error','Error: '+e.message));
+}
+
+function handleLargeFile(file){
+    const sizeMB=(file.size/1024/1024).toFixed(0);
+    const ctx=$('#ticketContext').value||'';
+    setStatus('scanning',`Uploading ${file.name} (${sizeMB}MB) via fast transfer...`);
+    showProgress(5);
+
+    // Step 1: Get presigned URL from backend
+    fetch('/api/upload/presign',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({filename:file.name, file_size:file.size, description:ctx})
+    })
+    .then(r=>r.json())
+    .then(presign=>{
+        if(presign.error){
+            // Fallback to direct upload if S3 not configured
+            setStatus('scanning','S3 not available, uploading directly (slower)...');
+            const fd=new FormData();
+            fd.append('files',file);
+            if(ctx)fd.append('description',ctx);
+            return fetch('/api/analyze/quick',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{showProgress(100);setTimeout(()=>render(d),200);});
+        }
+
+        // Step 2: Upload directly to S3 using presigned POST
+        setStatus('scanning',`Uploading ${sizeMB}MB directly to cloud storage...`);
+        showProgress(10);
+
+        const formData=new FormData();
+        // Add all presigned fields first
+        Object.entries(presign.upload_fields).forEach(([k,v])=>formData.append(k,v));
+        // Add the file last (required by S3)
+        formData.append('file',file);
+
+        const xhr=new XMLHttpRequest();
+        xhr.upload.addEventListener('progress',e=>{
+            if(e.lengthComputable){
+                const pct=Math.round((e.loaded/e.total)*80)+10; // 10-90%
+                showProgress(pct);
+                const uploadedMB=(e.loaded/1024/1024).toFixed(0);
+                setStatus('scanning',`Uploading: ${uploadedMB}/${sizeMB} MB (${pct-10}%)`);
+            }
+        });
+
+        xhr.addEventListener('load',()=>{
+            if(xhr.status>=200 && xhr.status<300){
+                // Step 3: Trigger analysis from S3
+                showProgress(90);
+                setStatus('scanning','Upload complete! Analyzing patterns...');
+                fetch('/api/analyze/s3',{
+                    method:'POST',
+                    headers:{'Content-Type':'application/json'},
+                    body:JSON.stringify({
+                        upload_id:presign.upload_id,
+                        s3_key:presign.s3_key,
+                        description:ctx
+                    })
+                })
+                .then(r=>r.json())
+                .then(d=>{
+                    showProgress(100);
+                    if(d.analysis_time_seconds){
+                        setStatus('done',`Done in ${d.total_time_seconds}s (upload + ${d.analysis_time_seconds}s analysis)`);
+                    }
+                    setTimeout(()=>render(d),200);
+                })
+                .catch(e=>setStatus('error','Analysis error: '+e.message));
+            } else {
+                setStatus('error','Upload failed (HTTP '+xhr.status+'). Try again.');
+            }
+        });
+
+        xhr.addEventListener('error',()=>setStatus('error','Upload failed. Check network.'));
+        xhr.open('POST',presign.upload_url);
+        xhr.send(formData);
+    })
+    .catch(e=>setStatus('error','Error: '+e.message));
 }
 
 function analyzeFolder(){

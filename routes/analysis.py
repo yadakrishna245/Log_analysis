@@ -844,6 +844,276 @@ def _generate_quick_jira_report(findings, knowledge_matches, description=''):
     return _format_jira_rca(sections)
 
 
+# ══════════════════════════════════════════════════════════════════════════
+# S3 PRESIGNED UPLOAD - For large files (>10MB)
+# Flow: Browser → S3 (direct, fast) → Lambda analyzes from S3
+# ══════════════════════════════════════════════════════════════════════════
+
+@analysis_bp.route('/api/upload/presign', methods=['POST'])
+def get_presigned_upload_url():
+    """Get a presigned S3 URL for direct browser upload.
+
+    This bypasses API Gateway's 10MB limit and CloudFront latency.
+    Browser uploads directly to S3 at full speed, then triggers analysis.
+
+    Request JSON:
+        {"filename": "logs.tar.gz", "file_size": 76875911, "description": "..."}
+
+    Returns:
+        {"upload_url": "https://s3...", "upload_id": "abc123", "fields": {...}}
+    """
+    import uuid
+    import boto3
+
+    data = request.get_json() or {}
+    filename = data.get('filename', 'upload.tar.gz')
+    file_size = data.get('file_size', 0)
+    description = data.get('description', '')
+
+    if not filename:
+        return jsonify({'error': 'filename is required'}), 400
+
+    # Generate unique upload ID
+    upload_id = str(uuid.uuid4())[:8]
+    safe_name = secure_filename(filename)
+    s3_key = f"uploads/{upload_id}/{safe_name}"
+
+    # Get S3 bucket from config
+    bucket = os.environ.get('S3_BUCKET', '')
+    if not bucket:
+        # Fallback: use local upload (non-AWS mode)
+        return jsonify({
+            'error': 'S3 not configured. Use /api/analyze/quick for direct upload.',
+            'fallback': '/api/analyze/quick'
+        }), 400
+
+    try:
+        s3_client = boto3.client('s3', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+
+        # Generate presigned POST (works with CORS from browser)
+        presigned = s3_client.generate_presigned_post(
+            Bucket=bucket,
+            Key=s3_key,
+            Conditions=[
+                ['content-length-range', 1, 5 * 1024 * 1024 * 1024],  # 1 byte to 5GB
+                {'x-amz-meta-upload-id': upload_id},
+                {'x-amz-meta-description': description[:500]},
+            ],
+            Fields={
+                'x-amz-meta-upload-id': upload_id,
+                'x-amz-meta-description': description[:500],
+            },
+            ExpiresIn=600,  # 10 minutes to complete upload
+        )
+
+        return jsonify({
+            'upload_id': upload_id,
+            'upload_url': presigned['url'],
+            'upload_fields': presigned['fields'],
+            's3_key': s3_key,
+            'bucket': bucket,
+            'expires_in': 600,
+            'message': f'Upload directly to S3, then call /api/analyze/s3 with upload_id={upload_id}',
+        })
+
+    except Exception as e:
+        current_app.logger.error(f"Presign error: {e}")
+        return jsonify({'error': f'Failed to generate upload URL: {str(e)}'}), 500
+
+
+@analysis_bp.route('/api/analyze/s3', methods=['POST'])
+def analyze_from_s3():
+    """Analyze a file already uploaded to S3.
+
+    Called after browser completes direct S3 upload via presigned URL.
+
+    Request JSON:
+        {"upload_id": "abc123", "s3_key": "uploads/abc123/file.tar.gz", "description": "..."}
+    """
+    import uuid
+    import boto3
+    import tarfile
+
+    start_time = time.time()
+
+    data = request.get_json() or {}
+    upload_id = data.get('upload_id', '')
+    s3_key = data.get('s3_key', '')
+    description = data.get('description', '')
+
+    if not upload_id or not s3_key:
+        return jsonify({'error': 'upload_id and s3_key are required'}), 400
+
+    bucket = os.environ.get('S3_BUCKET', '')
+    if not bucket:
+        return jsonify({'error': 'S3 not configured'}), 500
+
+    # Download from S3 to /tmp for analysis
+    local_path = f"/tmp/uploads/{upload_id}"
+    os.makedirs(local_path, exist_ok=True)
+    filename = os.path.basename(s3_key)
+    filepath = os.path.join(local_path, filename)
+
+    try:
+        s3_client = boto3.client('s3', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+        s3_client.download_file(bucket, s3_key, filepath)
+    except Exception as e:
+        return jsonify({'error': f'Failed to download from S3: {str(e)}'}), 500
+
+    download_time = time.time() - start_time
+    file_size = os.path.getsize(filepath)
+
+    # Now analyze using the same optimized engine
+    engine = _get_engine()
+    suppressed_names = set(
+        s.pattern_name for s in Suppression.query.filter_by(active=True).all()
+    )
+
+    all_findings = []
+    files_analyzed = 0
+    total_lines = 0
+    total_bytes_read = 0
+    medium_count = 0
+    early_terminated = False
+
+    analysis_start = time.time()
+
+    if filename.endswith(('.tar.gz', '.tgz')):
+        try:
+            with tarfile.open(filepath, 'r:gz') as tf:
+                for member in tf:
+                    if early_terminated:
+                        break
+                    if total_bytes_read >= MAX_TOTAL_BYTES:
+                        break
+                    if not member.isfile() or member.issym() or member.islnk():
+                        continue
+                    priority = _classify_member(member.name, member.size)
+                    if priority == 'skip':
+                        continue
+                    if priority == 'medium' and medium_count >= 50:
+                        continue
+                    if priority == 'low':
+                        continue
+
+                    fobj = tf.extractfile(member)
+                    if fobj is None:
+                        continue
+                    try:
+                        content = fobj.read()
+                    finally:
+                        fobj.close()
+
+                    total_bytes_read += len(content)
+                    if priority == 'medium':
+                        medium_count += 1
+
+                    scan_max_lines = MAX_LINES_PER_FILE
+                    if len(content) > 5 * 1024 * 1024:
+                        scan_max_lines = 30000
+                    elif len(content) > 1 * 1024 * 1024:
+                        scan_max_lines = 50000
+
+                    findings, lines = _scan_buffer(
+                        content, member.name, engine, suppressed_names,
+                        max_lines=scan_max_lines
+                    )
+                    files_analyzed += 1
+                    total_lines += lines
+                    all_findings.extend(findings)
+
+                    crit_high = sum(1 for f in all_findings if f['severity'] in ('CRITICAL', 'HIGH'))
+                    if crit_high >= EARLY_TERM_CRITICAL_HIGH or len(all_findings) >= MAX_FINDINGS:
+                        early_terminated = True
+        except Exception as e:
+            current_app.logger.error(f"S3 tar.gz analysis error: {e}")
+
+    elif filename.endswith('.zip'):
+        import zipfile
+        try:
+            with zipfile.ZipFile(filepath, 'r') as zf:
+                for info in zf.infolist():
+                    if early_terminated:
+                        break
+                    priority = _classify_member(info.filename, info.file_size)
+                    if priority == 'skip':
+                        continue
+                    if priority == 'medium' and medium_count >= 50:
+                        continue
+                    if priority == 'low':
+                        continue
+                    try:
+                        content = zf.read(info)
+                    except Exception:
+                        continue
+                    total_bytes_read += len(content)
+                    if priority == 'medium':
+                        medium_count += 1
+                    findings, lines = _scan_buffer(
+                        content, info.filename, engine, suppressed_names
+                    )
+                    files_analyzed += 1
+                    total_lines += lines
+                    all_findings.extend(findings)
+                    crit_high = sum(1 for f in all_findings if f['severity'] in ('CRITICAL', 'HIGH'))
+                    if crit_high >= EARLY_TERM_CRITICAL_HIGH or len(all_findings) >= MAX_FINDINGS:
+                        early_terminated = True
+        except Exception as e:
+            current_app.logger.error(f"S3 zip analysis error: {e}")
+
+    # Cleanup local file
+    try:
+        os.remove(filepath)
+    except OSError:
+        pass
+
+    # Also delete from S3 (auto-cleanup)
+    try:
+        s3_client.delete_object(Bucket=bucket, Key=s3_key)
+    except Exception:
+        pass
+
+    analysis_time = time.time() - analysis_start
+    total_time = time.time() - start_time
+
+    # Sort findings
+    severity_order = {'CRITICAL': 0, 'HIGH': 1, 'MEDIUM': 2, 'LOW': 3, 'INFO': 4}
+    all_findings.sort(key=lambda f: severity_order.get(f['severity'], 5))
+
+    # Knowledge base lookup
+    related_issues = []
+    if description:
+        try:
+            desc_lower = description.lower()
+            for entry in KnowledgeEntry.query.all():
+                entry_text = f"{entry.title} {entry.symptoms} {entry.root_cause}".lower()
+                if any(w in entry_text for w in desc_lower.split() if len(w) > 3):
+                    related_issues.append({
+                        'title': entry.title,
+                        'product': entry.product,
+                        'solution': entry.solution,
+                    })
+                    if len(related_issues) >= 5:
+                        break
+        except Exception:
+            pass
+
+    return jsonify({
+        'message': 'Analysis complete',
+        'analysis_time_seconds': round(analysis_time, 2),
+        'total_time_seconds': round(total_time, 2),
+        's3_download_seconds': round(download_time, 2),
+        'file_size_mb': round(file_size / 1024 / 1024, 1),
+        'files_analyzed': files_analyzed,
+        'total_lines': total_lines,
+        'findings_count': len(all_findings),
+        'findings': all_findings[:100],
+        'related_issues': related_issues,
+        'early_terminated': early_terminated,
+        'jira_report': _generate_quick_jira_report(all_findings[:100], related_issues, description),
+    })
+
+
 @analysis_bp.route('/api/analyze/folder', methods=['POST'])
 def analyze_folder():
     """Analyze a local folder path directly. No upload needed."""
