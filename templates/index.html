@@ -245,9 +245,82 @@
             .print-header p{font-size:11px;color:#666;}
         }
         .print-header{display:none;}
+
+        /* ═══ THEME TOGGLE ═══ */
+        .theme-toggle{position:fixed;top:16px;right:16px;z-index:9999;width:40px;height:40px;border-radius:10px;border:1px solid var(--border-default);background:var(--bg-2);color:var(--text-300);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:18px;transition:all 150ms;box-shadow:0 2px 8px rgba(0,0,0,0.2);}
+        .theme-toggle:hover{border-color:var(--border-hover);color:var(--text-100);transform:scale(1.05);}
+        html.light-theme{--bg-0:#f8f9fa;--bg-1:#ffffff;--bg-2:#f1f3f5;--bg-3:#e9ecef;--bg-4:#dee2e6;--border-subtle:#dee2e6;--border-default:#ced4da;--border-hover:#adb5bd;--text-100:#1a1a2e;--text-200:#2d2d44;--text-300:#495057;--text-400:#6c757d;--text-500:#adb5bd;--accent:#7c3aed;--accent-dim:#7c3aed18;--critical-bg:#ef444418;--high-bg:#f59e0b18;--medium-bg:#3b82f618;--low-bg:#22c55e18;}
+        html.light-theme .rail{background:#ffffff;border-right-color:#dee2e6;}
+        html.light-theme .terminal{border-color:#ced4da;}
+        html.light-theme .terminal-bar{background:#f1f3f5;border-bottom-color:#dee2e6;}
+        html.light-theme .finding-code{background:#f1f3f5;border-color:#dee2e6;color:#495057;}
+        html.light-theme .theme-toggle{background:#ffffff;border-color:#ced4da;}
+
+        /* ═══ SCAN HISTORY PANEL ═══ */
+        .scan-history-panel{background:var(--bg-2);border:1px solid var(--border-subtle);border-radius:10px;padding:14px 18px;margin-top:16px;margin-bottom:16px;}
+        .scan-history-panel-title{font-size:11px;font-weight:500;color:var(--text-400);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+        .scan-history-panel-title::before{content:'🕐';}
+        .scan-history-entry{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-radius:6px;cursor:pointer;transition:background 150ms;border-bottom:1px solid var(--border-subtle);}
+        .scan-history-entry:last-child{border-bottom:none;}
+        .scan-history-entry:hover{background:var(--bg-3);}
+        .scan-history-entry-left{display:flex;flex-direction:column;gap:2px;}
+        .scan-history-entry-file{font-family:var(--mono);font-size:11px;color:var(--text-200);}
+        .scan-history-entry-time{font-size:10px;color:var(--text-500);}
+        .scan-history-entry-right{display:flex;gap:8px;align-items:center;}
+        .scan-history-badge{font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:4px;font-weight:500;}
+        .scan-history-badge.crit{background:var(--critical-bg);color:var(--critical);}
+        .scan-history-badge.high{background:var(--high-bg);color:var(--high);}
+        .scan-history-badge.med{background:var(--medium-bg);color:var(--medium);}
+        .scan-history-badge.low{background:var(--low-bg);color:var(--low);}
+
+        /* ═══ PATTERN STATS COUNTER ═══ */
+        .pattern-stats{font-family:var(--mono);font-size:11px;color:var(--text-500);margin-top:8px;letter-spacing:0.01em;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+        .pattern-stats .stat-dot{width:4px;height:4px;border-radius:50%;background:var(--hpe-green);display:inline-block;}
+        .pattern-stats span{opacity:0.8;transition:opacity 150ms;}
+        .pattern-stats span:hover{opacity:1;color:var(--text-300);}
+
+        /* ═══ CSV EXPORT BUTTON ═══ */
+        .btn-csv{background:transparent;border:1px solid var(--hpe-green);color:var(--hpe-green);padding:8px 14px;border-radius:8px;font-size:11px;font-weight:500;cursor:pointer;font-family:var(--font);transition:all 150ms;white-space:nowrap;}
+        .btn-csv:hover{background:var(--hpe-green-dim);transform:translateY(-1px);}
+
+        /* ═══ LOADING ANIMATION IMPROVEMENT ═══ */
+        @keyframes progressPulse{0%{box-shadow:0 0 0 0 rgba(139,92,246,0.4);}70%{box-shadow:0 0 0 8px rgba(139,92,246,0);}100%{box-shadow:0 0 0 0 rgba(139,92,246,0);}}
+        .progress.active.pulsing{animation:progressPulse 1.5s infinite;}
+        .progress.active.pulsing .progress-fill{background:linear-gradient(90deg,var(--accent),#6366f1,var(--accent));background-size:200% 100%;animation:progressShimmer 2s linear infinite;}
+        @keyframes progressShimmer{0%{background-position:200% 0;}100%{background-position:-200% 0;}}
+        .progress-file-count{font-family:var(--mono);font-size:10px;color:var(--text-400);margin-top:6px;display:none;}
+        .progress.active .progress-file-count{display:block;}
+
+        /* ═══ KEYBOARD SHORTCUTS HINT ═══ */
+        .shortcuts-hint{position:fixed;bottom:16px;right:16px;z-index:9998;font-size:11px;color:var(--text-500);background:var(--bg-2);border:1px solid var(--border-subtle);border-radius:8px;padding:6px 12px;cursor:pointer;transition:all 150ms;}
+        .shortcuts-hint:hover{color:var(--text-300);border-color:var(--border-hover);}
+        .shortcuts-modal{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:10000;background:var(--bg-2);border:1px solid var(--border-default);border-radius:12px;padding:24px 32px;box-shadow:0 20px 60px rgba(0,0,0,0.5);min-width:320px;}
+        .shortcuts-modal.active{display:block;}
+        .shortcuts-modal-title{font-size:14px;font-weight:600;color:var(--text-100);margin-bottom:16px;}
+        .shortcuts-modal-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border-subtle);}
+        .shortcuts-modal-row:last-child{border:none;}
+        .shortcuts-modal-key{font-family:var(--mono);font-size:11px;background:var(--bg-4);border:1px solid var(--border-default);border-radius:4px;padding:3px 8px;color:var(--text-200);}
+        .shortcuts-modal-desc{font-size:12px;color:var(--text-300);}
+        .shortcuts-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;}
+        .shortcuts-overlay.active{display:block;}
     </style>
 </head>
 <body>
+<!-- Theme Toggle Button -->
+<button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle Dark/Light Theme" aria-label="Toggle theme">🌙</button>
+
+<!-- Keyboard Shortcuts Hint -->
+<div class="shortcuts-hint" id="shortcutsHint" onclick="showShortcutsModal()">⌨ Shortcuts</div>
+
+<!-- Shortcuts Modal Overlay -->
+<div class="shortcuts-overlay" id="shortcutsOverlay" onclick="hideShortcutsModal()"></div>
+<div class="shortcuts-modal" id="shortcutsModal">
+    <div class="shortcuts-modal-title">Keyboard Shortcuts</div>
+    <div class="shortcuts-modal-row"><span class="shortcuts-modal-desc">Trigger scan</span><span class="shortcuts-modal-key">Ctrl+Enter</span></div>
+    <div class="shortcuts-modal-row"><span class="shortcuts-modal-desc">Clear filter</span><span class="shortcuts-modal-key">Escape</span></div>
+    <div class="shortcuts-modal-row"><span class="shortcuts-modal-desc">Close modal</span><span class="shortcuts-modal-key">Escape</span></div>
+</div>
+
 <div class="shell">
     <!-- Icon rail -->
     <nav class="rail">
@@ -286,6 +359,11 @@
                     </div>
                     <div class="pg-title">Log Scanner</div>
                     <div class="pg-desc">Drop archives — scanned locally in your browser. Zero data uploaded. 113 pattern signatures.</div>
+                    <div class="pattern-stats" id="patternStats">
+                        <span class="stat-dot"></span><span>113 detection patterns</span>
+                        <span class="stat-dot"></span><span>66 known issues</span>
+                        <span class="stat-dot"></span><span>12 runbooks</span>
+                    </div>
                 </div>
 
                 <div class="terminal">
@@ -305,6 +383,12 @@
                     </div>
                 </div>
                 <input type="file" id="fileInput" multiple hidden>
+
+                <!-- Scan History Panel (last 5 scans) -->
+                <div class="scan-history-panel" id="scanHistoryPanel" style="display:none;">
+                    <div class="scan-history-panel-title">Recent Scans</div>
+                    <div id="scanHistoryEntries"></div>
+                </div>
 
                 <div class="input-group">
                     <input type="text" id="folderPath" placeholder="or paste folder path: C:\Users\chaithay\Desktop\Tickets\Ticket-85">
@@ -328,6 +412,7 @@
                 <div class="progress" id="progressBar">
                     <div class="progress-text" id="progressText">Scanning...</div>
                     <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+                    <div class="progress-file-count" id="progressFileCount">Preparing files...</div>
                 </div>
 
                 <div class="results" id="results">
@@ -376,6 +461,7 @@
                             <span class="findings-count" id="findingsCount"></span>
                             <div style="display:flex;gap:8px;align-items:center;">
                                 <button class="btn-ghost" onclick="copyFindings()">Copy all</button>
+                                <button class="btn-csv" onclick="exportCSV()">📊 Export CSV</button>
                                 <button class="btn-pdf" onclick="exportPDF()">📄 Download PDF Report</button>
                             </div>
                         </div>
@@ -1241,6 +1327,274 @@ function loadHistory(){const h=JSON.parse(localStorage.getItem('ls_h')||'[]');$(
 $('#folderPath').addEventListener('keydown',e=>{if(e.key==='Enter')analyzeFolder();});
 $('#kbSearch').addEventListener('keydown',e=>{if(e.key==='Enter')searchKB();});
 $$('.rail-item').forEach(el=>el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();el.click();}}));
+
+// ══════════════════════════════════════════════════════════════════
+// FEATURE: Dark/Light Theme Toggle
+// ══════════════════════════════════════════════════════════════════
+function toggleTheme() {
+    const html = document.documentElement;
+    const isLight = html.classList.toggle('light-theme');
+    localStorage.setItem('ls_theme', isLight ? 'light' : 'dark');
+    document.getElementById('themeToggle').textContent = isLight ? '☀️' : '🌙';
+}
+
+// Initialize theme from localStorage
+(function initTheme() {
+    const saved = localStorage.getItem('ls_theme');
+    if (saved === 'light') {
+        document.documentElement.classList.add('light-theme');
+        document.getElementById('themeToggle').textContent = '☀️';
+    }
+})();
+
+// ══════════════════════════════════════════════════════════════════
+// FEATURE: Scan History Panel (last 5 scans below drop zone)
+// ══════════════════════════════════════════════════════════════════
+function saveScanHistory(data) {
+    const findings = data.findings || [];
+    const critCount = findings.filter(x => x.severity === 'CRITICAL').length;
+    const highCount = findings.filter(x => x.severity === 'HIGH').length;
+    const medCount = findings.filter(x => x.severity === 'MEDIUM').length;
+    const lowCount = findings.filter(x => x.severity === 'LOW').length;
+    const filename = $('#folderPath').value || 'File Upload';
+
+    const entry = {
+        timestamp: Date.now(),
+        filename: filename,
+        findingsCount: findings.length,
+        critical: critCount,
+        high: highCount,
+        medium: medCount,
+        low: lowCount,
+        data: data // Store full data for re-viewing
+    };
+
+    let history = JSON.parse(localStorage.getItem('ls_scan_history') || '[]');
+    history.unshift(entry);
+    // Keep only last 5, but store data only for recent ones (to avoid localStorage limits)
+    history = history.slice(0, 5);
+    // For storage, limit data size - strip line_content from older entries
+    const storageHistory = history.map((h, i) => {
+        if (i > 2 && h.data && h.data.findings) {
+            return {...h, data: {...h.data, findings: h.data.findings.map(f => ({...f, line_content: ''}))}};
+        }
+        return h;
+    });
+    try {
+        localStorage.setItem('ls_scan_history', JSON.stringify(storageHistory));
+    } catch(e) {
+        // If storage is full, remove data from older entries
+        const minHistory = history.map(h => ({...h, data: null}));
+        localStorage.setItem('ls_scan_history', JSON.stringify(minHistory));
+    }
+    renderScanHistoryPanel();
+}
+
+function renderScanHistoryPanel() {
+    const history = JSON.parse(localStorage.getItem('ls_scan_history') || '[]');
+    const panel = document.getElementById('scanHistoryPanel');
+    const entries = document.getElementById('scanHistoryEntries');
+
+    if (history.length === 0) {
+        panel.style.display = 'none';
+        return;
+    }
+
+    panel.style.display = 'block';
+    entries.innerHTML = history.slice(0, 5).map((h, i) => {
+        const time = new Date(h.timestamp).toLocaleString();
+        const fname = (h.filename || 'Unknown').split('\\').pop().split('/').pop();
+        return `<div class="scan-history-entry" onclick="reviewScanHistory(${i})" title="Click to re-view this scan">
+            <div class="scan-history-entry-left">
+                <div class="scan-history-entry-file">${esc(fname)}</div>
+                <div class="scan-history-entry-time">${time}</div>
+            </div>
+            <div class="scan-history-entry-right">
+                ${h.critical > 0 ? `<span class="scan-history-badge crit">${h.critical}C</span>` : ''}
+                ${h.high > 0 ? `<span class="scan-history-badge high">${h.high}H</span>` : ''}
+                ${h.medium > 0 ? `<span class="scan-history-badge med">${h.medium}M</span>` : ''}
+                ${h.low > 0 ? `<span class="scan-history-badge low">${h.low}L</span>` : ''}
+                <span style="font-family:var(--mono);font-size:10px;color:var(--text-400)">${h.findingsCount} total</span>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function reviewScanHistory(index) {
+    const history = JSON.parse(localStorage.getItem('ls_scan_history') || '[]');
+    if (history[index] && history[index].data) {
+        render(history[index].data);
+        document.getElementById('results').scrollIntoView({behavior: 'smooth', block: 'start'});
+    } else {
+        flash('Scan data not available for this entry');
+    }
+}
+
+// Initialize scan history panel on page load
+(function initScanHistory() {
+    renderScanHistoryPanel();
+})();
+
+// Hook into render to also save scan history
+const _originalSaveHistory = saveHistory;
+const _enhancedSaveHistory = function(data) {
+    _originalSaveHistory(data);
+    saveScanHistory(data);
+};
+// Override global saveHistory reference - attach to render via MutationObserver alternative
+// We'll intercept by wrapping the results display
+const _resultsObserver = new MutationObserver(function(mutations) {
+    mutations.forEach(function(m) {
+        if (m.target.id === 'results' && m.target.classList.contains('active')) {
+            // Results just became active - save to enhanced history
+            // This is triggered by render()
+        }
+    });
+});
+
+// Instead, patch saveHistory directly
+(function patchSaveHistory() {
+    const origSH = saveHistory;
+    window.saveHistory = function(data) {
+        origSH(data);
+        saveScanHistory(data);
+    };
+})();
+
+// ══════════════════════════════════════════════════════════════════
+// FEATURE: Export Findings as CSV
+// ══════════════════════════════════════════════════════════════════
+function exportCSV() {
+    if (!_allFindings || _allFindings.length === 0) {
+        flash('No findings to export');
+        return;
+    }
+
+    const headers = ['Severity', 'Pattern', 'File', 'Line', 'Description', 'Solution'];
+    const rows = _allFindings.map(f => [
+        f.severity || '',
+        (f.pattern_name || '').replace(/"/g, '""'),
+        (f.file || '').replace(/"/g, '""'),
+        f.line_number || '',
+        (f.description || '').replace(/"/g, '""'),
+        (f.solution_hint || '').replace(/"/g, '""')
+    ]);
+
+    let csv = headers.map(h => `"${h}"`).join(',') + '\n';
+    rows.forEach(row => {
+        csv += row.map(cell => `"${cell}"`).join(',') + '\n';
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `logsherlock_findings_${new Date().toISOString().split('T')[0]}.csv`;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    flash('CSV exported');
+}
+
+// ══════════════════════════════════════════════════════════════════
+// FEATURE: Loading Animation Improvement (pulsing + file count)
+// ══════════════════════════════════════════════════════════════════
+const _origShowProgress = showProgress;
+window.showProgress = function(pct) {
+    _origShowProgress(pct);
+    const bar = document.getElementById('progressBar');
+    if (pct < 100) {
+        bar.classList.add('pulsing');
+    } else {
+        bar.classList.remove('pulsing');
+    }
+};
+
+function updateProgressFileCount(scanned, total, findings) {
+    const el = document.getElementById('progressFileCount');
+    if (el) {
+        el.textContent = `📂 ${scanned}/${total} files scanned • ${findings} findings detected`;
+    }
+}
+
+// Enhance the scan status updates to include file count in progress
+const _origSetStatus = setStatus;
+window.setStatus = function(type, text) {
+    _origSetStatus(type, text);
+    // Parse file counts from status text to update progress file count
+    const match = text.match(/Scanned (\d+)\/(\d+) files · (\d+) findings/);
+    if (match) {
+        updateProgressFileCount(match[1], match[2], match[3]);
+    }
+};
+
+// ══════════════════════════════════════════════════════════════════
+// FEATURE: Keyboard Shortcuts
+// ══════════════════════════════════════════════════════════════════
+function showShortcutsModal() {
+    document.getElementById('shortcutsModal').classList.add('active');
+    document.getElementById('shortcutsOverlay').classList.add('active');
+}
+
+function hideShortcutsModal() {
+    document.getElementById('shortcutsModal').classList.remove('active');
+    document.getElementById('shortcutsOverlay').classList.remove('active');
+}
+
+document.addEventListener('keydown', function(e) {
+    // Ctrl+Enter: trigger scan
+    if (e.ctrlKey && e.key === 'Enter') {
+        e.preventDefault();
+        const folderPath = document.getElementById('folderPath').value.trim();
+        if (folderPath) {
+            analyzeFolder();
+        } else {
+            // Click file input to open file picker
+            document.getElementById('fileInput').click();
+        }
+    }
+
+    // Escape: clear filter or close shortcuts modal
+    if (e.key === 'Escape') {
+        const modal = document.getElementById('shortcutsModal');
+        if (modal.classList.contains('active')) {
+            hideShortcutsModal();
+        } else if (_allFindings && _allFindings.length > 0) {
+            filterFindings('');
+        }
+    }
+});
+
+// ══════════════════════════════════════════════════════════════════
+// FEATURE: Update pattern stats from loaded patterns
+// ══════════════════════════════════════════════════════════════════
+(async function updatePatternStats() {
+    try {
+        const patterns = await loadPatterns();
+        if (patterns && patterns.length > 0) {
+            const statsEl = document.getElementById('patternStats');
+            if (statsEl) {
+                const patternCount = patterns.length;
+                // Try to fetch KB count
+                let kbCount = 66;
+                let runbookCount = 12;
+                try {
+                    const kbResp = await fetch('/api/knowledge/issues');
+                    const kbData = await kbResp.json();
+                    kbCount = (kbData.issues || kbData || []).length || 66;
+                } catch(e) {}
+                try {
+                    const rbResp = await fetch('/api/knowledge/runbooks');
+                    const rbData = await rbResp.json();
+                    runbookCount = (rbData.runbooks || rbData || []).length || 12;
+                } catch(e) {}
+                statsEl.innerHTML = `<span class="stat-dot"></span><span>${patternCount} detection patterns</span><span class="stat-dot"></span><span>${kbCount} known issues</span><span class="stat-dot"></span><span>${runbookCount} runbooks</span>`;
+            }
+        }
+    } catch(e) {}
+})();
 </script>
 </body>
 </html>
