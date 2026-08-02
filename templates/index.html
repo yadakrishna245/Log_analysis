@@ -38,7 +38,7 @@
         }
         @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;}}
         *{margin:0;padding:0;box-sizing:border-box;}
-        body{font-family:var(--font);background:var(--bg-0);color:var(--text-200);font-size:13px;line-height:1.5;-webkit-font-smoothing:antialiased;}
+        body{font-family:var(--font);background:var(--bg-0);color:var(--text-200);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;}
         :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px;}
         ::selection{background:var(--accent-dim);color:var(--text-100);}
 
@@ -74,7 +74,7 @@
         /* Page header */
         .pg-header{margin-bottom:32px;}
         .pg-title{font-size:22px;font-weight:600;color:var(--text-100);letter-spacing:-0.02em;}
-        .pg-desc{font-size:13px;color:var(--text-400);margin-top:4px;}
+        .pg-desc{font-size:14px;color:var(--text-400);margin-top:4px;}
 
         /* Scan terminal */
         .terminal{background:var(--bg-2);border:1px solid var(--border-default);border-radius:12px;overflow:hidden;margin-bottom:24px;}
@@ -134,7 +134,7 @@
         .metric-val.med{color:var(--medium);}
         .metric-val.low{color:var(--low);}
         .metric-val.neutral{color:var(--text-100);}
-        .metric-label{font-size:10px;color:var(--text-500);text-transform:uppercase;letter-spacing:0.06em;margin-top:4px;}
+        .metric-label{font-size:12px;color:var(--text-500);text-transform:uppercase;letter-spacing:0.06em;margin-top:4px;}
 
         /* Timeline */
         .timeline-panel{background:var(--bg-2);border:1px solid var(--border-subtle);border-radius:10px;padding:20px;margin-bottom:24px;}
@@ -157,16 +157,16 @@
         .findings-count{font-size:12px;color:var(--text-400);}
         .finding{display:grid;grid-template-columns:80px 1fr;gap:16px;padding:14px 0;border-bottom:1px solid var(--border-subtle);}
         .finding:last-child{border:none;}
-        .badge{font-family:var(--mono);font-size:10px;font-weight:500;padding:4px 8px;border-radius:4px;text-align:center;text-transform:uppercase;letter-spacing:0.03em;}
+        .badge{font-family:var(--mono);font-size:11px;font-weight:500;padding:4px 8px;border-radius:4px;text-align:center;text-transform:uppercase;letter-spacing:0.03em;}
         .badge-critical{background:var(--critical-bg);color:var(--critical);}
         .badge-high{background:var(--high-bg);color:var(--high);}
         .badge-medium{background:var(--medium-bg);color:var(--medium);}
         .badge-low{background:var(--low-bg);color:var(--low);}
         .finding-content{}
-        .finding-source{font-family:var(--mono);font-size:11px;color:var(--text-500);margin-bottom:4px;}
-        .finding-text{font-size:13px;color:var(--text-200);margin-bottom:6px;}
-        .finding-code{font-family:var(--mono);font-size:11px;color:var(--text-400);background:var(--bg-0);padding:8px 10px;border-radius:6px;overflow-x:auto;white-space:pre;margin-bottom:6px;border:1px solid var(--border-subtle);}
-        .finding-fix{font-size:11px;color:var(--low);display:flex;align-items:center;gap:4px;}
+        .finding-source{font-family:var(--mono);font-size:13px;color:var(--text-500);margin-bottom:4px;}
+        .finding-text{font-size:14px;color:var(--text-200);margin-bottom:6px;}
+        .finding-code{font-family:var(--mono);font-size:12px;color:var(--text-400);background:var(--bg-0);padding:8px 10px;border-radius:6px;overflow-x:auto;white-space:pre;margin-bottom:6px;border:1px solid var(--border-subtle);}
+        .finding-fix{font-size:13px;color:var(--low);display:flex;align-items:center;gap:4px;}
         .finding-fix::before{content:'→';}
 
         /* Jira output */
@@ -175,10 +175,10 @@
         /* KB cards */
         .card{background:var(--bg-2);border:1px solid var(--border-subtle);border-radius:10px;padding:16px 20px;margin-bottom:10px;transition:border-color 150ms;}
         .card:hover{border-color:var(--border-hover);}
-        .card-title{font-size:13px;font-weight:500;color:var(--text-100);margin-bottom:6px;}
-        .card-meta{font-family:var(--mono);font-size:10px;color:var(--text-500);margin-bottom:8px;}
-        .card-body{font-size:12px;color:var(--text-300);line-height:1.6;}
-        .card-solution{font-family:var(--mono);font-size:11px;color:var(--low);margin-top:10px;padding:10px 12px;background:var(--low-bg);border-radius:6px;white-space:pre-wrap;line-height:1.6;}
+        .card-title{font-size:16px;font-weight:500;color:var(--text-100);margin-bottom:6px;}
+        .card-meta{font-family:var(--mono);font-size:12px;color:var(--text-500);margin-bottom:8px;}
+        .card-body{font-size:14px;color:var(--text-300);line-height:1.6;}
+        .card-solution{font-family:var(--mono);font-size:13px;color:var(--low);margin-top:10px;padding:10px 12px;background:var(--low-bg);border-radius:6px;white-space:pre-wrap;line-height:1.6;}
 
         /* History */
         .history-item{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border-subtle);}
@@ -204,10 +204,10 @@
         .heatmap-panel{background:var(--bg-2);border:1px solid var(--border-subtle);border-radius:10px;padding:20px;margin-bottom:24px;}
         .heatmap-title{font-size:11px;font-weight:500;color:var(--text-400);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:14px;}
         .heatmap-grid{display:grid;grid-template-columns:200px repeat(4, 1fr);gap:2px;font-size:10px;}
-        .heatmap-header{font-family:var(--mono);font-size:9px;color:var(--text-400);text-transform:uppercase;padding:6px 8px;text-align:center;}
-        .heatmap-file{font-family:var(--mono);font-size:10px;color:var(--text-300);padding:6px 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;transition:color 0.2s;}
+        .heatmap-header{font-family:var(--mono);font-size:11px;color:var(--text-400);text-transform:uppercase;padding:6px 8px;text-align:center;}
+        .heatmap-file{font-family:var(--mono);font-size:12px;color:var(--text-300);padding:6px 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;transition:color 0.2s;}
         .heatmap-file:hover{color:var(--hpe-green);}
-        .heatmap-cell{border-radius:3px;padding:6px 8px;text-align:center;font-family:var(--mono);font-size:10px;font-weight:500;cursor:pointer;transition:transform 0.15s;}
+        .heatmap-cell{border-radius:3px;padding:6px 8px;text-align:center;font-family:var(--mono);font-size:12px;font-weight:500;cursor:pointer;transition:transform 0.15s;}
         .heatmap-cell:hover{transform:scale(1.1);}
         .heatmap-cell.intensity-0{background:var(--bg-0);color:var(--text-500);}
         .heatmap-cell.intensity-1{background:var(--low-bg);color:var(--low);}
@@ -401,12 +401,7 @@
         <div class="rail-item" onclick="showPage('runbooks')" tabindex="0" title="Runbooks">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12l2 2 4-4"/></svg>
         </div>
-        <a class="rail-item" href="https://github.com/yadakrishna245/Log_analysis/blob/main/README.md" target="_blank" tabindex="0" title="Docs / Guide" style="text-decoration:none;">
-            <span style="font-size:18px;">📖</span>
-        </a>
-        <a class="rail-item" href="https://github.com/yadakrishna245/Log_analysis/commits/main" target="_blank" tabindex="0" title="Changelog" style="text-decoration:none;">
-            <span style="font-size:18px;">📋</span>
-        </a>
+
         <div class="rail-footer" title="Hewlett Packard Enterprise" style="width:auto;height:auto;border-radius:0;background:none;padding:8px 4px;flex-direction:column;display:flex;align-items:center;gap:4px;">
             <span style="font-size:8px;color:var(--text-500);text-align:center;line-height:1.2;writing-mode:vertical-rl;transform:rotate(180deg);">Hewlett Packard Enterprise</span>
         </div>
@@ -419,14 +414,15 @@
             <!-- SCAN PAGE -->
             <div id="page-analyze" class="page active">
                 <div class="pg-header">
-                    <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
-                        <svg width="64" height="36" viewBox="0 0 64 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <rect x="0" y="0" width="64" height="36" rx="4" fill="#01A982"/>
-                            <text x="32" y="22" text-anchor="middle" font-family="Inter,sans-serif" font-size="12" font-weight="700" fill="#ffffff">HPE</text>
+                    <div style="display:flex;align-items:center;gap:24px;margin-bottom:16px;">
+                        <svg width="140" height="70" viewBox="0 0 140 70" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="0" y="0" width="140" height="70" rx="6" fill="#01A982"/>
+                            <text x="70" y="42" text-anchor="middle" font-family="Inter,sans-serif" font-size="24" font-weight="700" fill="#ffffff">HPE</text>
                         </svg>
                         <div>
-                            <div style="font-size:28px;font-weight:700;color:var(--text-100);letter-spacing:-0.03em;line-height:1.2;">LogSherlock Pro</div>
-                            <div style="font-size:12px;color:var(--hpe-green);font-weight:500;margin-top:2px;">Hewlett Packard Enterprise</div>
+                            <div style="font-size:32px;font-weight:700;color:var(--text-100);letter-spacing:-0.03em;line-height:1.2;">LogSherlock Pro</div>
+                            <div style="font-size:15px;color:var(--hpe-green);font-weight:500;margin-top:4px;">Hewlett Packard Enterprise</div>
+                            <div style="font-size:13px;color:var(--text-400);margin-top:2px;">VME Log Analysis Suite</div>
                         </div>
                     </div>
                     <div class="pg-desc">Drop archives — scanned locally in your browser. Zero data uploaded. 113 pattern signatures.</div>
@@ -589,8 +585,14 @@
             <!-- KNOWLEDGE BASE PAGE -->
             <div id="page-knowledge" class="page">
                 <div class="pg-header">
-                    <div style="display:flex;align-items:center;gap:16px;margin-bottom:12px">
-                        <svg width="100" height="44" viewBox="0 0 120 55" fill="none"><rect x="8" y="2" width="50" height="24" fill="#01A982" rx="2"/><rect x="15" y="7" width="36" height="14" fill="#09090b" rx="1"/><text x="8" y="40" font-family="Inter,sans-serif" font-size="9.5" fill="#fafafa" font-weight="600">Hewlett Packard</text><text x="8" y="51" font-family="Inter,sans-serif" font-size="9.5" fill="#01A982" font-weight="400">Enterprise</text></svg>
+                    <div style="display:flex;align-items:center;gap:24px;margin-bottom:12px">
+                        <svg width="140" height="70" viewBox="0 0 140 70" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="0" y="0" width="140" height="70" rx="6" fill="#01A982"/>
+                            <text x="70" y="42" text-anchor="middle" font-family="Inter,sans-serif" font-size="24" font-weight="700" fill="#ffffff">HPE</text>
+                        </svg>
+                        <div>
+                            <div style="font-size:15px;color:var(--hpe-green);font-weight:500;">Hewlett Packard Enterprise</div>
+                        </div>
                     </div>
                     <div class="pg-title">Knowledge Base</div><div class="pg-desc">66 known issues across Morpheus, KVM, Alletra, GFS2, VME, Pacemaker.</div></div>
                 <div class="input-group" style="margin-bottom:20px;">
@@ -603,8 +605,14 @@
             <!-- RUNBOOKS PAGE -->
             <div id="page-runbooks" class="page">
                 <div class="pg-header">
-                    <div style="display:flex;align-items:center;gap:16px;margin-bottom:12px">
-                        <svg width="100" height="44" viewBox="0 0 120 55" fill="none"><rect x="8" y="2" width="50" height="24" fill="#01A982" rx="2"/><rect x="15" y="7" width="36" height="14" fill="#09090b" rx="1"/><text x="8" y="40" font-family="Inter,sans-serif" font-size="9.5" fill="#fafafa" font-weight="600">Hewlett Packard</text><text x="8" y="51" font-family="Inter,sans-serif" font-size="9.5" fill="#01A982" font-weight="400">Enterprise</text></svg>
+                    <div style="display:flex;align-items:center;gap:24px;margin-bottom:12px">
+                        <svg width="140" height="70" viewBox="0 0 140 70" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="0" y="0" width="140" height="70" rx="6" fill="#01A982"/>
+                            <text x="70" y="42" text-anchor="middle" font-family="Inter,sans-serif" font-size="24" font-weight="700" fill="#ffffff">HPE</text>
+                        </svg>
+                        <div>
+                            <div style="font-size:15px;color:var(--hpe-green);font-weight:500;">Hewlett Packard Enterprise</div>
+                        </div>
                     </div>
                     <div class="pg-title">Runbooks</div><div class="pg-desc">Step-by-step investigation guides for junior and senior engineers.</div></div>
                 <div id="runbooksList"></div>
