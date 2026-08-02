@@ -66,7 +66,7 @@ def create_app(config_class=Config):
             return None
         # Patterns export and knowledge lookup are used by the client-side scanner
         # They don't expose any customer data (patterns are public, KB lookup uses only pattern names)
-        if request.path in ('/api/patterns/export', '/api/knowledge/lookup'):
+        if request.path in ('/api/patterns/export', '/api/knowledge/lookup', '/api/advisor'):
             return None
         if not request.path.startswith('/api/'):
             return None

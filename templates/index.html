@@ -230,6 +230,15 @@
                 <div class="context-area">
                     <div class="context-label">Ticket context</div>
                     <textarea class="context-textarea" id="ticketContext" placeholder="Paste full Jira ticket description here to focus the analysis and improve Jira report output..."></textarea>
+                    <button class="btn-ghost" style="margin-top:8px" onclick="getAdvice()">🧭 Suggest where to look</button>
+                </div>
+
+                <div id="advisorPanel" style="display:none;background:var(--bg-2);border:1px solid var(--border-default);border-radius:10px;padding:20px;margin-bottom:24px;">
+                    <div style="font-size:13px;font-weight:500;color:var(--text-100);margin-bottom:12px">🧭 Investigation Guide</div>
+                    <div id="advisorSummary" style="font-size:12px;color:var(--accent);margin-bottom:16px;"></div>
+                    <div id="advisorSteps" style="margin-bottom:16px;"></div>
+                    <div id="advisorFiles"></div>
+                    <div id="advisorKB" style="margin-top:16px;"></div>
                 </div>
 
                 <div class="progress" id="progressBar">
@@ -643,6 +652,48 @@ function hideProgress(){$('#progressBar').classList.remove('active');}
 function copyFindings(){navigator.clipboard.writeText($('#findingsList').innerText).then(()=>flash('Copied'));}
 function copyJira(){navigator.clipboard.writeText($('#jiraReport').textContent).then(()=>flash('Copied — paste into Jira'));}
 function flash(msg){const t=$('#statusText');const prev=t.textContent;t.textContent=msg;setTimeout(()=>t.textContent=prev,2000);}
+
+// ── TICKET ADVISOR ──────────────────────────────────────────────────
+function getAdvice() {
+    const desc = $('#ticketContext').value.trim();
+    if (!desc) { alert('Paste a Jira ticket description first'); return; }
+
+    fetch('/api/advisor', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({description: desc})
+    })
+    .then(r => r.json())
+    .then(d => {
+        const panel = $('#advisorPanel');
+        panel.style.display = 'block';
+
+        // Summary
+        $('#advisorSummary').textContent = d.summary || '';
+
+        // Steps
+        const steps = d.investigation_steps || [];
+        $('#advisorSteps').innerHTML = steps.length
+            ? '<div style="font-size:11px;color:var(--text-400);text-transform:uppercase;margin-bottom:8px;font-weight:500">Investigation Steps</div>' +
+              steps.map(s => `<div style="font-size:12px;color:var(--text-200);margin-bottom:6px;padding-left:8px;border-left:2px solid var(--accent)">${esc(s)}</div>`).join('')
+            : '';
+
+        // Files
+        const files = d.files_to_check || [];
+        $('#advisorFiles').innerHTML = files.length
+            ? '<div style="font-size:11px;color:var(--text-400);text-transform:uppercase;margin-bottom:8px;margin-top:12px;font-weight:500">Files to Check</div>' +
+              files.map(f => `<div style="display:flex;gap:12px;margin-bottom:6px;font-size:12px"><code style="color:var(--text-100);font-family:var(--mono);min-width:250px">${esc(f.file)}</code><span style="color:var(--text-400)">${esc(f.reason)}</span></div>`).join('')
+            : '';
+
+        // KB matches
+        const kb = d.related_known_issues || [];
+        $('#advisorKB').innerHTML = kb.length
+            ? '<div style="font-size:11px;color:var(--text-400);text-transform:uppercase;margin-bottom:8px;font-weight:500">Related Known Issues</div>' +
+              kb.map(k => `<div class="card" style="margin-bottom:8px"><div class="card-title">${esc(k.title)}</div>${k.solution ? `<div class="card-solution">${esc(k.solution)}</div>` : ''}</div>`).join('')
+            : '';
+    })
+    .catch(e => alert('Error: ' + e.message));
+}
 
 // KB
 function loadKB(){fetch('/api/knowledge/issues').then(r=>r.json()).then(d=>{

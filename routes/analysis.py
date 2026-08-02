@@ -1221,6 +1221,197 @@ def knowledge_lookup():
     })
 
 
+@analysis_bp.route('/api/advisor', methods=['POST'])
+def ticket_advisor():
+    """Analyze a Jira ticket description and suggest which files/folders to check.
+
+    Zero log data needed — just the ticket text. Returns:
+    - Relevant log files to examine
+    - Key patterns likely to match
+    - Investigation steps
+    - Runbook suggestions
+    """
+    data = request.get_json() or {}
+    description = data.get('description', '').strip()
+
+    if not description:
+        return jsonify({'error': 'description is required'}), 400
+
+    desc_lower = description.lower()
+
+    # ── FILE RECOMMENDATIONS based on keywords ───────────────────────
+    file_recommendations = []
+
+    FILE_MAP = {
+        'cluster': [
+            {'file': '/var/log/messages', 'reason': 'Main system log — cluster events, fencing, resource failures'},
+            {'file': '/var/log/cluster/corosync.log', 'reason': 'Corosync membership changes, token timeouts, quorum'},
+            {'file': 'pcs status output', 'reason': 'Current cluster state, resource placement, failures'},
+            {'file': '/var/log/pacemaker/pacemaker.log', 'reason': 'Resource actions, fencing decisions, transitions'},
+        ],
+        'gfs2': [
+            {'file': '/var/log/messages', 'reason': 'GFS2 mount/unmount errors, withdraw events'},
+            {'file': 'mount output', 'reason': 'Current filesystem mount status'},
+            {'file': '/var/log/cluster/corosync.log', 'reason': 'DLM lock manager depends on corosync'},
+            {'file': 'dmesg', 'reason': 'Kernel-level GFS2 and DLM errors'},
+        ],
+        'storage': [
+            {'file': 'multipath -ll output', 'reason': 'Path status, failed paths, LUN mapping'},
+            {'file': '/var/log/messages', 'reason': 'SCSI errors, path failures, reservation conflicts'},
+            {'file': 'dmesg', 'reason': 'Kernel SCSI/block device errors'},
+            {'file': '/etc/multipath.conf', 'reason': 'Multipath configuration validation'},
+            {'file': 'iscsiadm -m session output', 'reason': 'iSCSI session status and targets'},
+        ],
+        'vm': [
+            {'file': '/var/log/libvirt/qemu/*.log', 'reason': 'VM-specific QEMU errors and events'},
+            {'file': '/var/log/messages', 'reason': 'libvirtd errors, VM lifecycle events'},
+            {'file': 'virsh list --all output', 'reason': 'Current VM states'},
+            {'file': '/var/log/libvirt/libvirtd.log', 'reason': 'Libvirt daemon errors'},
+        ],
+        'network': [
+            {'file': '/var/log/messages', 'reason': 'Network interface events, bond failures'},
+            {'file': 'ip addr / ifconfig output', 'reason': 'Interface state and IP configuration'},
+            {'file': '/etc/sysconfig/network-scripts/', 'reason': 'Network interface configuration'},
+            {'file': 'corosync.log', 'reason': 'Ring communication errors between nodes'},
+        ],
+        'memory': [
+            {'file': 'dmesg', 'reason': 'OOM killer events, memory allocation failures'},
+            {'file': '/var/log/messages', 'reason': 'Service crashes due to OOM'},
+            {'file': '/proc/meminfo snapshot', 'reason': 'Memory usage at time of issue'},
+            {'file': 'sar data', 'reason': 'Historical memory usage trends'},
+        ],
+        'fencing': [
+            {'file': '/var/log/messages', 'reason': 'STONITH/fence actions and results'},
+            {'file': '/var/log/pacemaker/pacemaker.log', 'reason': 'Fencing decisions and timeouts'},
+            {'file': 'pcs stonith history', 'reason': 'Fence event history'},
+            {'file': '/etc/cluster/fence_xvm.conf', 'reason': 'Fence agent configuration'},
+        ],
+        'morpheus': [
+            {'file': '/var/log/messages', 'reason': 'SMAD service events, Morpheus platform errors'},
+            {'file': 'systemctl status smad*', 'reason': 'SMAD service health'},
+            {'file': '/var/log/morpheus/', 'reason': 'Morpheus application logs'},
+            {'file': 'pcs status', 'reason': 'Cluster-managed Morpheus resources'},
+        ],
+    }
+
+    # Keyword to category mapping
+    KEYWORD_TO_CATEGORY = {
+        'cluster': ['cluster', 'pacemaker', 'corosync', 'pcs', 'failover', 'ha', 'node'],
+        'gfs2': ['gfs2', 'gfs', 'dlm', 'withdraw', 'mount', 'filesystem', 'shared storage'],
+        'storage': ['storage', 'lun', 'disk', 'scsi', 'multipath', 'mpath', 'iscsi', 'alletra', 'nimble', 'san', 'reservation'],
+        'vm': ['vm', 'virtual machine', 'kvm', 'qemu', 'libvirt', 'virsh', 'domain', 'migrate', 'guest'],
+        'network': ['network', 'nic', 'bond', 'interface', 'ip', 'connection', 'unreachable', 'timeout'],
+        'memory': ['oom', 'out of memory', 'memory', 'killed', 'swap', 'ram'],
+        'fencing': ['fence', 'stonith', 'fencing', 'reboot', 'power off', 'ipmi'],
+        'morpheus': ['morpheus', 'smad', 'vme', 'provisioning', 'deploy'],
+    }
+
+    matched_categories = []
+    for category, keywords in KEYWORD_TO_CATEGORY.items():
+        for kw in keywords:
+            if kw in desc_lower:
+                if category not in matched_categories:
+                    matched_categories.append(category)
+                break
+
+    # Collect file recommendations (deduplicated)
+    seen_files = set()
+    for cat in matched_categories:
+        for rec in FILE_MAP.get(cat, []):
+            if rec['file'] not in seen_files:
+                seen_files.add(rec['file'])
+                file_recommendations.append({**rec, 'category': cat})
+
+    # If no categories matched, give generic recommendations
+    if not file_recommendations:
+        file_recommendations = [
+            {'file': '/var/log/messages', 'reason': 'Start here — main system log for most issues', 'category': 'general'},
+            {'file': 'dmesg', 'reason': 'Kernel-level errors and hardware issues', 'category': 'general'},
+            {'file': 'pcs status', 'reason': 'Cluster state if this is a cluster system', 'category': 'general'},
+            {'file': '/var/log/syslog', 'reason': 'Alternative system log (Debian-based)', 'category': 'general'},
+        ]
+
+    # ── PATTERN PREDICTIONS ──────────────────────────────────────────
+    predicted_patterns = []
+    engine = _get_engine()
+    CATEGORY_PATTERNS = {
+        'cluster': ['pacemaker_resource_failed', 'corosync_membership_change', 'quorum_lost', 'pacemaker_fencing'],
+        'gfs2': ['gfs2_withdraw', 'dlm_lockspace_error', 'gfs2_readonly', 'dlm_connection_lost'],
+        'storage': ['scsi_reservation_conflict', 'multipath_all_paths_down', 'io_error', 'scsi_command_failed'],
+        'vm': ['libvirt_error', 'vm_paused_io_error', 'qemu_error'],
+        'network': ['network_link_down', 'bond_slave_failure', 'network_unreachable', 'corosync_token_timeout'],
+        'memory': ['oom_kill', 'memory_allocation_failure'],
+        'fencing': ['pacemaker_fencing', 'fence_timeout', 'stonith_failed'],
+        'morpheus': ['systemd_service_failed', 'smad_error'],
+    }
+
+    for cat in matched_categories:
+        for pname in CATEGORY_PATTERNS.get(cat, []):
+            for p in engine.patterns:
+                if p.name == pname:
+                    predicted_patterns.append({
+                        'name': p.name,
+                        'severity': p.severity,
+                        'description': p.description,
+                        'solution_hint': p.solution_hint,
+                    })
+                    break
+
+    # ── INVESTIGATION STEPS ──────────────────────────────────────────
+    steps = []
+    if 'cluster' in matched_categories or 'fencing' in matched_categories:
+        steps.append('1. Check `pcs status` — are all nodes online? Any failed resources?')
+        steps.append('2. Look at `/var/log/messages` around the incident time for fence/resource events')
+        steps.append('3. Check `corosync.log` for membership changes or token timeouts')
+    if 'gfs2' in matched_categories:
+        steps.append('1. Check `mount` output — is GFS2 still mounted?')
+        steps.append('2. Look for "withdraw" in `/var/log/messages`')
+        steps.append('3. Check DLM status: `dlm_tool ls`')
+    if 'storage' in matched_categories:
+        steps.append('1. Run `multipath -ll` — are all paths active?')
+        steps.append('2. Check `dmesg` for SCSI errors or reservation conflicts')
+        steps.append('3. Verify iSCSI sessions: `iscsiadm -m session`')
+    if 'vm' in matched_categories:
+        steps.append('1. Check `virsh list --all` — which VMs are paused/crashed?')
+        steps.append('2. Check VM-specific logs in `/var/log/libvirt/qemu/`')
+        steps.append('3. Look for I/O errors that may have paused VMs')
+    if 'memory' in matched_categories:
+        steps.append('1. Check `dmesg | grep -i oom` for OOM killer events')
+        steps.append('2. Identify which process was killed and why')
+        steps.append('3. Check if swap was full: `free -h`')
+    if not steps:
+        steps.append('1. Start with `/var/log/messages` — search for ERROR, CRITICAL, failed')
+        steps.append('2. Check `dmesg` for kernel-level issues')
+        steps.append('3. Upload the log bundle here for full automated scan')
+
+    # ── KNOWLEDGE BASE MATCHES ───────────────────────────────────────
+    kb_matches = []
+    try:
+        all_entries = KnowledgeEntry.query.all()
+        for entry in all_entries:
+            entry_text = f"{entry.title} {entry.symptoms} {entry.root_cause}".lower()
+            if any(w in entry_text for w in desc_lower.split() if len(w) > 3):
+                kb_matches.append({
+                    'title': entry.title,
+                    'product': entry.product,
+                    'root_cause': entry.root_cause,
+                    'solution': entry.solution,
+                })
+                if len(kb_matches) >= 5:
+                    break
+    except Exception:
+        pass
+
+    return jsonify({
+        'categories_detected': matched_categories,
+        'files_to_check': file_recommendations,
+        'predicted_patterns': predicted_patterns[:10],
+        'investigation_steps': steps,
+        'related_known_issues': kb_matches,
+        'summary': f"Based on the ticket description, this appears to be a {' + '.join(matched_categories) if matched_categories else 'general'} issue. Check the recommended files below.",
+    })
+
+
 @analysis_bp.route('/api/analyze/folder', methods=['POST'])
 def analyze_folder():
     """Analyze a local folder path directly. No upload needed."""
