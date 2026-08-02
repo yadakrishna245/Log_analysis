@@ -158,7 +158,7 @@
         .finding-fix::before{content:'→';}
 
         /* Jira output */
-        .jira-box{background:var(--bg-0);border:1px solid var(--border-default);border-radius:10px;padding:20px;font-family:var(--mono);font-size:11px;color:var(--text-300);white-space:pre-wrap;line-height:1.7;max-height:500px;overflow-y:auto;}
+        .jira-box{background:var(--bg-0);border:1px solid var(--border-default);border-radius:10px;padding:20px;font-family:var(--sans);font-size:12px;color:var(--text-300);line-height:1.7;max-height:500px;overflow-y:auto;}
 
         /* KB cards */
         .card{background:var(--bg-2);border:1px solid var(--border-subtle);border-radius:10px;padding:16px 20px;margin-bottom:10px;transition:border-color 150ms;}
@@ -377,10 +377,11 @@
 
                     <div class="tab-pane" id="tab-jira">
                         <div class="findings-header">
-                            <span class="findings-count">Formatted for Jira wiki markup</span>
-                            <button class="btn-ghost" onclick="copyJira()">Copy to clipboard</button>
+                            <span class="findings-count">RCA Report — Copy to Jira</span>
+                            <button class="btn-ghost" onclick="copyJira()">📋 Copy Jira Markup</button>
                         </div>
-                        <div class="jira-box" id="jiraReport"></div>
+                        <div class="jira-box" id="jiraReportRendered"></div>
+                        <textarea id="jiraReportRaw" style="display:none"></textarea>
                     </div>
                 </div>
             </div>
@@ -850,7 +851,8 @@ function render(data){
         j+=`h3. 5. Evidence\n`;
         f.slice(0,10).forEach(x=>{j+=`* ${x.file}:${x.line_number} — ${x.pattern_name}\n`;});
     }
-    $('#jiraReport').textContent=j;
+    $('#jiraReportRaw').value=j;
+    $('#jiraReportRendered').innerHTML=renderJiraMarkup(j);
     saveHistory(data);
 }
 
@@ -861,13 +863,78 @@ function exportPDF() {
     window.print();
 }
 
+// Jira Wiki Markup to HTML renderer
+function renderJiraMarkup(text) {
+    let html = '';
+    let inNoformat = false;
+    let noformatBuf = '';
+    const lines = text.split('\n');
+    for (let i = 0; i < lines.length; i++) {
+        let line = lines[i];
+        // Handle {noformat} blocks
+        if (line.includes('{noformat}')) {
+            const parts = line.split('{noformat}');
+            let out = '';
+            for (let p = 0; p < parts.length; p++) {
+                if (p % 2 === 0) {
+                    // Outside noformat
+                    out += formatJiraInline(esc(parts[p]));
+                } else {
+                    // Inside noformat
+                    out += '<code style="background:var(--bg-0);padding:2px 6px;border-radius:4px;font-size:11px;color:var(--text-200)">' + esc(parts[p]) + '</code>';
+                }
+            }
+            html += '<div style="margin-bottom:4px">' + out + '</div>';
+            continue;
+        }
+        // h1, h2, h3 headers
+        if (/^h1\.\s*(.+)/.test(line)) {
+            html += '<h2 style="color:var(--hpe-green);font-size:18px;margin:16px 0 8px;border-bottom:1px solid var(--border-subtle);padding-bottom:6px">' + esc(line.replace(/^h1\.\s*/, '')) + '</h2>';
+            continue;
+        }
+        if (/^h2\.\s*(.+)/.test(line)) {
+            html += '<h3 style="color:var(--hpe-green);font-size:16px;margin:14px 0 6px;border-bottom:1px solid var(--border-subtle);padding-bottom:4px">' + esc(line.replace(/^h2\.\s*/, '')) + '</h3>';
+            continue;
+        }
+        if (/^h3\.\s*(.+)/.test(line)) {
+            html += '<h4 style="color:var(--text-100);font-size:14px;margin:12px 0 4px;font-weight:600">' + esc(line.replace(/^h3\.\s*/, '')) + '</h4>';
+            continue;
+        }
+        // Bullet points
+        if (/^\*\s+(.+)/.test(line)) {
+            html += '<div style="margin-left:12px;margin-bottom:4px;font-size:12px"><span style="color:var(--hpe-green)">●</span> ' + formatJiraInline(esc(line.replace(/^\*\s+/, ''))) + '</div>';
+            continue;
+        }
+        // Empty line
+        if (line.trim() === '') {
+            html += '<div style="height:8px"></div>';
+            continue;
+        }
+        // Normal line
+        html += '<div style="margin-bottom:4px;font-size:12px;color:var(--text-200)">' + formatJiraInline(esc(line)) + '</div>';
+    }
+    return html;
+}
+function formatJiraInline(s) {
+    // *bold*
+    s = s.replace(/\*([^*]+)\*/g, '<strong style="color:var(--text-100)">$1</strong>');
+    // _italic_
+    s = s.replace(/(?<!\w)_([^_]+)_(?!\w)/g, '<em style="color:var(--text-300)">$1</em>');
+    // [SEVERITY] badges
+    s = s.replace(/\[CRITICAL\]/g, '<span class="badge crit">CRITICAL</span>');
+    s = s.replace(/\[HIGH\]/g, '<span class="badge high">HIGH</span>');
+    s = s.replace(/\[MEDIUM\]/g, '<span class="badge med">MEDIUM</span>');
+    s = s.replace(/\[LOW\]/g, '<span class="badge low">LOW</span>');
+    return s;
+}
+
 // Helpers
 function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function setStatus(type,text){const s=$('#termStatus');s.className='terminal-status '+type;$('#statusText').textContent=text;}
 function showProgress(pct){const b=$('#progressBar');b.classList.add('active');$('#progressFill').style.width=pct+'%';$('#progressText').textContent=pct>=100?'Done':'Scanning...';}
 function hideProgress(){$('#progressBar').classList.remove('active');}
 function copyFindings(){navigator.clipboard.writeText($('#findingsList').innerText).then(()=>flash('Copied'));}
-function copyJira(){navigator.clipboard.writeText($('#jiraReport').textContent).then(()=>flash('Copied — paste into Jira'));}
+function copyJira(){navigator.clipboard.writeText($('#jiraReportRaw').value).then(()=>flash('Copied — paste into Jira'));}
 function flash(msg){const t=$('#statusText');const prev=t.textContent;t.textContent=msg;setTimeout(()=>t.textContent=prev,2000);}
 
 // ── TICKET ADVISOR ──────────────────────────────────────────────────
