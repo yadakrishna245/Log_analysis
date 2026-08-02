@@ -341,21 +341,25 @@
                     </div>
 
                     <div class="metrics" id="metricsGrid"></div>
+                    <div style="text-align:center;font-size:10px;color:var(--text-500);margin-top:-8px;margin-bottom:16px">↑ Issue count by severity level. Critical = system down. High = needs fix. Medium = monitor. Low = info.</div>
 
                     <!-- Severity Heatmap -->
                     <div class="heatmap-panel" id="heatmapPanel" style="display:none;">
                         <div class="heatmap-title">Severity Heatmap — Files × Severity</div>
+                        <div style="font-size:10px;color:var(--text-500);margin-bottom:10px">Which log files have the most issues? Higher numbers = investigate this file first.</div>
                         <div class="heatmap-grid" id="heatmapGrid"></div>
                     </div>
 
                     <div class="timeline-panel" id="timelinePanel" style="display:none">
                         <div class="timeline-title">Event distribution</div>
+                        <div style="font-size:10px;color:var(--text-500);margin-bottom:8px">Each dot = 1 finding. 🔴 Critical 🟠 High 🟡 Medium 🔵 Low — shows issue density at a glance.</div>
                         <div class="timeline-bar" id="timelineBar"></div>
                     </div>
 
                     <!-- Cascade Chain -->
                     <div class="cascade-panel" id="cascadePanel" style="display:none;">
                         <div class="cascade-title">Failure Cascade Chain</div>
+                        <div style="font-size:10px;color:var(--text-500);margin-bottom:8px">Root cause flow: read left → right. First subsystem that failed → what it broke next → final impact.</div>
                         <div class="cascade-chain" id="cascadeChain"></div>
                     </div>
 
