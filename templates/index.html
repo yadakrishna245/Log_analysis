@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LogSherlock Pro</title>
+    <title>LogSherlock Pro | HPE VME</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
@@ -23,6 +23,8 @@
             --text-500: #52525b;
             --accent: #8b5cf6;
             --accent-dim: #7c3aed20;
+            --hpe-green: #01A982;
+            --hpe-green-dim: #01A98220;
             --critical: #ef4444;
             --critical-bg: #ef444412;
             --high: #f59e0b;
@@ -171,13 +173,87 @@
         .history-item:last-child{border:none;}
         .history-path{font-family:var(--mono);font-size:12px;color:var(--text-200);}
         .history-info{font-size:11px;color:var(--text-500);}
+
+        /* Root Cause Summary Card */
+        .rca-summary{background:var(--bg-2);border:1px solid var(--border-subtle);border-left:4px solid var(--hpe-green);border-radius:10px;padding:20px 24px;margin-bottom:24px;}
+        .rca-summary-title{font-size:13px;font-weight:600;color:var(--hpe-green);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;display:flex;align-items:center;gap:8px;}
+        .rca-summary-title::before{content:'';display:inline-block;width:8px;height:8px;background:var(--hpe-green);border-radius:50%;}
+        .rca-summary-text{font-size:14px;color:var(--text-100);line-height:1.7;}
+
+        /* Cascade Chain */
+        .cascade-panel{background:var(--bg-2);border:1px solid var(--border-subtle);border-radius:10px;padding:20px;margin-bottom:24px;}
+        .cascade-title{font-size:11px;font-weight:500;color:var(--text-400);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:14px;}
+        .cascade-chain{display:flex;align-items:center;flex-wrap:wrap;gap:0;}
+        .cascade-node{background:var(--bg-4);border:1px solid var(--border-hover);border-radius:8px;padding:10px 16px;font-size:12px;font-weight:500;color:var(--text-100);white-space:nowrap;}
+        .cascade-node.critical{border-color:var(--critical);box-shadow:0 0 8px var(--critical-bg);}
+        .cascade-arrow{color:var(--hpe-green);font-size:18px;padding:0 8px;font-weight:bold;}
+
+        /* Severity Heatmap */
+        .heatmap-panel{background:var(--bg-2);border:1px solid var(--border-subtle);border-radius:10px;padding:20px;margin-bottom:24px;}
+        .heatmap-title{font-size:11px;font-weight:500;color:var(--text-400);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:14px;}
+        .heatmap-grid{display:grid;grid-template-columns:200px repeat(4, 1fr);gap:2px;font-size:10px;}
+        .heatmap-header{font-family:var(--mono);font-size:9px;color:var(--text-400);text-transform:uppercase;padding:6px 8px;text-align:center;}
+        .heatmap-file{font-family:var(--mono);font-size:10px;color:var(--text-300);padding:6px 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+        .heatmap-cell{border-radius:3px;padding:6px 8px;text-align:center;font-family:var(--mono);font-size:10px;font-weight:500;}
+        .heatmap-cell.intensity-0{background:var(--bg-0);color:var(--text-500);}
+        .heatmap-cell.intensity-1{background:var(--low-bg);color:var(--low);}
+        .heatmap-cell.intensity-2{background:var(--medium-bg);color:var(--medium);}
+        .heatmap-cell.intensity-3{background:var(--high-bg);color:var(--high);}
+        .heatmap-cell.intensity-4{background:var(--critical-bg);color:var(--critical);}
+
+        /* PDF Export button */
+        .btn-pdf{background:var(--hpe-green);color:#fff;border:none;padding:8px 14px;border-radius:8px;font-size:11px;font-weight:500;cursor:pointer;font-family:var(--font);transition:all 150ms;white-space:nowrap;}
+        .btn-pdf:hover{opacity:0.9;transform:translateY(-1px);}
+
+        /* Print styles */
+        @media print {
+            body{background:#fff!important;color:#000!important;font-size:11px;}
+            .shell{display:block!important;grid-template-columns:none!important;}
+            .rail{display:none!important;}
+            .panel{overflow:visible!important;}
+            .panel-inner{max-width:100%!important;padding:20px!important;}
+            .terminal,.progress,.input-group,.context-area,.tab-bar,.btn,.btn-ghost,.btn-pdf,#advisorPanel{display:none!important;}
+            .results{display:block!important;}
+            .pg-title{color:#000!important;font-size:18px!important;}
+            .pg-desc{color:#333!important;}
+            .metrics{grid-template-columns:repeat(5,1fr)!important;}
+            .metric{border:1px solid #ddd!important;background:#f9f9f9!important;}
+            .metric-val{font-size:20px!important;}
+            .metric-label{color:#666!important;}
+            .rca-summary{border:1px solid #01A982!important;border-left:4px solid #01A982!important;background:#f0fdf9!important;page-break-inside:avoid;}
+            .rca-summary-title{color:#01A982!important;}
+            .rca-summary-text{color:#000!important;}
+            .cascade-panel{border:1px solid #ddd!important;background:#f9f9f9!important;page-break-inside:avoid;}
+            .cascade-node{border:1px solid #333!important;background:#eee!important;color:#000!important;}
+            .cascade-arrow{color:#01A982!important;}
+            .heatmap-panel{border:1px solid #ddd!important;background:#f9f9f9!important;page-break-inside:avoid;}
+            .timeline-panel{border:1px solid #ddd!important;background:#f9f9f9!important;}
+            .finding{page-break-inside:avoid;border-bottom:1px solid #ddd!important;}
+            .finding-text{color:#000!important;}
+            .finding-code{background:#f5f5f5!important;border:1px solid #ddd!important;color:#333!important;}
+            .finding-fix{color:#01A982!important;}
+            .badge{border:1px solid currentColor!important;}
+            .tab-pane{display:block!important;}
+            #tab-jira{display:none!important;}
+            .findings-header .btn-ghost{display:none!important;}
+            @page{margin:1.5cm;size:A4;}
+            .print-header{display:block!important;text-align:center;margin-bottom:20px;padding-bottom:12px;border-bottom:2px solid #01A982;}
+            .print-header h1{font-size:16px;color:#000;}
+            .print-header p{font-size:11px;color:#666;}
+        }
+        .print-header{display:none;}
     </style>
 </head>
 <body>
 <div class="shell">
     <!-- Icon rail -->
     <nav class="rail">
-        <div class="rail-logo">LS</div>
+        <div class="rail-logo" style="background:none;" title="HPE LogSherlock Pro">
+            <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+                <rect x="2" y="8" width="28" height="16" rx="2" fill="#01A982"/>
+                <text x="16" y="19" text-anchor="middle" font-family="Inter,sans-serif" font-size="7" font-weight="600" fill="#fff">HPE</text>
+            </svg>
+        </div>
         <div class="rail-item active" onclick="showPage('analyze')" tabindex="0" title="Scan">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
         </div>
@@ -190,7 +266,9 @@
         <div class="rail-item" onclick="showPage('runbooks')" tabindex="0" title="Runbooks">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12l2 2 4-4"/></svg>
         </div>
-        <div class="rail-footer" title="On-prem">⚡</div>
+        <div class="rail-footer" title="Hewlett Packard Enterprise" style="width:auto;height:auto;border-radius:0;background:none;padding:8px 4px;flex-direction:column;display:flex;align-items:center;gap:4px;">
+            <span style="font-size:8px;color:var(--text-500);text-align:center;line-height:1.2;writing-mode:vertical-rl;transform:rotate(180deg);">Hewlett Packard Enterprise</span>
+        </div>
     </nav>
 
 
@@ -247,11 +325,35 @@
                 </div>
 
                 <div class="results" id="results">
+                    <!-- Print header (only visible when printing) -->
+                    <div class="print-header">
+                        <h1>LogSherlock Pro | HPE VME — Scan Report</h1>
+                        <p>Generated: <span id="printDate"></span></p>
+                    </div>
+
+                    <!-- Root Cause Summary -->
+                    <div id="rcaSummary" class="rca-summary" style="display:none;">
+                        <div class="rca-summary-title">Root Cause Summary</div>
+                        <div class="rca-summary-text" id="rcaSummaryText"></div>
+                    </div>
+
                     <div class="metrics" id="metricsGrid"></div>
+
+                    <!-- Severity Heatmap -->
+                    <div class="heatmap-panel" id="heatmapPanel" style="display:none;">
+                        <div class="heatmap-title">Severity Heatmap — Files × Severity</div>
+                        <div class="heatmap-grid" id="heatmapGrid"></div>
+                    </div>
 
                     <div class="timeline-panel" id="timelinePanel" style="display:none">
                         <div class="timeline-title">Event distribution</div>
                         <div class="timeline-bar" id="timelineBar"></div>
+                    </div>
+
+                    <!-- Cascade Chain -->
+                    <div class="cascade-panel" id="cascadePanel" style="display:none;">
+                        <div class="cascade-title">Failure Cascade Chain</div>
+                        <div class="cascade-chain" id="cascadeChain"></div>
                     </div>
 
                     <div class="tab-bar">
@@ -262,7 +364,10 @@
                     <div class="tab-pane active" id="tab-findings">
                         <div class="findings-header">
                             <span class="findings-count" id="findingsCount"></span>
-                            <button class="btn-ghost" onclick="copyFindings()">Copy all</button>
+                            <div style="display:flex;gap:8px;align-items:center;">
+                                <button class="btn-ghost" onclick="copyFindings()">Copy all</button>
+                                <button class="btn-pdf" onclick="exportPDF()">📄 Download PDF Report</button>
+                            </div>
                         </div>
                         <div id="findingsList"></div>
                     </div>
@@ -592,6 +697,43 @@ function render(data){
     setStatus('done',`${f.length} findings · ${data.files_analyzed||0} files scanned`);
     $('#results').classList.add('active');
 
+    // Root Cause Summary
+    const critFindings = f.filter(x => x.severity === 'CRITICAL');
+    if (critFindings.length > 0) {
+        const rcaPanel = $('#rcaSummary');
+        rcaPanel.style.display = 'block';
+        // Build cascade narrative from critical findings
+        const categories = [...new Set(critFindings.map(x => x.category || 'Unknown'))];
+        const descriptions = critFindings.slice(0, 5).map(x => x.description || x.pattern_name || '');
+        let narrative = 'Root Cause: ';
+        if (descriptions.length === 1) {
+            narrative += descriptions[0] + '.';
+        } else {
+            // Build a cascade sentence
+            const causes = descriptions.map((d, i) => {
+                if (i === 0) return d;
+                if (i === descriptions.length - 1) return d;
+                return d.toLowerCase();
+            });
+            // Connect with causation words
+            if (causes.length >= 3) {
+                narrative += causes[0] + ', which caused ' + causes[1];
+                for (let i = 2; i < causes.length - 1; i++) {
+                    narrative += ', leading to ' + causes[i];
+                }
+                narrative += '. ' + causes[causes.length - 1] + '.';
+            } else {
+                narrative += causes.join(', leading to ') + '.';
+            }
+        }
+        // Add affected files count
+        const affectedFiles = [...new Set(critFindings.map(x => x.file))].length;
+        narrative += ` (${critFindings.length} critical events across ${affectedFiles} file${affectedFiles > 1 ? 's' : ''})`;
+        $('#rcaSummaryText').textContent = narrative;
+    } else {
+        $('#rcaSummary').style.display = 'none';
+    }
+
     // Metrics
     $('#metricsGrid').innerHTML=`
         <div class="metric"><div class="metric-val crit">${c}</div><div class="metric-label">Critical</div></div>
@@ -599,6 +741,39 @@ function render(data){
         <div class="metric"><div class="metric-val med">${m}</div><div class="metric-label">Medium</div></div>
         <div class="metric"><div class="metric-val low">${l}</div><div class="metric-label">Low</div></div>
         <div class="metric"><div class="metric-val neutral">${data.files_analyzed||0}</div><div class="metric-label">Files</div></div>`;
+
+    // Severity Heatmap
+    const fileMap = {};
+    f.forEach(x => {
+        const fname = (x.file || 'unknown').split('/').pop();
+        if (!fileMap[fname]) fileMap[fname] = {CRITICAL:0, HIGH:0, MEDIUM:0, LOW:0};
+        if (fileMap[fname][x.severity] !== undefined) fileMap[fname][x.severity]++;
+    });
+    const heatFiles = Object.entries(fileMap).sort((a,b) => {
+        const scoreA = a[1].CRITICAL*100 + a[1].HIGH*10 + a[1].MEDIUM;
+        const scoreB = b[1].CRITICAL*100 + b[1].HIGH*10 + b[1].MEDIUM;
+        return scoreB - scoreA;
+    }).slice(0, 12); // Top 12 files
+
+    if (heatFiles.length > 0) {
+        $('#heatmapPanel').style.display = 'block';
+        let heatHTML = '<div class="heatmap-header"></div><div class="heatmap-header">Critical</div><div class="heatmap-header">High</div><div class="heatmap-header">Medium</div><div class="heatmap-header">Low</div>';
+        heatFiles.forEach(([fname, counts]) => {
+            heatHTML += `<div class="heatmap-file" title="${esc(fname)}">${esc(fname)}</div>`;
+            ['CRITICAL','HIGH','MEDIUM','LOW'].forEach(sev => {
+                const val = counts[sev] || 0;
+                let intensity = 0;
+                if (val > 0) intensity = 1;
+                if (val >= 3) intensity = 2;
+                if (val >= 6) intensity = 3;
+                if (val >= 10) intensity = 4;
+                heatHTML += `<div class="heatmap-cell intensity-${intensity}">${val || '·'}</div>`;
+            });
+        });
+        $('#heatmapGrid').innerHTML = heatHTML;
+    } else {
+        $('#heatmapPanel').style.display = 'none';
+    }
 
     // Timeline
     if(f.length>1){
@@ -611,6 +786,30 @@ function render(data){
             dots+=`<div class="timeline-event" style="left:${pct}%;background:${col}" title="${x.pattern_name} — ${x.file}:${x.line_number}"></div>`;
         });
         bar.innerHTML=dots;
+    }
+
+    // Cascade Chain - group critical findings by category and show as flow
+    if (critFindings.length > 0) {
+        const cascadeCategories = [];
+        const seenCats = new Set();
+        critFindings.forEach(x => {
+            const cat = x.category || x.pattern_name || 'Unknown';
+            if (!seenCats.has(cat)) {
+                seenCats.add(cat);
+                cascadeCategories.push(cat);
+            }
+        });
+        if (cascadeCategories.length > 0) {
+            $('#cascadePanel').style.display = 'block';
+            let chainHTML = '';
+            cascadeCategories.slice(0, 6).forEach((cat, i) => {
+                if (i > 0) chainHTML += '<span class="cascade-arrow">→</span>';
+                chainHTML += `<div class="cascade-node critical">${esc(cat)}</div>`;
+            });
+            $('#cascadeChain').innerHTML = chainHTML;
+        }
+    } else {
+        $('#cascadePanel').style.display = 'none';
     }
 
     // Findings
@@ -642,6 +841,13 @@ function render(data){
     }
     $('#jiraReport').textContent=j;
     saveHistory(data);
+}
+
+// PDF Export
+function exportPDF() {
+    const pd = $('#printDate');
+    if (pd) pd.textContent = new Date().toLocaleString();
+    window.print();
 }
 
 // Helpers
