@@ -1,7 +1,33 @@
 """Pattern detection engine for LogSherlock Pro.
 
-Contains 50+ pre-built patterns for detecting issues in Linux/HPE logs.
-Each pattern includes junior-friendly descriptions and solution hints.
+This module defines 113 detection patterns for identifying issues in Linux/HPE
+system logs (sosreports, support bundles, raw log files). Patterns are organized
+across 12 categories: kernel, storage, cluster, network, memory, filesystem,
+hardware, security, virtualization, service, performance, and application.
+
+Pattern Format:
+    Each pattern is a LogPattern dataclass with:
+        - name: str          → Unique identifier (e.g., "kernel_panic", "oom_kill")
+        - regex: str         → Python regex string (compiled with re.IGNORECASE)
+        - severity: str      → CRITICAL / HIGH / MEDIUM / LOW / INFO
+        - category: str      → One of 12 categories above
+        - description: str   → Junior-friendly explanation of what this pattern means
+        - solution_hint: str → Actionable first steps for investigation/fix
+        - product: str       → 'general' or specific product (e.g., 'gfs2', 'corosync')
+
+    MultiLinePattern extends this for stack traces and multi-line blocks:
+        - trigger_regex:       First line that starts the match
+        - continuation_regex:  Subsequent lines belonging to same block
+        - end_regex:           Optional termination pattern
+        - max_lines:           Cap on captured lines (default 50)
+
+Usage:
+    The PatternEngine class (defined later in this file) pre-compiles all 113
+    regexes at instantiation. In production, a module-level singleton is used
+    in routes/analysis.py so patterns are compiled only once per Lambda cold start.
+
+    Patterns are also exported as JSON via /api/patterns/export for client-side
+    scanning in the browser (index.html uses these with JavaScript RegExp).
 """
 
 import re

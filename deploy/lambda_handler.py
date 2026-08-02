@@ -1,5 +1,28 @@
 """AWS Lambda handler for LogSherlock Pro.
 
+This module serves as the entry point for the AWS Lambda function that runs
+LogSherlock Pro in serverless mode behind API Gateway v2 and CloudFront.
+
+What it does:
+    1. Sets up the Lambda environment (DynamoDB backend, /tmp directories)
+    2. Creates the Flask app via the standard create_app() factory
+    3. Initializes the SQLite database in /tmp (for session-local operations)
+    4. Seeds DynamoDB with the 113 patterns and 66 known issues on first cold start
+    5. Translates API Gateway v2 HTTP events ↔ Flask WSGI requests/responses
+
+Architecture:
+    CloudFront → API Gateway v2 → This Lambda Handler → Flask App → Routes
+                                                                    ↕
+                                                               DynamoDB
+                                                          (patterns, KB, tickets)
+
+Key design decisions:
+    - Custom WSGI adapter (no external dependency like mangum/zappa)
+    - DynamoDB seeding is idempotent — safe to run on every cold start
+    - /tmp used for SQLite (ephemeral per invocation) and file uploads
+    - Binary responses (PDF export) handled via base64 encoding
+    - Flask app is created once at module level (reused across warm invocations)
+
 Uses a lightweight WSGI-to-Lambda adapter for Flask on AWS Lambda + API Gateway v2.
 Configures DynamoDB as the storage backend for serverless mode.
 """

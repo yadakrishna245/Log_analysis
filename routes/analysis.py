@@ -1,13 +1,37 @@
 """Analysis routes for LogSherlock Pro.
 
-Performance-optimized version with:
-- Pre-compiled regex patterns at module load (singleton PatternEngine)
-- Aggressive file classification for large archives (99%+ files skipped)
-- In-memory buffer scanning (faster than line-by-line tarfile iteration)
-- Early termination after 50+ CRITICAL/HIGH findings
-- Size-based line limits for huge log files
-- Chunked upload endpoint for large files with progress
-- Timing info in all responses
+This module provides the core API endpoints for log analysis:
+
+Endpoints:
+    GET  /api/patterns/export
+        Returns all 113 detection patterns as JSON for client-side scanning.
+        The browser fetches these once at page load, then uses them locally
+        with JavaScript RegExp to scan tar.gz files without uploading data.
+
+    POST /api/knowledge/lookup
+        Accepts a list of pattern names (not log content) and returns matching
+        known issues from the 66-entry knowledge base plus relevant runbooks.
+        This is the ONLY data the browser sends after scanning — just anonymous
+        pattern identifiers like ["kernel_panic", "oom_kill"].
+
+    POST /api/advisor
+        Ticket Advisor — accepts a Jira ticket description (plain text) and
+        returns suggested files/folders to investigate plus likely root cause
+        categories. Helps engineers know where to look before analyzing logs.
+
+    POST /api/analyze
+        Server-side analysis (optional alternative to client-side scanning).
+        Accepts uploaded log files and runs the full pattern engine server-side.
+        Used for API integrations and automation pipelines.
+
+Performance optimizations in this module:
+    - Pre-compiled regex patterns at module load (singleton PatternEngine)
+    - Aggressive file classification for large archives (99%+ files skipped)
+    - In-memory buffer scanning (faster than line-by-line tarfile iteration)
+    - Early termination after 50+ CRITICAL/HIGH findings
+    - Size-based line limits for huge log files
+    - Chunked upload endpoint for large files with progress
+    - Timing info in all responses
 """
 
 import os

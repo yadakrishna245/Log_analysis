@@ -7,13 +7,17 @@
 [![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![Flask](https://img.shields.io/badge/Flask-3.0-000000?style=for-the-badge&logo=flask&logoColor=white)](https://flask.palletsprojects.com)
 [![AWS](https://img.shields.io/badge/AWS-Serverless-FF9900?style=for-the-badge&logo=amazonaws&logoColor=white)](https://aws.amazon.com)
-[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://docker.com)
-[![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
+[![Patterns](https://img.shields.io/badge/Patterns-113-01A982?style=for-the-badge)](docs/USER_GUIDE.md)
+[![Known Issues](https://img.shields.io/badge/Known_Issues-66-01A982?style=for-the-badge)](docs/USER_GUIDE.md)
+[![Runbooks](https://img.shields.io/badge/Runbooks-12-01A982?style=for-the-badge)](docs/USER_GUIDE.md)
+[![Privacy](https://img.shields.io/badge/Privacy-Zero_Upload-01A982?style=for-the-badge&logo=shieldsdotio&logoColor=white)](#-security--privacy)
 
-**Turn hours of manual log investigation into minutes.**  
-Upload customer logs → Get instant root cause analysis with actionable solutions.
+**Zero-upload log analysis — your data never leaves the browser.**  
+Drop a tar.gz → Get instant root cause analysis with actionable solutions. 73MB in ~14 seconds.
 
-[Getting Started](#-getting-started) • [Architecture](#-architecture) • [API Docs](#-api-endpoints) • [Deployment](#-deployment-options) • [Security](#-security--compliance)
+### 🌐 [Live Demo → https://d3tv1czat55yad.cloudfront.net](https://d3tv1czat55yad.cloudfront.net)
+
+[How to Demo](#-how-to-demo) • [Features](#-features-23) • [Architecture](#-architecture) • [How It Works](#-how-it-works) • [Getting Started](#-getting-started) • [API](#-api-endpoints) • [Security](#-security--privacy) • [Project Structure](#-project-structure)
 
 ---
 
@@ -26,7 +30,7 @@ Upload customer logs → Get instant root cause analysis with actionable solutio
 <td width="50%">
 
 ### ❌ Without LogSherlock
-- 2-4 hours manually grepping through logs
+- 2–4 hours manually grepping through logs
 - Tribal knowledge locked in senior engineers' heads
 - Missed correlations across multi-node clusters
 - Inconsistent RCA reports across the team
@@ -35,12 +39,12 @@ Upload customer logs → Get instant root cause analysis with actionable solutio
 </td>
 <td width="50%">
 
-### ✅ With LogSherlock
-- **< 2 minutes** automated analysis
-- **101 detection patterns** available to all engineers
-- **Automatic cross-node timeline** reconstruction
-- **One-click Jira-ready RCA** in standard format
-- **100% on-premises** — zero data leaves the network
+### ✅ With LogSherlock Pro
+- **~14 seconds** for 73MB tar.gz analysis
+- **113 detection patterns** available to all engineers
+- **66 known issues** with ready-made solutions
+- **One-click Jira-ready RCA** in 8-section format
+- **Zero data upload** — browser-side scanning only
 
 </td>
 </tr>
@@ -48,18 +52,35 @@ Upload customer logs → Get instant root cause analysis with actionable solutio
 
 ---
 
+## 🎯 How to Demo
+
+> **For managers & stakeholders:** Try it in under 60 seconds.
+
+1. Open **[https://d3tv1czat55yad.cloudfront.net](https://d3tv1czat55yad.cloudfront.net)**
+2. Download the demo file from the `demo/` folder:  
+   `collect_demovmehost01_20260802_100000.tar.gz` (9.4 KB, synthetic data)
+3. Drag & drop the file onto the upload zone
+4. Watch: **110 of 113 patterns** trigger instantly — all in the browser
+5. Explore: Heatmap, Cascade Chain, RCA Report, Knowledge Base matches
+
+**No login. No setup. No data leaves your machine.**
+
+---
+
 ## 🧠 How It Works
 
 > **"Is this AI? Will it hallucinate?"**  
-> **NO.** Pure regex pattern matching + structured knowledge lookup. Zero AI. Zero hallucination. Fully deterministic.
+> **NO.** Pure regex pattern matching + structured knowledge lookup. Zero LLM. Zero hallucination. Fully deterministic.
+
+### Client-Side Scanning Flow
 
 ```mermaid
 flowchart LR
-    A[📁 Upload Logs<br/>7z/zip/tar/raw] --> B[🔍 Pattern Engine<br/>101 Regex Signatures]
-    B --> C[🧩 Knowledge Matcher<br/>63 Known Issues]
-    C --> D[📋 Runbook Selector<br/>12 Investigation Guides]
-    D --> E[📄 RCA Generator<br/>Jira-Ready Report]
-    
+    A[📁 Drop tar.gz File] --> B[💨 pako.js<br/>Gzip Decompress]
+    B --> C[📦 Custom Tar Parser<br/>Extract File Headers]
+    C --> D[🔍 Regex Engine<br/>113 Pattern Signatures]
+    D --> E[📊 Results Dashboard<br/>Heatmap + RCA + KB]
+
     style A fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
     style B fill:#fff3e0,stroke:#e65100,stroke-width:2px
     style C fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
@@ -67,45 +88,86 @@ flowchart LR
     style E fill:#fce4ec,stroke:#b71c1c,stroke-width:2px
 ```
 
-### Analysis Pipeline — Detailed Flow
+**Key privacy guarantee:** The tar.gz file is decompressed and scanned entirely in the browser using `pako.js` and a custom JavaScript tar parser. **Zero customer log data is uploaded to any server.** Only anonymous pattern names (e.g., "kernel_panic", "oom_kill") are sent to the API for Knowledge Base matching.
+
+### Pattern Engine Detail
 
 ```mermaid
 flowchart TD
-    subgraph INPUT["📥 Input Layer"]
-        A1[Web UI Upload] --> B1[File Extraction]
-        A2[REST API Call] --> B1
-        A3[CLI Upload] --> B1
-        B1 --> B2{Archive Type?}
-        B2 -->|7z| C1[7z Extraction]
-        B2 -->|ZIP| C2[ZIP Extraction]
-        B2 -->|TAR/GZ| C3[TAR Extraction]
-        B2 -->|Raw Text| C4[Direct Read]
+    subgraph BROWSER["🖥️ Browser (Client-Side)"]
+        A1[File dropped by user] --> A2[pako.js gunzip]
+        A2 --> A3[Tar header parser]
+        A3 --> A4[Line-by-line scan]
+        A4 --> A5{Match 113 regex patterns}
+        A5 -->|Match| A6[Classify severity<br/>CRITICAL / HIGH / MEDIUM / LOW]
+        A5 -->|No match| A4
+        A6 --> A7[Group by category<br/>12 categories]
     end
 
-    subgraph ENGINE["⚙️ Analysis Engine"]
-        C1 & C2 & C3 & C4 --> D1[Line-by-Line Scanner]
-        D1 --> D2[Pattern Matching<br/>101 Regex Rules]
-        D2 --> D3[Severity Classification<br/>CRITICAL / HIGH / MEDIUM / LOW]
-        D3 --> D4[Cross-Node Correlator<br/>Timeline Reconstruction]
+    subgraph API["☁️ API (Server-Side)"]
+        A7 --> B1[Send pattern names only<br/>/api/knowledge/lookup]
+        B1 --> B2[Return KB matches<br/>66 known issues]
+        B2 --> B3[Return runbook links<br/>12 guides]
     end
 
-    subgraph KNOWLEDGE["📚 Knowledge Base"]
-        D4 --> E1[Known Issues Lookup<br/>63 Catalogued Problems]
-        E1 --> E2[Runbook Matching<br/>12 Step-by-Step Guides]
-        E2 --> E3[Similar Ticket Search<br/>Historical Pattern Match]
+    subgraph DISPLAY["📊 Dashboard"]
+        B3 --> C1[Severity Heatmap]
+        B3 --> C2[RCA Report]
+        B3 --> C3[Solution Cards]
+        B3 --> C4[Cascade Chain]
     end
 
-    subgraph OUTPUT["📤 Output Layer"]
-        E3 --> F1[Findings Report<br/>Categorized by Severity]
-        F1 --> F2[RCA Document<br/>8-Section Jira Format]
-        F2 --> F3[Solution Steps<br/>Actionable Remediation]
-    end
-
-    style INPUT fill:#e3f2fd,stroke:#1565c0
-    style ENGINE fill:#fff3e0,stroke:#e65100
-    style KNOWLEDGE fill:#e8f5e9,stroke:#2e7d32
-    style OUTPUT fill:#f3e5f5,stroke:#6a1b9a
+    style BROWSER fill:#e8f5e9,stroke:#2e7d32
+    style API fill:#fff3e0,stroke:#e65100
+    style DISPLAY fill:#e3f2fd,stroke:#1565c0
 ```
+
+---
+
+## ✨ Features (23+)
+
+### Core Analysis
+| # | Feature | Description |
+|---|---------|-------------|
+| 1 | **Client-Side Scanning** | Zero upload — pako.js + custom tar parser runs entirely in browser |
+| 2 | **113 Regex Patterns** | Across 12 categories: kernel, storage, cluster, network, memory, etc. |
+| 3 | **8-Section RCA Report** | Problem Statement → Impact → Timeline → Root Cause → Cascade Chain → Fix → Remediation Plan → Prevention |
+| 4 | **Jira Wiki Markup** | One-click copy of full RCA in Jira-ready format |
+| 5 | **Ticket Advisor** | Paste a Jira description → get file/folder investigation suggestions |
+
+### Visualizations
+| # | Feature | Description |
+|---|---------|-------------|
+| 6 | **Severity Heatmap** | Clickable — filter findings by file |
+| 7 | **Severity Donut Chart** | At-a-glance severity distribution |
+| 8 | **Failure Cascade Chain** | Visual cause → effect chain across components |
+| 9 | **Event Distribution Timeline** | Temporal view of when issues occurred |
+
+### Investigation Tools
+| # | Feature | Description |
+|---|---------|-------------|
+| 10 | **Real-Time Search/Filter** | Splunk-style instant filtering across findings |
+| 11 | **Smart Pattern Grouping** | Datadog-style accordion — group by pattern name |
+| 12 | **AI One-Liner Summary** | Auto-generated root cause sentence (no LLM) |
+| 13 | **Expandable Solution Cards** | Copy-able remediation commands for each finding |
+
+### UX & Export
+| # | Feature | Description |
+|---|---------|-------------|
+| 14 | **Dark/Light Theme** | Toggle with persistent preference |
+| 15 | **Scan History** | Last 5 scans stored locally — click to reload |
+| 16 | **CSV Export** | Export findings to spreadsheet |
+| 17 | **PDF Export** | Export full RCA report as PDF |
+| 18 | **Keyboard Shortcuts** | Ctrl+Enter to scan, Escape to clear |
+| 19 | **Pattern Stats Counter** | Live stats on landing page |
+
+### Knowledge & Operations
+| # | Feature | Description |
+|---|---------|-------------|
+| 20 | **Knowledge Base** | 66 catalogued known issues with solutions |
+| 21 | **Runbooks** | 12 step-by-step investigation guides |
+| 22 | **HPE Branding** | Green logo and consistent brand identity |
+| 23 | **CloudFront CDN** | Zero-cold-start serverless deployment |
 
 ---
 
@@ -113,327 +175,175 @@ flowchart TD
 
 ```mermaid
 graph TB
-    subgraph CLIENT["🖥️ Client Layer"]
-        UI[Web Dashboard<br/>Jinja2 + CSS]
-        API_CLIENT[REST API Client<br/>curl / Postman]
+    subgraph CDN["🌐 CloudFront CDN"]
+        CF[CloudFront Distribution<br/>d3tv1czat55yad.cloudfront.net]
     end
 
-    subgraph APP["🐍 Application Layer — Flask"]
-        ROUTES[Route Handlers<br/>analysis · tickets · knowledge · reports]
-        AUTH[Authentication<br/>API Key + Session]
+    subgraph SERVERLESS["☁️ AWS Serverless"]
+        APIGW[API Gateway v2<br/>HTTP API]
+        LAMBDA[Lambda Function<br/>Flask WSGI Adapter]
+        DYNAMO[(DynamoDB<br/>Patterns + KB + Tickets)]
     end
 
-    subgraph CORE["🔬 Core Engine"]
-        PATTERNS[Pattern Engine<br/>101 Regex Signatures]
-        ANALYZER[Analyzer<br/>Orchestrator]
-        INGESTION[Ingestion<br/>File Parser]
-        CORRELATOR[Correlator<br/>Cross-Node Timeline]
+    subgraph FLASK["🐍 Flask Application"]
+        ROUTES["/api/patterns/export<br/>/api/knowledge/lookup<br/>/api/advisor"]
+        ENGINE[Pattern Engine<br/>113 Compiled Regexes]
+        KB[Knowledge Base<br/>66 Issues + 12 Runbooks]
     end
 
-    subgraph KB["📖 Knowledge Base"]
-        ISSUES[Known Issues<br/>63 Entries]
-        RUNBOOKS[Runbooks<br/>12 Guides]
-        SIMILAR[Similar Tickets<br/>History Matcher]
+    subgraph BROWSER["🖥️ Browser (Client)"]
+        HTML[index.html<br/>Single-Page App]
+        PAKO[pako.js<br/>Gzip Decompress]
+        TARPARSER[Tar Parser<br/>Header Extraction]
+        SCANNER[Regex Scanner<br/>Line-by-Line]
     end
 
-    subgraph STORAGE["💾 Storage Layer"]
-        SQLITE[(SQLite<br/>Local Mode)]
-        DYNAMO[(DynamoDB<br/>AWS Mode)]
-        S3[(S3 Bucket<br/>Log Files)]
-        LOCAL_FS[(Local FS<br/>Uploads)]
-    end
-
-    UI --> ROUTES
-    API_CLIENT --> ROUTES
-    ROUTES --> AUTH
-    AUTH --> ANALYZER
-    ANALYZER --> INGESTION
-    ANALYZER --> PATTERNS
-    ANALYZER --> CORRELATOR
-    PATTERNS --> ISSUES
-    PATTERNS --> RUNBOOKS
-    PATTERNS --> SIMILAR
-    ROUTES --> SQLITE
+    CF --> APIGW
+    APIGW --> LAMBDA
+    LAMBDA --> ROUTES
+    ROUTES --> ENGINE
+    ROUTES --> KB
     ROUTES --> DYNAMO
-    INGESTION --> S3
-    INGESTION --> LOCAL_FS
 
-    style CLIENT fill:#e1f5fe,stroke:#0277bd
-    style APP fill:#fff8e1,stroke:#f9a825
-    style CORE fill:#fbe9e7,stroke:#d84315
-    style KB fill:#e8f5e9,stroke:#388e3c
-    style STORAGE fill:#f3e5f5,stroke:#7b1fa2
+    CF --> HTML
+    HTML --> PAKO
+    PAKO --> TARPARSER
+    TARPARSER --> SCANNER
+    SCANNER -->|pattern names only| ROUTES
+
+    style CDN fill:#fff3e0,stroke:#e65100
+    style SERVERLESS fill:#e3f2fd,stroke:#1565c0
+    style FLASK fill:#fbe9e7,stroke:#d84315
+    style BROWSER fill:#e8f5e9,stroke:#388e3c
 ```
+
+### Data Flow — What Goes Where
+
+| Data | Where it lives | Uploaded to server? |
+|------|---------------|---------------------|
+| Customer log files (tar.gz) | Browser memory only | ❌ **Never** |
+| Decompressed log content | Browser memory only | ❌ **Never** |
+| Scan results / findings | Browser memory only | ❌ **Never** |
+| Pattern names (e.g., "oom_kill") | Sent to `/api/knowledge/lookup` | ✅ Anonymous identifiers only |
+| Jira description text | Sent to `/api/advisor` | ✅ For investigation suggestions |
+| 113 pattern definitions | Fetched from `/api/patterns/export` | N/A (server → client) |
 
 ---
 
-## 🚀 Deployment Options
+## 📊 Feature Comparison
 
-```mermaid
-flowchart LR
-    subgraph LOCAL["🏠 Option 1: Local"]
-        L1[pip install] --> L2[python app.py]
-        L2 --> L3[localhost:5000]
-    end
+| Capability | LogSherlock Pro | Splunk | Datadog | Manual grep |
+|-----------|:-:|:-:|:-:|:-:|
+| Zero data upload | ✅ | ❌ | ❌ | ✅ |
+| Auto pattern detection | ✅ 113 patterns | ✅ Custom | ✅ Custom | ❌ Manual |
+| RCA report generation | ✅ 8-section | ❌ | ❌ | ❌ |
+| Knowledge Base | ✅ 66 issues | ❌ | ❌ | ❌ |
+| Setup time | 0 min (browser) | Days | Days | 0 min |
+| Cost | Free | $$$$$ | $$$$ | Free |
+| Works offline | ✅ (after load) | ❌ | ❌ | ✅ |
+| Jira integration | ✅ One-click | Plugin | Plugin | ❌ |
+| Severity heatmap | ✅ | ✅ | ✅ | ❌ |
+| Cascade analysis | ✅ | ❌ | ❌ | ❌ |
 
-    subgraph DOCKER["🐳 Option 2: Docker"]
-        D1[docker build] --> D2[docker run]
-        D2 --> D3[Container:5000]
-    end
+---
 
-    subgraph AWS["☁️ Option 3: AWS Serverless"]
-        A1[SAM Deploy] --> A2[API Gateway]
-        A2 --> A3[Lambda]
-        A3 --> A4[DynamoDB + S3]
-    end
+## 🚀 Getting Started
 
-    style LOCAL fill:#e8f5e9,stroke:#2e7d32
-    style DOCKER fill:#e3f2fd,stroke:#1565c0
-    style AWS fill:#fff3e0,stroke:#e65100
+### Option 1: Use the Live Demo (Recommended)
+
+No setup required:
+```
+https://d3tv1czat55yad.cloudfront.net
 ```
 
-### Option 1: Local (On-Premises)
+### Option 2: Local Development
 
 ```bash
-# Install & run in 30 seconds
 git clone https://github.com/yadakrishna245/Log_analysis.git
 cd Log_analysis
 pip install -r requirements.txt
-flask init-db
 python app.py
-# → Open http://localhost:5000
+# → http://localhost:5000
 ```
 
-### Option 2: Docker
+### Option 3: AWS Serverless Deployment
 
 ```bash
-docker build -t logsherlock-pro .
-docker run -p 5000:5000 logsherlock-pro
+cd deploy/
+sam build
+sam deploy --guided
+# → CloudFront URL in outputs
 ```
 
-### Option 3: AWS Serverless (Single-Click)
+See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for full deployment guide.
 
+---
+
+## 📡 API Endpoints
+
+| Method | Endpoint | Description | Privacy |
+|--------|----------|-------------|---------|
+| `GET` | `/api/patterns/export` | Fetch all 113 patterns as JSON | No user data |
+| `POST` | `/api/knowledge/lookup` | Match pattern names → known issues | Pattern names only |
+| `POST` | `/api/advisor` | Jira description → investigation tips | Ticket text |
+| `GET` | `/api/knowledge/issues` | List all 66 known issues | No user data |
+| `GET` | `/api/knowledge/runbooks` | List all 12 runbooks | No user data |
+| `POST` | `/api/analyze` | Server-side analysis (optional) | Full logs (server mode) |
+
+### Example: Fetch Patterns
 ```bash
-cd deploy
-./deploy.sh          # Linux/Mac
-.\deploy.ps1        # Windows
+curl https://d3tv1czat55yad.cloudfront.net/api/patterns/export | jq '.count'
+# → 113
 ```
 
-> **AWS Cost:** ~$1.50/month (DynamoDB + S3 + Lambda free tier)
-
----
-
-## 🔄 CI/CD Pipeline
-
-```mermaid
-flowchart LR
-    A[Git Push to main] --> B[GitHub Actions Trigger]
-    B --> C[Install Dependencies]
-    C --> D[Run Test Suite]
-    D --> E{Tests Pass?}
-    E -->|Yes| F[SAM Build]
-    E -->|No| G[❌ Fail & Notify]
-    F --> H[SAM Deploy to AWS]
-    H --> I[✅ Live on Lambda]
-
-    style A fill:#e3f2fd,stroke:#1565c0
-    style I fill:#e8f5e9,stroke:#2e7d32
-    style G fill:#ffebee,stroke:#c62828
-```
-
----
-
-## 📈 Knowledge Base Statistics
-
-<div align="center">
-
-| 🎯 Metric | 📊 Count |
-|:---------:|:--------:|
-| Detection Patterns | **101** |
-| Known Issues | **63** |
-| Guided Runbooks | **12** |
-| Products Covered | **7** |
-| Log Formats Supported | **15+** |
-| Severity Levels | **4** |
-
-</div>
-
----
-
-## 🎯 Supported Products & Components
-
-```mermaid
-mindmap
-  root((LogSherlock Pro))
-    HPE VME 8.x / 9.x
-      Morpheus Platform
-      VM Management
-    Cluster Stack
-      Corosync
-      Pacemaker
-      STONITH / Fencing
-    Storage
-      GFS2
-      DLM
-      iSCSI / Multipath
-      SCSI Persistent Reservations
-    Virtualization
-      QEMU-KVM
-      Libvirt
-    HPE Storage
-      Alletra
-      Nimble
-```
-
----
-
-## 🌐 API Endpoints
-
-| Endpoint | Method | Description |
-|:---------|:------:|:------------|
-| `/api/health` | `GET` | Health check & status |
-| `/api/analyze/quick` | `POST` | Upload & analyze files instantly |
-| `/api/tickets` | `GET` `POST` | Manage support tickets |
-| `/api/tickets/{id}/analyze` | `POST` | Run analysis on ticket logs |
-| `/api/tickets/{id}/report` | `GET` | Generate RCA report |
-| `/api/knowledge/search?q=` | `GET` | Search knowledge base |
-| `/api/knowledge/issues` | `GET` | List all known issues |
-| `/api/knowledge/runbooks` | `GET` | List all runbooks |
-| `/api/stats` | `GET` | Dashboard statistics |
-
-### Quick Example
-
+### Example: Knowledge Lookup
 ```bash
-# Upload & analyze
-curl -X POST http://localhost:5000/api/analyze/quick \
-  -F "files=@customer_logs.7z" \
-  -F "description=GFS2 mount failures after node reboot"
+curl -X POST https://d3tv1czat55yad.cloudfront.net/api/knowledge/lookup \
+  -H "Content-Type: application/json" \
+  -d '{"patterns": ["kernel_panic", "oom_kill", "gfs2_withdraw"]}'
 ```
 
-<details>
-<summary>📋 <strong>Response Example</strong> (click to expand)</summary>
-
-```json
-{
-  "findings_count": 12,
-  "findings": [
-    {
-      "pattern_name": "dlm_quorum_lost",
-      "severity": "CRITICAL",
-      "description": "DLM lost quorum - GFS2 mounts will fail",
-      "solution_hint": "Check corosync membership, verify network connectivity"
-    }
-  ],
-  "related_issues": [
-    {
-      "title": "GFS2 mount failure due to DLM quorum loss after node reboot",
-      "solution": "Restart corosync, verify all nodes rejoin cluster"
-    }
-  ],
-  "suggested_runbook": "gfs2_mount_failure_investigation",
-  "jira_report": "h2. Root Cause Analysis (RCA)\n..."
-}
+### Example: Ticket Advisor
+```bash
+curl -X POST https://d3tv1czat55yad.cloudfront.net/api/advisor \
+  -H "Content-Type: application/json" \
+  -d '{"description": "Customer reports VM went down after storage timeout"}'
 ```
-
-</details>
 
 ---
 
-## 🔒 Security & Compliance
+## 🔒 Security & Privacy
 
-```mermaid
-flowchart TD
-    subgraph BOUNDARY["🛡️ Security Boundary — Your Infrastructure"]
-        A[Customer Log File] --> B[LogSherlock Pro]
-        B --> C[Pattern Match Results]
-        C --> D[RCA Report]
-    end
+### Client-Side Privacy Guarantee
 
-    E[❌ External AI Services] -.-x B
-    F[❌ Cloud APIs] -.-x B
-    G[❌ Third-Party Storage] -.-x B
-    H[❌ Telemetry/Analytics] -.-x B
-
-    style BOUNDARY fill:#e8f5e9,stroke:#2e7d32,stroke-width:3px
-    style E fill:#ffebee,stroke:#c62828
-    style F fill:#ffebee,stroke:#c62828
-    style G fill:#ffebee,stroke:#c62828
-    style H fill:#ffebee,stroke:#c62828
+```
+┌─────────────────────────────────────────────────────────────┐
+│  YOUR BROWSER                                               │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │  tar.gz → pako decompress → tar parse → regex scan  │    │
+│  │  ALL LOG DATA STAYS HERE. NEVER UPLOADED.            │    │
+│  └─────────────────────────────────────────────────────┘    │
+│                         │                                    │
+│                         │ pattern names only                 │
+│                         ▼                                    │
+└─────────────────────────────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────┐
+│  SERVER (Lambda)                                            │
+│  Receives: ["kernel_panic", "oom_kill", "gfs2_withdraw"]   │
+│  Returns: Known issue descriptions + runbook links          │
+│  NEVER receives: log content, file names, IP addresses      │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### Data Privacy Guarantees
-
-| Concern | How We Address It |
-|:--------|:------------------|
-| **Data residency** | 100% on-premises OR your own private AWS account |
-| **No external AI calls** | Zero calls to OpenAI, Google, or any third-party AI |
-| **No telemetry** | No usage tracking, no analytics, no phone-home |
-| **No internet required** | Works fully offline — air-gapped capable |
-| **Customer data isolation** | Single-tenant. No shared databases |
-| **Log retention** | Auto-deleted after 7 days (configurable) |
-| **Source code clean** | Zero customer names, IPs, or ticket IDs in codebase |
-
-### Security Controls
-
-| Control | Implementation |
-|:--------|:---------------|
-| Authentication | API key (`X-API-Key`) + session-based login |
-| Authorization | All `/api/*` endpoints require valid credentials |
-| Encryption at rest | S3 AES-256, DynamoDB encryption by default |
-| Encryption in transit | HTTPS/TLS via API Gateway or reverse proxy |
-| Input validation | `secure_filename()`, zip-slip prevention |
-| Security headers | CSP, X-Frame-Options, X-Content-Type-Options |
-| Rate limiting | Configurable request throttling |
-| File size limits | Configurable (default 4GB) |
-
-### Compliance Alignment
-
-| Standard | Relevant Controls |
-|:---------|:------------------|
-| **SOC 2** | Encryption at rest & transit, access controls, audit logging |
-| **GDPR** | No personal data processed, data retention policies |
-| **ISO 27001** | Access management, cryptographic controls |
-| **HPE Internal** | No customer data in code, single-tenant, no external APIs |
-
-<details>
-<summary>📝 <strong>Copy-Paste Statement for Compliance Review</strong></summary>
-
-> *"LogSherlock Pro performs pattern matching using pre-built regex signatures against uploaded log files. It does NOT use any AI/ML model, does NOT send data to any external service, and runs entirely within our own infrastructure (either on-premises or in our dedicated AWS account). Customer log data is never exposed to the internet, shared with third parties, or stored beyond the configured retention period."*
-
-</details>
-
----
-
-## 🧩 How the Pattern Engine Works
-
-```mermaid
-sequenceDiagram
-    participant U as 👤 Engineer
-    participant W as 🌐 Web UI
-    participant A as ⚙️ Analyzer
-    participant P as 🔍 Pattern Engine
-    participant K as 📚 Knowledge Base
-    participant R as 📄 RCA Generator
-
-    U->>W: Upload log files
-    W->>A: POST /api/analyze/quick
-    A->>A: Extract archives (7z/zip/tar)
-    A->>P: Scan each log line
-    
-    loop For each of 101 patterns
-        P->>P: Regex match against line
-    end
-    
-    P->>A: Return findings + severity
-    A->>K: Lookup matched patterns
-    K->>K: Find known issues (keyword match)
-    K->>K: Select relevant runbooks
-    K->>A: Return solutions + steps
-    A->>R: Compile results
-    R->>R: Format 8-section Jira report
-    R->>W: Return complete analysis
-    W->>U: Display findings + RCA + solutions
-```
+### Security Features
+- **CSP Headers** — Content Security Policy prevents XSS
+- **No persistent storage of customer data** — Lambda is stateless
+- **API Key authentication** (production mode)
+- **Zip bomb protection** — Decompression ratio limits
+- **DynamoDB encryption at rest** — AWS managed keys
+- **HTTPS only** — CloudFront enforces TLS
 
 ---
 
@@ -441,189 +351,77 @@ sequenceDiagram
 
 ```
 LogSherlock-Pro/
-│
-├── 🐍 app.py                    # Flask application factory
-├── ⚙️ config.py                  # Configuration management
-├── 🗃️ models.py                  # Database models (SQLAlchemy)
-├── 💾 storage.py                 # Storage abstraction (SQLite ↔ DynamoDB)
-├── ☁️ db_dynamo.py               # DynamoDB data layer
-├── 📦 requirements.txt           # Python dependencies
-├── 🐳 Dockerfile                 # Container deployment
-│
-├── engine/                       # 🔬 Core Analysis Engine
-│   ├── patterns.py               #    101 detection patterns (regex)
-│   ├── analyzer.py               #    Analysis orchestrator
-│   ├── ingestion.py              #    File parsing & extraction
-│   └── correlator.py             #    Cross-node correlation
-│
-├── knowledge/                    # 📖 Knowledge Base
-│   ├── known_issues.py           #    63 catalogued known issues
-│   ├── runbooks.py               #    12 investigation runbooks
-│   ├── similar_tickets.py        #    Similar ticket matching
-│   └── kb_manager.py             #    Knowledge base CRUD manager
-│
-├── routes/                       # 🌐 API Endpoints
-│   ├── analysis.py               #    Upload & analyze
-│   ├── tickets.py                #    Ticket CRUD + RCA generation
-│   ├── knowledge.py              #    KB search & browse
-│   ├── reports.py                #    Report generation & export
-│   ├── logs.py                   #    Log file management
-│   └── ui.py                     #    Web UI page routes
-│
-├── services/                     # 🛠️ Business Services
-│   └── pattern_seeder.py         #    Database seeding utilities
-│
-├── deploy/                       # ☁️ AWS Serverless Deployment
-│   ├── template.yaml             #    SAM/CloudFormation template
-│   ├── lambda_handler.py         #    Lambda entry point
-│   ├── deploy.ps1                #    One-click deploy (Windows)
-│   ├── deploy.sh                 #    One-click deploy (Linux/Mac)
-│   └── samconfig.toml            #    SAM CLI configuration
-│
-├── docs/                         # 📚 Documentation
-│   ├── DEPLOYMENT.md             #    Deployment guide
-│   ├── USER_GUIDE.md             #    User guide
-│   ├── COMPLIANCE.md             #    Security & compliance
-│   └── SALES_PITCH.md            #    Business value summary
-│
-├── templates/                    # 🎨 Web UI (Jinja2 HTML)
-├── static/                       # 🎨 CSS/JS assets
-├── tests/                        # ✅ Test suite + sample logs
-└── .github/workflows/            # 🔄 CI/CD automation
+├── app.py                 # Flask app factory, auth, CSP headers
+├── config.py              # Environment config (local/lambda/docker)
+├── models.py              # SQLAlchemy models (tickets, findings, patterns)
+├── engine/
+│   ├── patterns.py        # 113 detection patterns (BUILT_IN_PATTERNS list)
+│   ├── analyzer.py        # Server-side analysis orchestrator
+│   ├── ingestion.py       # File parsing & archive extraction
+│   └── correlator.py      # Cross-node timeline correlation
+├── knowledge/
+│   ├── known_issues.py    # 66 known issues with solutions
+│   ├── runbooks.py        # 12 investigation runbooks
+│   └── kb_manager.py      # KB CRUD operations
+├── routes/
+│   ├── analysis.py        # /api/analyze, /api/patterns/export, /api/advisor
+│   ├── knowledge.py       # /api/knowledge/issues, /api/knowledge/lookup
+│   ├── tickets.py         # Ticket CRUD + analysis
+│   └── reports.py         # Report generation endpoints
+├── templates/
+│   └── index.html         # Single-page app (114KB, all features inline)
+├── deploy/
+│   ├── template.yaml      # SAM/CloudFormation (Lambda + API GW + DynamoDB)
+│   ├── lambda_handler.py  # Custom WSGI adapter for Lambda
+│   └── samconfig.toml     # SAM deployment config
+├── demo/
+│   ├── collect_demovmehost01_20260802_100000.tar.gz  # Demo data (9.4KB)
+│   ├── SAMPLE_TICKETS.md  # Sample Jira descriptions for advisor demo
+│   └── README.md          # Explains synthetic data generation
+└── docs/
+    ├── COMPLIANCE.md      # Data handling & privacy compliance
+    ├── DEPLOYMENT.md      # Full deployment guide
+    └── USER_GUIDE.md      # End-user documentation
 ```
 
 ---
 
-## 👥 Who Benefits
+## 🛠️ Tech Stack
 
-```mermaid
-flowchart TD
-    subgraph L4["🔧 L4 Engineers"]
-        A1[Instant pattern matching<br/>vs manual grep]
-        A2[Step-by-step runbooks<br/>for complex issues]
-        A3[Never miss a known issue<br/>tool remembers all cases]
-    end
-
-    subgraph MGR["📊 Managers"]
-        B1[Consistent RCA quality<br/>across all engineers]
-        B2[Measurable MTTR reduction<br/>track time saved]
-        B3[Knowledge retention<br/>when engineers leave]
-    end
-
-    subgraph CUST["🤝 Customers"]
-        C1[Faster response<br/>on P1/P2 cases]
-        C2[More accurate<br/>root cause identification]
-        C3[Proactive prevention<br/>recommendations]
-    end
-
-    style L4 fill:#e3f2fd,stroke:#1565c0
-    style MGR fill:#fff3e0,stroke:#e65100
-    style CUST fill:#e8f5e9,stroke:#2e7d32
-```
+| Layer | Technology |
+|-------|-----------|
+| Frontend | Vanilla JS, pako.js, CSS Grid, Chart.js |
+| Backend | Python 3.10+, Flask 3.0 |
+| Infrastructure | AWS Lambda, API Gateway v2, DynamoDB, CloudFront |
+| IaC | AWS SAM / CloudFormation |
+| Pattern Engine | Python `re` module (pre-compiled at module load) |
+| Deployment | SAM CLI → CloudFormation stack |
 
 ---
 
-## ⚡ Getting Started
+## 📈 Performance
 
-### Prerequisites
-
-- Python 3.10+
-- (Optional) AWS CLI + SAM CLI for cloud deployment
-- (Optional) Docker for containerized deployment
-
-### Quick Start
-
-```bash
-# 1. Clone
-git clone https://github.com/yadakrishna245/Log_analysis.git
-cd Log_analysis
-
-# 2. Install dependencies
-pip install -r requirements.txt
-
-# 3. Initialize database
-flask init-db
-
-# 4. Run
-python app.py
-```
-
-> 🌐 Open **http://localhost:5000** in your browser
-
-### Environment Variables
-
-| Variable | Default | Description |
-|:---------|:--------|:------------|
-| `SECRET_KEY` | auto-generated | Flask session secret |
-| `STORAGE_BACKEND` | `sqlite` | `sqlite` or `dynamodb` |
-| `LOGSHERLOCK_API_KEY` | — | API authentication key |
-| `LOGSHERLOCK_DEV_MODE` | `false` | Skip auth in development |
-| `UPLOAD_FOLDER` | `./uploads` | File upload directory |
-| `S3_BUCKET` | — | S3 bucket (AWS mode) |
-| `DYNAMODB_TABLE_PREFIX` | `LogSherlock` | DynamoDB table prefix |
-
----
-
-## 🧪 Testing
-
-```bash
-# Run full test suite
-pytest tests/ -v
-
-# Run with coverage
-pytest tests/ --cov=engine --cov=knowledge --cov=routes
-```
-
----
-
-## 📊 Technology Comparison
-
-| Aspect | LogSherlock Pro | AI/LLM Tools | Manual Grep |
-|:-------|:---------------:|:------------:|:-----------:|
-| Speed | ⚡ < 2 min | ⚡ < 1 min | 🐌 2-4 hours |
-| Accuracy | ✅ 100% deterministic | ⚠️ Can hallucinate | ✅ Depends on skill |
-| Compliance | ✅ On-prem, no data leaks | ❌ Sends data to cloud | ✅ Local |
-| Consistency | ✅ Same output every time | ⚠️ Varies per query | ❌ Varies per engineer |
-| Knowledge | ✅ 63 issues + 12 runbooks | ⚠️ Generic knowledge | ❌ Tribal knowledge |
-| Audit trail | ✅ Full traceability | ❌ Black box | ❌ None |
-
----
-
-## 🗺️ Roadmap
-
-- [x] 101 detection patterns for VME/GFS2/DLM/Corosync/Pacemaker
-- [x] 63 known issues with root cause + solution
-- [x] 12 guided investigation runbooks
-- [x] AWS serverless deployment (Lambda + DynamoDB + S3)
-- [x] Docker containerization
-- [x] CI/CD pipeline with GitHub Actions
-- [x] Multi-format archive support (7z, ZIP, TAR, GZ)
-- [x] Jira-ready RCA report generation
-- [ ] Pattern contribution workflow (team can add new patterns)
-- [ ] Grafana dashboard integration
-- [ ] Slack/Teams notification on critical findings
-- [ ] Bulk historical log re-analysis
+| Metric | Value |
+|--------|-------|
+| 73MB tar.gz scan time | ~14 seconds (browser) |
+| Pattern compilation | Once at page load |
+| Cold start (Lambda) | ~2s (CloudFront cached) |
+| Demo file (9.4KB) | < 1 second |
+| Patterns matched (demo) | 110 / 113 |
 
 ---
 
 ## 📄 License
 
-MIT License — Free for internal enterprise use.
+MIT License — See [LICENSE](LICENSE) for details.
 
 ---
 
 <div align="center">
 
-## 📬 Contact
+**Built for HPE VME Support Engineering**  
+*Turning hours of log investigation into seconds — with zero data exposure.*
 
-**Maintainer:** Yada Krishna Chaithanya  
-**Team:** HPE VME L4 Support Engineering  
-**Repository:** [github.com/yadakrishna245/Log_analysis](https://github.com/yadakrishna245/Log_analysis)
-
----
-
-*Built with ❤️ to make L4 support engineering faster and more reliable.*
-
-<sub>LogSherlock Pro v1.0 • No AI • No Cloud Dependencies • 100% On-Premises Capable</sub>
+[![HPE](https://img.shields.io/badge/HPE-01A982?style=for-the-badge&logo=hewlettpackardenterprise&logoColor=white)](https://www.hpe.com)
 
 </div>

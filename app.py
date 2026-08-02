@@ -1,4 +1,21 @@
-"""LogSherlock Pro - Main Flask Application."""
+"""LogSherlock Pro - Main Flask Application.
+
+This module implements the Flask application factory for LogSherlock Pro.
+It configures the app, registers all blueprints (routes), initializes the
+database, and sets up security headers (CSP).
+
+Application Structure:
+    - create_app()    → Factory function that builds the Flask app
+    - Blueprints      → analysis, tickets, knowledge, feedback (registered here)
+    - Database        → SQLAlchemy (SQLite locally, DynamoDB on Lambda)
+    - Security        → API key auth in production, dev mode bypass for localhost
+    - Static serving  → index.html SPA served from templates/
+
+Environment Modes:
+    - Development:  LOGSHERLOCK_DEV_MODE=true → bypasses auth, enables debug
+    - Production:   Requires API_KEY env var, strict CSP headers
+    - Lambda:       Invoked via deploy/lambda_handler.py WSGI adapter
+"""
 
 import os
 import logging
