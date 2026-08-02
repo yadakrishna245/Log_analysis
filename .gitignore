@@ -44,3 +44,12 @@ test_uploads/
 
 # Deployment
 .deployment-info.json
+deploy/.aws-sam/
+
+# Logs (runtime)
+*.log
+flask_stdout.log
+flask_stderr.log
+
+# Instance DBs
+instance/
