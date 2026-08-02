@@ -67,6 +67,12 @@ def _make_environ(event):
     query_string = event.get('rawQueryString', '')
     headers = event.get('headers', {})
     
+    # API Gateway v2 with stage: rawPath may include /prod prefix
+    # Strip stage prefix if present
+    stage = request_context.get('stage', '')
+    if stage and path.startswith(f'/{stage}'):
+        path = path[len(f'/{stage}'):] or '/'
+    
     # Handle body
     body = event.get('body', '') or ''
     is_base64 = event.get('isBase64Encoded', False)

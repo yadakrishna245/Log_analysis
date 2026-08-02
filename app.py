@@ -64,6 +64,10 @@ def create_app(config_class=Config):
             return None
         if request.path == '/' or request.path == '/api/health':
             return None
+        # Patterns export and knowledge lookup are used by the client-side scanner
+        # They don't expose any customer data (patterns are public, KB lookup uses only pattern names)
+        if request.path in ('/api/patterns/export', '/api/knowledge/lookup'):
+            return None
         if not request.path.startswith('/api/'):
             return None
             
@@ -101,7 +105,7 @@ def create_app(config_class=Config):
         response.headers['X-XSS-Protection'] = '1; mode=block'
         response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
         if not app.config.get('DEBUG'):
-            response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com;"
+            response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com;"
         return response
 
     # Health check endpoint
@@ -201,6 +205,9 @@ def create_app(config_class=Config):
 
     @app.route('/<path:path>')
     def serve_static_files(path):
+        # Never intercept API routes — let blueprints handle them
+        if path.startswith('api/'):
+            return jsonify({'error': 'Not found', 'path': f'/{path}'}), 404
         static_folder = app.static_folder or 'static'
         if path and os.path.exists(os.path.join(static_folder, path)):
             return send_from_directory(static_folder, path)
