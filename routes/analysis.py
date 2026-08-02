@@ -1114,6 +1114,113 @@ def analyze_from_s3():
     })
 
 
+@analysis_bp.route('/api/patterns/export', methods=['GET'])
+def export_patterns_for_client():
+    """Export all detection patterns as JSON for client-side browser scanning.
+
+    This enables ZERO-UPLOAD analysis: the browser downloads patterns once,
+    then scans log files entirely client-side. No customer data leaves the machine.
+
+    Returns a lightweight JSON array of patterns suitable for JavaScript RegExp.
+    """
+    engine = _get_engine()
+    patterns_json = []
+    for p in engine.patterns:
+        patterns_json.append({
+            'name': p.name,
+            'regex': p.regex,
+            'severity': p.severity,
+            'category': p.category,
+            'description': p.description,
+            'solution_hint': p.solution_hint,
+        })
+
+    # Also include the fast pre-filter keywords for client-side optimization
+    prefilter_keywords = [
+        'error', 'fail', 'panic', 'critical', 'warn', 'timeout', 'denied',
+        'refused', 'abort', 'crash', 'oom', 'killed', 'segfault', 'gfs2',
+        'dlm', 'corosync', 'pacemaker', 'fence', 'stonith', 'quorum',
+        'scsi', 'multipath', 'mpath', 'iscsi', 'withdraw', 'lockup',
+        'hung', 'blocked', 'out of memory', 'reservation', 'conflict',
+        'readonly', 'read only', 'lost', 'down', 'degraded', 'failed'
+    ]
+
+    return jsonify({
+        'patterns': patterns_json,
+        'pattern_count': len(patterns_json),
+        'prefilter_keywords': prefilter_keywords,
+        'version': '1.0.0',
+    })
+
+
+@analysis_bp.route('/api/knowledge/lookup', methods=['POST'])
+def knowledge_lookup():
+    """Lookup knowledge base entries for client-side scan findings.
+
+    Accepts anonymous findings (just pattern names + categories) and returns
+    matching KB entries. No customer log data needed.
+
+    Request JSON:
+        {"pattern_names": ["gfs2_withdraw", "dlm_quorum_lost"], "description": "..."}
+    """
+    data = request.get_json() or {}
+    pattern_names = data.get('pattern_names', [])
+    description = data.get('description', '')
+
+    related_issues = []
+
+    # Match by pattern names
+    if pattern_names:
+        try:
+            all_entries = KnowledgeEntry.query.all()
+            for entry in all_entries:
+                entry_text = f"{entry.title} {entry.symptoms} {entry.root_cause}".lower()
+                for pname in pattern_names[:20]:  # Limit to 20 patterns
+                    # Match pattern name keywords against KB
+                    keywords = pname.replace('_', ' ').split()
+                    if any(kw in entry_text for kw in keywords if len(kw) > 3):
+                        related_issues.append({
+                            'title': entry.title,
+                            'product': entry.product,
+                            'symptoms': entry.symptoms,
+                            'root_cause': entry.root_cause,
+                            'solution': entry.solution,
+                        })
+                        break
+                if len(related_issues) >= 10:
+                    break
+        except Exception:
+            pass
+
+    # Also match by description
+    if description and len(related_issues) < 10:
+        try:
+            desc_lower = description.lower()
+            all_entries = KnowledgeEntry.query.all()
+            existing_titles = {r['title'] for r in related_issues}
+            for entry in all_entries:
+                if entry.title in existing_titles:
+                    continue
+                entry_text = f"{entry.title} {entry.symptoms} {entry.root_cause}".lower()
+                if any(w in entry_text for w in desc_lower.split() if len(w) > 3):
+                    related_issues.append({
+                        'title': entry.title,
+                        'product': entry.product,
+                        'symptoms': entry.symptoms,
+                        'root_cause': entry.root_cause,
+                        'solution': entry.solution,
+                    })
+                    if len(related_issues) >= 10:
+                        break
+        except Exception:
+            pass
+
+    return jsonify({
+        'related_issues': related_issues,
+        'count': len(related_issues),
+    })
+
+
 @analysis_bp.route('/api/analyze/folder', methods=['POST'])
 def analyze_folder():
     """Analyze a local folder path directly. No upload needed."""

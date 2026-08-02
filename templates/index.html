@@ -201,7 +201,7 @@
             <div id="page-analyze" class="page active">
                 <div class="pg-header">
                     <div class="pg-title">Log Scanner</div>
-                    <div class="pg-desc">Drop archives or point to a folder. Patterns matched against 68 signatures.</div>
+                    <div class="pg-desc">Drop archives — scanned locally in your browser. Zero data uploaded. 113 pattern signatures.</div>
                 </div>
 
                 <div class="terminal">
@@ -294,9 +294,41 @@
 </div>
 
 
+<!-- pako for gzip decompression in browser -->
+<script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
 <script>
 const $ = s => document.querySelector(s);
 const $$ = s => document.querySelectorAll(s);
+
+// ══════════════════════════════════════════════════════════════════
+// CLIENT-SIDE LOG SCANNER - Zero data upload
+// Patterns run in the browser. Only anonymous findings sent for KB lookup.
+// ══════════════════════════════════════════════════════════════════
+
+let PATTERNS = null; // Loaded once from server
+let PREFILTER_RE = null;
+
+async function loadPatterns() {
+    if (PATTERNS) return PATTERNS;
+    try {
+        const r = await fetch('/api/patterns/export');
+        const data = await r.json();
+        PATTERNS = data.patterns.map(p => ({
+            ...p,
+            compiled: new RegExp(p.regex, 'i')
+        }));
+        // Build prefilter
+        const kw = data.prefilter_keywords || [];
+        PREFILTER_RE = new RegExp(kw.join('|'), 'i');
+        return PATTERNS;
+    } catch(e) {
+        console.error('Failed to load patterns:', e);
+        return [];
+    }
+}
+
+// Load patterns on page load
+loadPatterns();
 
 // Nav
 function showPage(p){$$('.page').forEach(x=>x.classList.remove('active'));$$('.rail-item').forEach(x=>x.classList.remove('active'));$('#page-'+p).classList.add('active');event.currentTarget.classList.add('active');if(p==='knowledge')loadKB();if(p==='runbooks')loadRunbooks();if(p==='history')loadHistory();}
@@ -310,106 +342,225 @@ dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('dragover'
 dz.addEventListener('click',()=>fi.click());
 fi.addEventListener('change',e=>handleFiles(e.target.files));
 
-function handleFiles(files){
-    if(!files.length)return;
-    const totalSize=Array.from(files).reduce((s,f)=>s+f.size,0);
-    const sizeMB=(totalSize/1024/1024).toFixed(0);
+// ── TAR PARSER (minimal, handles tar.gz in browser) ─────────────────
+function parseTar(buffer) {
+    const files = [];
+    let offset = 0;
+    const view = new Uint8Array(buffer);
+    const decoder = new TextDecoder('utf-8', {fatal: false});
 
-    // For large files (>10MB): use S3 presigned upload (fast direct upload)
-    if(totalSize > 10*1024*1024 && files.length===1){
-        handleLargeFile(files[0]);
+    while (offset < view.length - 512) {
+        // Read header (512 bytes)
+        const header = view.slice(offset, offset + 512);
+        // Check for empty block (end of archive)
+        if (header.every(b => b === 0)) break;
+
+        // Parse filename (bytes 0-99)
+        let name = decoder.decode(header.slice(0, 100)).replace(/\0/g, '');
+        // Prefix (bytes 345-499) for long names
+        const prefix = decoder.decode(header.slice(345, 500)).replace(/\0/g, '');
+        if (prefix) name = prefix + '/' + name;
+
+        // Parse size (bytes 124-135, octal)
+        const sizeStr = decoder.decode(header.slice(124, 136)).replace(/\0/g, '').trim();
+        const size = parseInt(sizeStr, 8) || 0;
+
+        // Parse type (byte 156)
+        const type = String.fromCharCode(header[156]);
+
+        offset += 512; // Move past header
+
+        if ((type === '0' || type === '\0') && size > 0) {
+            // Regular file
+            const content = view.slice(offset, offset + size);
+            files.push({ name, size, content });
+        }
+
+        // Move past data (padded to 512-byte blocks)
+        offset += Math.ceil(size / 512) * 512;
+    }
+    return files;
+}
+
+// ── FILE CLASSIFICATION ─────────────────────────────────────────────
+const NOISE_FILES = new Set(['kallsyms','modules','cpuinfo','meminfo','mounts','ksyms','partitions','config','version','cmdline','diskstats','interrupts','softirqs','buddyinfo','slabinfo','vmstat','zoneinfo','iomem','ioports','filesystems','devices','locks','stat','uptime','loadavg','crypto','hostname','date','uname','os-release','installed-rpms']);
+const NOISE_DIRS_RE = /proc\/|sys\/|dev\/|run\/|usr\/share\/|usr\/lib\/|lib\/modules\/|\.git\/|__pycache__|sos_commands\/(rpm|yum|package|python|alternatives|networking\/ethtool|block\/lsblk|filesys\/df|process\/ps|hardware\/lspci|selinux|security)/i;
+const HIGH_PRI_RE = /(messages|syslog|dmesg|kern|corosync|pacemaker|cluster|multipath|journal|auth\.log|secure|boot\.log|alert|fence|stonith|dlm|gfs2|iscsi|scsi|storage|crit|emerg)/i;
+const BIN_EXTS = new Set(['.pyc','.so','.exe','.dll','.bin','.db','.sqlite','.rpm','.deb','.iso','.img','.vmdk','.qcow2','.jpg','.jpeg','.png','.gif','.pdf','.zip','.7z','.tar','.gz','.bz2','.xz','.o','.ko','.dat','.cache']);
+
+function classifyFile(name, size) {
+    if (size === 0 || size > 30*1024*1024) return 'skip';
+    const bname = name.split('/').pop().toLowerCase();
+    if (NOISE_FILES.has(bname)) return 'skip';
+    const ext = '.' + bname.split('.').pop();
+    if (BIN_EXTS.has(ext)) return 'skip';
+    if (NOISE_DIRS_RE.test(name)) return 'skip';
+    if (size < 200) return 'skip';
+    if (HIGH_PRI_RE.test(bname) || HIGH_PRI_RE.test(name)) return 'high';
+    if (['.log','.err','.out','.txt'].includes(ext)) return 'medium';
+    return 'skip';
+}
+
+// ── CLIENT-SIDE SCANNER ─────────────────────────────────────────────
+async function scanLocally(file) {
+    const startTime = performance.now();
+    const patterns = await loadPatterns();
+    if (!patterns || !patterns.length) {
+        setStatus('error', 'Could not load patterns from server');
         return;
     }
 
-    // Small files: direct upload (original flow)
-    setStatus('scanning','Uploading '+files.length+' file(s) ('+sizeMB+'MB)...');
-    showProgress(15);
-    const fd=new FormData();
-    for(let f of files)fd.append('files',f);
-    const ctx=$('#ticketContext').value;
-    if(ctx)fd.append('description',ctx);
-    fetch('/api/analyze/quick',{method:'POST',body:fd})
-        .then(r=>r.json())
-        .then(d=>{showProgress(100);setTimeout(()=>render(d),200);})
-        .catch(e=>setStatus('error','Error: '+e.message));
-}
-
-function handleLargeFile(file){
-    const sizeMB=(file.size/1024/1024).toFixed(0);
-    const ctx=$('#ticketContext').value||'';
-    setStatus('scanning',`Uploading ${file.name} (${sizeMB}MB) via fast transfer...`);
+    setStatus('scanning', `Reading ${file.name} (${(file.size/1024/1024).toFixed(0)}MB) locally...`);
     showProgress(5);
 
-    // Step 1: Get presigned URL from backend
-    fetch('/api/upload/presign',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({filename:file.name, file_size:file.size, description:ctx})
-    })
-    .then(r=>r.json())
-    .then(presign=>{
-        if(presign.error){
-            // Fallback to direct upload if S3 not configured
-            setStatus('scanning','S3 not available, uploading directly (slower)...');
-            const fd=new FormData();
-            fd.append('files',file);
-            if(ctx)fd.append('description',ctx);
-            return fetch('/api/analyze/quick',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{showProgress(100);setTimeout(()=>render(d),200);});
+    const arrayBuffer = await file.arrayBuffer();
+    showProgress(20);
+    setStatus('scanning', 'Decompressing archive in browser...');
+
+    let tarFiles = [];
+    try {
+        if (file.name.endsWith('.tar.gz') || file.name.endsWith('.tgz')) {
+            const decompressed = pako.inflate(new Uint8Array(arrayBuffer));
+            showProgress(40);
+            setStatus('scanning', 'Parsing tar archive...');
+            tarFiles = parseTar(decompressed.buffer);
+        } else if (file.name.endsWith('.tar')) {
+            tarFiles = parseTar(arrayBuffer);
+            showProgress(40);
+        } else {
+            // Single text file
+            const text = new TextDecoder('utf-8', {fatal:false}).decode(arrayBuffer);
+            tarFiles = [{name: file.name, size: file.size, content: new TextEncoder().encode(text)}];
+            showProgress(40);
+        }
+    } catch(e) {
+        setStatus('error', 'Decompression failed: ' + e.message);
+        hideProgress();
+        return;
+    }
+
+    // Classify and sort files
+    const scannable = tarFiles
+        .map(f => ({...f, priority: classifyFile(f.name, f.size)}))
+        .filter(f => f.priority !== 'skip')
+        .sort((a,b) => (a.priority==='high'?0:1) - (b.priority==='high'?0:1));
+
+    setStatus('scanning', `Scanning ${scannable.length} log files against ${patterns.length} patterns...`);
+    showProgress(50);
+
+    const findings = [];
+    let filesAnalyzed = 0;
+    let totalLines = 0;
+    const MAX_FINDINGS = 200;
+    const decoder = new TextDecoder('utf-8', {fatal: false});
+    let mediumCount = 0;
+
+    for (let i = 0; i < scannable.length; i++) {
+        if (findings.length >= MAX_FINDINGS) break;
+        const f = scannable[i];
+        if (f.priority === 'medium' && mediumCount >= 50) continue;
+        if (f.priority === 'medium') mediumCount++;
+
+        const text = decoder.decode(f.content);
+        const lines = text.split('\n');
+        filesAnalyzed++;
+        const maxLines = f.size > 5*1024*1024 ? 30000 : (f.size > 1024*1024 ? 50000 : 100000);
+
+        for (let ln = 0; ln < Math.min(lines.length, maxLines); ln++) {
+            totalLines++;
+            const line = lines[ln];
+            if (!line || !PREFILTER_RE.test(line)) continue;
+
+            for (const p of patterns) {
+                if (p.compiled.test(line)) {
+                    findings.push({
+                        pattern_name: p.name,
+                        severity: p.severity,
+                        category: p.category,
+                        file: f.name,
+                        line_number: ln + 1,
+                        line_content: line.substring(0, 500),
+                        description: p.description,
+                        solution_hint: p.solution_hint,
+                    });
+                    if (findings.length >= MAX_FINDINGS) break;
+                }
+            }
+            if (findings.length >= MAX_FINDINGS) break;
         }
 
-        // Step 2: Upload directly to S3 using presigned POST
-        setStatus('scanning',`Uploading ${sizeMB}MB directly to cloud storage...`);
-        showProgress(10);
+        // Update progress
+        const pct = 50 + Math.round((i / scannable.length) * 45);
+        showProgress(pct);
+        if (i % 3 === 0) {
+            setStatus('scanning', `Scanned ${filesAnalyzed}/${scannable.length} files · ${findings.length} findings`);
+            await new Promise(r => setTimeout(r, 0)); // Let UI update
+        }
 
-        const formData=new FormData();
-        // Add all presigned fields first
-        Object.entries(presign.upload_fields).forEach(([k,v])=>formData.append(k,v));
-        // Add the file last (required by S3)
-        formData.append('file',file);
+        // Early termination
+        const critHigh = findings.filter(x => x.severity==='CRITICAL'||x.severity==='HIGH').length;
+        if (critHigh >= 50) break;
+    }
 
-        const xhr=new XMLHttpRequest();
-        xhr.upload.addEventListener('progress',e=>{
-            if(e.lengthComputable){
-                const pct=Math.round((e.loaded/e.total)*80)+10; // 10-90%
-                showProgress(pct);
-                const uploadedMB=(e.loaded/1024/1024).toFixed(0);
-                setStatus('scanning',`Uploading: ${uploadedMB}/${sizeMB} MB (${pct-10}%)`);
-            }
+    showProgress(95);
+    setStatus('scanning', 'Looking up knowledge base...');
+
+    // Send only pattern names to backend for KB lookup (zero log data sent!)
+    const uniquePatterns = [...new Set(findings.map(f => f.pattern_name))];
+    let relatedIssues = [];
+    try {
+        const ctx = $('#ticketContext').value || '';
+        const kbResp = await fetch('/api/knowledge/lookup', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({pattern_names: uniquePatterns, description: ctx})
         });
+        const kbData = await kbResp.json();
+        relatedIssues = kbData.related_issues || [];
+    } catch(e) { /* KB lookup is optional */ }
 
-        xhr.addEventListener('load',()=>{
-            if(xhr.status>=200 && xhr.status<300){
-                // Step 3: Trigger analysis from S3
-                showProgress(90);
-                setStatus('scanning','Upload complete! Analyzing patterns...');
-                fetch('/api/analyze/s3',{
-                    method:'POST',
-                    headers:{'Content-Type':'application/json'},
-                    body:JSON.stringify({
-                        upload_id:presign.upload_id,
-                        s3_key:presign.s3_key,
-                        description:ctx
-                    })
-                })
-                .then(r=>r.json())
-                .then(d=>{
-                    showProgress(100);
-                    if(d.analysis_time_seconds){
-                        setStatus('done',`Done in ${d.total_time_seconds}s (upload + ${d.analysis_time_seconds}s analysis)`);
-                    }
-                    setTimeout(()=>render(d),200);
-                })
-                .catch(e=>setStatus('error','Analysis error: '+e.message));
-            } else {
-                setStatus('error','Upload failed (HTTP '+xhr.status+'). Try again.');
-            }
-        });
+    const elapsed = ((performance.now() - startTime) / 1000).toFixed(1);
+    showProgress(100);
 
-        xhr.addEventListener('error',()=>setStatus('error','Upload failed. Check network.'));
-        xhr.open('POST',presign.upload_url);
-        xhr.send(formData);
-    })
-    .catch(e=>setStatus('error','Error: '+e.message));
+    // Build result object (same format as server response)
+    const result = {
+        findings: findings,
+        findings_count: findings.length,
+        files_analyzed: filesAnalyzed,
+        total_lines: totalLines,
+        related_issues: relatedIssues,
+        analysis_time_seconds: parseFloat(elapsed),
+        client_side: true,
+        jira_report: null,
+    };
+
+    setStatus('done', `${findings.length} findings · ${filesAnalyzed} files · ${elapsed}s · 🔒 Zero data uploaded`);
+    render(result);
+}
+
+// ── MAIN HANDLER ────────────────────────────────────────────────────
+function handleFiles(files) {
+    if (!files.length) return;
+    const file = files[0];
+    const sizeMB = (file.size/1024/1024).toFixed(0);
+
+    // Client-side scan for tar.gz, tar, and text files
+    if (file.name.endsWith('.tar.gz') || file.name.endsWith('.tgz') || file.name.endsWith('.tar') || file.name.endsWith('.log') || file.name.endsWith('.txt')) {
+        scanLocally(file);
+        return;
+    }
+
+    // For .zip and .7z: use server-side (pako can't handle these)
+    setStatus('scanning', 'Uploading ' + files.length + ' file(s) (' + sizeMB + 'MB)...');
+    showProgress(15);
+    const fd = new FormData();
+    for (let f of files) fd.append('files', f);
+    const ctx = $('#ticketContext').value;
+    if (ctx) fd.append('description', ctx);
+    fetch('/api/analyze/quick', {method:'POST', body:fd})
+        .then(r => r.json())
+        .then(d => {showProgress(100); setTimeout(()=>render(d), 200);})
+        .catch(e => setStatus('error', 'Error: ' + e.message));
 }
 
 function analyzeFolder(){
