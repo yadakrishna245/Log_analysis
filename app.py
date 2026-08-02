@@ -68,6 +68,9 @@ def create_app(config_class=Config):
         # They don't expose any customer data (patterns are public, KB lookup uses only pattern names)
         if request.path in ('/api/patterns/export', '/api/knowledge/lookup', '/api/advisor'):
             return None
+        # Knowledge base and runbooks are reference data (no customer data)
+        if request.path.startswith('/api/knowledge/'):
+            return None
         if not request.path.startswith('/api/'):
             return None
             
