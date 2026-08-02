@@ -88,6 +88,9 @@ def create_app(config_class=Config):
         # Knowledge base and runbooks are reference data (no customer data)
         if request.path.startswith('/api/knowledge/'):
             return None
+        # Ollama proxy — local AI, no customer data (only pattern names)
+        if request.path.startswith('/api/ollama/'):
+            return None
         if not request.path.startswith('/api/'):
             return None
             
@@ -136,6 +139,28 @@ def create_app(config_class=Config):
             'app': 'LogSherlock Pro',
             'version': '1.0.0',
         })
+
+    # Ollama Local LLM Proxy — avoids CORS issues
+    @app.route('/api/ollama/tags', methods=['GET'])
+    def ollama_tags():
+        """Proxy to local Ollama to check available models."""
+        import requests as req
+        try:
+            r = req.get('http://localhost:11434/api/tags', timeout=3)
+            return jsonify(r.json())
+        except Exception:
+            return jsonify({'models': [], 'error': 'Ollama not running'}), 503
+
+    @app.route('/api/ollama/generate', methods=['POST'])
+    def ollama_generate():
+        """Proxy to local Ollama for AI generation. Only pattern names sent, never raw logs."""
+        import requests as req
+        try:
+            data = request.get_json()
+            r = req.post('http://localhost:11434/api/generate', json=data, timeout=120)
+            return jsonify(r.json())
+        except Exception as e:
+            return jsonify({'error': str(e)}), 503
 
     # Live system metrics for demo
     @app.route('/api/health/detailed', methods=['GET'])

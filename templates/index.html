@@ -2380,28 +2380,40 @@ async function loadDemo() {
 })();
 
 // ═══ OLLAMA LOCAL LLM INTEGRATION ═══════════════════════════════════════════
-// Connects to Ollama running on user's local machine (localhost:11434)
-// Zero customer data leaves the machine — only pattern names + severity counts sent
-// Requires: ollama pull llama3.1:8b (or any model)
-
+// Connects to Ollama via Flask proxy (/api/ollama/) to avoid CORS issues
+// The Flask backend forwards to localhost:11434 — data stays on the same machine
+const OLLAMA_URL = '/api/ollama';
 let _ollamaAvailable = false;
-const OLLAMA_URL = 'http://localhost:11434';
 
 // Check if Ollama is running on page load
 (function checkOllama() {
-    fetch(OLLAMA_URL + '/api/tags', { method: 'GET', signal: AbortSignal.timeout(2000) })
-    .then(r => r.json())
+    // Try 1: Flask proxy (works when running localhost:5000)
+    fetch('/api/ollama/tags', { method: 'GET', signal: AbortSignal.timeout(3000) })
+    .then(r => { if (!r.ok) throw new Error('proxy failed'); return r.json(); })
     .then(data => {
+        if (data.error || !data.models || data.models.length === 0) throw new Error('no models');
         _ollamaAvailable = true;
-        console.log('[LogSherlock] Ollama detected locally. Models:', data.models?.map(m => m.name).join(', '));
-        // Update sidebar indicator
+        window._ollamaEndpoint = '/api/ollama';
+        console.log('[LogSherlock] Ollama connected via proxy. Models:', data.models.map(m => m.name).join(', '));
         updateOllamaIndicator(true, data.models || []);
     })
     .catch(() => {
-        _ollamaAvailable = false;
-        console.log('[LogSherlock] Ollama not detected on localhost:11434. AI features disabled.');
-        // Update sidebar indicator
-        updateOllamaIndicator(false, []);
+        // Try 2: Direct localhost (works if CORS enabled on Ollama)
+        fetch('http://localhost:11434/api/tags', { method: 'GET', signal: AbortSignal.timeout(2000) })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.models || data.models.length === 0) throw new Error('no models');
+            _ollamaAvailable = true;
+            window._ollamaEndpoint = 'http://localhost:11434/api';
+            console.log('[LogSherlock] Ollama connected directly. Models:', data.models.map(m => m.name).join(', '));
+            updateOllamaIndicator(true, data.models || []);
+        })
+        .catch(() => {
+            _ollamaAvailable = false;
+            window._ollamaEndpoint = null;
+            console.log('[LogSherlock] Ollama not available. Run locally with: python app.py');
+            updateOllamaIndicator(false, []);
+        });
     });
 })();
 
@@ -2455,7 +2467,7 @@ _aiObserver.observe(document.getElementById('results'), { attributes: true, attr
 
 async function generateAISummary() {
     if (!_ollamaAvailable) {
-        alert('Ollama is not running on localhost:11434.\n\nTo enable AI summaries:\n1. Install Ollama: https://ollama.com/download\n2. Run: ollama pull llama3.1:8b\n3. Start Ollama (it runs automatically after install)\n4. Refresh this page');
+        alert('Ollama is not running on your machine.\n\nTo enable AI summaries:\n1. Install Ollama: https://ollama.com/download\n2. Run: ollama pull llama3.2:3b\n3. Start Ollama (it runs automatically after install)\n4. Refresh this page');
         return;
     }
 
@@ -2491,7 +2503,7 @@ Be specific, actionable, and concise. Use HPE VME terminology.`;
 
     try {
         // Try to find best available model
-        const tagsResp = await fetch(OLLAMA_URL + '/api/tags');
+        const tagsResp = await fetch((window._ollamaEndpoint || OLLAMA_URL) + '/tags');
         const tagsData = await tagsResp.json();
         const models = tagsData.models || [];
         // Prefer llama3.1, then llama3, then any model
@@ -2501,7 +2513,7 @@ Be specific, actionable, and concise. Use HPE VME terminology.`;
                  || models.find(m => m.name.includes('gemma'))?.name
                  || (models[0]?.name || 'llama3.1:8b');
 
-        const response = await fetch(OLLAMA_URL + '/api/generate', {
+        const response = await fetch((window._ollamaEndpoint || OLLAMA_URL) + '/generate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
