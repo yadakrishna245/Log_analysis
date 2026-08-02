@@ -489,6 +489,17 @@
                         <div class="rca-summary-text" id="rcaSummaryText"></div>
                     </div>
 
+                    <!-- AI Summary (Ollama Local LLM) -->
+                    <div id="aiSummaryPanel" style="display:none;background:var(--bg-2);border:1px solid var(--border-subtle);border-left:4px solid #8b5cf6;border-radius:10px;padding:16px 20px;margin-bottom:16px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                            <div style="font-size:12px;font-weight:600;color:#8b5cf6;text-transform:uppercase;letter-spacing:0.04em;display:flex;align-items:center;gap:8px;">
+                                <span>🤖</span> AI-Powered Analysis <span style="font-size:9px;font-weight:400;color:var(--text-400);text-transform:none;">(Local Ollama — no data leaves your machine)</span>
+                            </div>
+                            <button id="aiSummaryBtn" class="btn-ghost" style="font-size:11px;padding:4px 10px;border:1px solid #8b5cf6;color:#8b5cf6;" onclick="generateAISummary()">✨ Generate AI Summary</button>
+                        </div>
+                        <div id="aiSummaryContent" style="font-size:13px;color:var(--text-200);line-height:1.7;"></div>
+                    </div>
+
                     <div class="metrics" id="metricsGrid"></div>
                     <div style="text-align:center;font-size:10px;color:var(--text-500);margin-top:-8px;margin-bottom:16px">↑ Issue count by severity level. Critical = system down. High = needs fix. Medium = monitor. Low = info.</div>
 
@@ -2178,6 +2189,132 @@ async function loadDemo() {
     
     observer.observe(statusEl, { attributes: true, attributeFilter: ['class'] });
 })();
+
+// ═══ OLLAMA LOCAL LLM INTEGRATION ═══════════════════════════════════════════
+// Connects to Ollama running on user's local machine (localhost:11434)
+// Zero customer data leaves the machine — only pattern names + severity counts sent
+// Requires: ollama pull llama3.1:8b (or any model)
+
+let _ollamaAvailable = false;
+const OLLAMA_URL = 'http://localhost:11434';
+
+// Check if Ollama is running on page load
+(function checkOllama() {
+    fetch(OLLAMA_URL + '/api/tags', { method: 'GET', signal: AbortSignal.timeout(2000) })
+    .then(r => r.json())
+    .then(data => {
+        _ollamaAvailable = true;
+        console.log('[LogSherlock] Ollama detected locally. Models:', data.models?.map(m => m.name).join(', '));
+    })
+    .catch(() => {
+        _ollamaAvailable = false;
+        console.log('[LogSherlock] Ollama not detected on localhost:11434. AI features disabled.');
+    });
+})();
+
+// Show AI panel when results are displayed (only if Ollama is available)
+const _aiObserver = new MutationObserver(function() {
+    const results = document.getElementById('results');
+    if (results && results.classList.contains('active') && _ollamaAvailable) {
+        document.getElementById('aiSummaryPanel').style.display = 'block';
+        document.getElementById('aiSummaryContent').innerHTML = '<span style="color:var(--text-400);font-size:12px">Click "✨ Generate AI Summary" to get an AI-powered root cause analysis using your local Ollama instance.</span>';
+    }
+});
+_aiObserver.observe(document.getElementById('results'), { attributes: true, attributeFilter: ['class'] });
+
+async function generateAISummary() {
+    if (!_ollamaAvailable) {
+        alert('Ollama is not running on localhost:11434.\n\nTo enable AI summaries:\n1. Install Ollama: https://ollama.com/download\n2. Run: ollama pull llama3.1:8b\n3. Start Ollama (it runs automatically after install)\n4. Refresh this page');
+        return;
+    }
+
+    const btn = document.getElementById('aiSummaryBtn');
+    const content = document.getElementById('aiSummaryContent');
+    btn.disabled = true;
+    btn.textContent = '⏳ Thinking...';
+    content.innerHTML = '<div style="color:var(--text-400);font-size:12px;display:flex;align-items:center;gap:8px"><div style="width:16px;height:16px;border:2px solid #8b5cf6;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite"></div> Analyzing patterns with local AI model (no data leaves your machine)...</div>';
+
+    // Build the prompt — ONLY pattern names + severity counts (NEVER raw logs)
+    const patterns = [...new Set(_allFindings.map(f => f.pattern_name || ''))].filter(Boolean);
+    const categories = [...new Set(_allFindings.map(f => f.category || ''))].filter(Boolean);
+    const sevCounts = {
+        CRITICAL: _allFindings.filter(f => f.severity === 'CRITICAL').length,
+        HIGH: _allFindings.filter(f => f.severity === 'HIGH').length,
+        MEDIUM: _allFindings.filter(f => f.severity === 'MEDIUM').length,
+        LOW: _allFindings.filter(f => f.severity === 'LOW').length
+    };
+    const filesAffected = [...new Set(_allFindings.map(f => (f.file || '').split('/').pop()))].filter(Boolean);
+
+    const prompt = `You are an expert HPE VM Essentials L4 support engineer. Based on the following PATTERN DETECTION results from a customer log analysis, provide:
+1. A clear 2-3 sentence root cause summary (what went wrong and why)
+2. The most likely failure cascade (what triggered what)
+3. Top 3 immediate actions the engineer should take
+4. Risk assessment (what happens if not fixed)
+
+DETECTED PATTERNS: ${patterns.join(', ')}
+SEVERITY: ${sevCounts.CRITICAL} Critical, ${sevCounts.HIGH} High, ${sevCounts.MEDIUM} Medium, ${sevCounts.LOW} Low
+AFFECTED SUBSYSTEMS: ${categories.join(', ')}
+FILES WITH ISSUES: ${filesAffected.join(', ')}
+
+Be specific, actionable, and concise. Use HPE VME terminology.`;
+
+    try {
+        // Try to find best available model
+        const tagsResp = await fetch(OLLAMA_URL + '/api/tags');
+        const tagsData = await tagsResp.json();
+        const models = tagsData.models || [];
+        // Prefer llama3.1, then llama3, then any model
+        let model = models.find(m => m.name.includes('llama3.1'))?.name
+                 || models.find(m => m.name.includes('llama3'))?.name
+                 || models.find(m => m.name.includes('mistral'))?.name
+                 || models.find(m => m.name.includes('gemma'))?.name
+                 || (models[0]?.name || 'llama3.1:8b');
+
+        const response = await fetch(OLLAMA_URL + '/api/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: model,
+                prompt: prompt,
+                stream: false,
+                options: { temperature: 0.3, num_predict: 500 }
+            })
+        });
+
+        if (!response.ok) throw new Error('Ollama returned error: ' + response.status);
+
+        const result = await response.json();
+        const aiText = result.response || 'No response from model.';
+
+        // Render the AI response
+        content.innerHTML = `
+            <div style="margin-bottom:8px;font-size:11px;color:var(--text-400)">
+                Model: <strong>${model}</strong> · Generated locally · ${(result.total_duration / 1e9).toFixed(1)}s
+            </div>
+            <div style="white-space:pre-wrap;font-size:13px;line-height:1.7;color:var(--text-100);">${escapeHtml(aiText)}</div>
+            <div style="margin-top:12px;display:flex;gap:8px;">
+                <button class="btn-ghost" style="font-size:11px" onclick="navigator.clipboard.writeText(document.getElementById('aiSummaryContent').querySelector('div:nth-child(2)').textContent).then(()=>this.textContent='✓ Copied')">📋 Copy</button>
+                <button class="btn-ghost" style="font-size:11px" onclick="generateAISummary()">🔄 Regenerate</button>
+            </div>
+        `;
+    } catch (err) {
+        content.innerHTML = `<div style="color:#ef4444;font-size:12px">❌ Error: ${escapeHtml(err.message)}<br><br>
+            <strong>Setup instructions:</strong><br>
+            1. Download Ollama: <a href="https://ollama.com/download" target="_blank" style="color:#8b5cf6">ollama.com/download</a><br>
+            2. Open terminal and run: <code style="background:var(--bg-0);padding:2px 6px;border-radius:4px">ollama pull llama3.1:8b</code><br>
+            3. Ollama starts automatically — refresh this page<br>
+            4. Click "Generate AI Summary" again</div>`;
+    }
+
+    btn.disabled = false;
+    btn.textContent = '✨ Generate AI Summary';
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
 </script>
 </body>
 </html>
