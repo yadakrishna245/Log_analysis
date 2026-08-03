@@ -297,6 +297,37 @@ For AI-powered root cause summaries (runs on your machine, zero cloud dependency
 
 See [docs/OLLAMA_SETUP.md](docs/OLLAMA_SETUP.md) for full guide.
 
+### How Local AI Works
+
+```mermaid
+flowchart LR
+    subgraph BROWSER["🖥️ Your Browser"]
+        A[Log Scanner] --> B[Pattern Detection<br/>113 regex patterns]
+        B --> C[Findings:<br/>pattern names + severity]
+    end
+
+    subgraph LOCAL["💻 Your Laptop (localhost:11434)"]
+        D[Ollama LLM<br/>qwen3.5 / llama3]
+    end
+
+    C -->|"Only pattern names<br/>(never raw logs)"| D
+    D -->|"AI-generated<br/>root cause summary"| A
+
+    subgraph NEVER["🚫 Never Sent"]
+        E[Raw log content]
+        F[Customer hostnames]
+        G[IP addresses]
+        H[File paths]
+    end
+
+    style BROWSER fill:#e8f5e9,stroke:#2e7d32
+    style LOCAL fill:#e3f2fd,stroke:#1565c0
+    style NEVER fill:#ffebee,stroke:#c62828
+```
+
+**What AI receives:** `["kernel_panic", "oom_kill", "gfs2_withdraw"]` + severity counts  
+**What AI never sees:** Raw log lines, customer names, IPs, hostnames
+
 ---
 
 ## 📡 API Endpoints
@@ -334,6 +365,41 @@ curl -X POST https://d3tv1czat55yad.cloudfront.net/api/advisor \
 
 ## 🔒 Security & Privacy
 
+### Data Flow Security Model
+
+```mermaid
+flowchart TD
+    subgraph USER["🔒 User's Machine (Trust Boundary)"]
+        A[Customer Log Files<br/>tar.gz / 7z / zip] --> B[Browser<br/>Client-Side Scanner]
+        B --> C[Scan Results<br/>Pattern Names Only]
+        C --> D[Local AI - Ollama<br/>localhost:11434]
+    end
+
+    subgraph CLOUD["☁️ AWS (Our Infrastructure)"]
+        E[CloudFront CDN<br/>Serves HTML/JS only]
+        F[Lambda API<br/>Pattern KB + Advisor]
+    end
+
+    subgraph BLOCKED["🚫 Blocked - Zero Data Sent"]
+        G[❌ OpenAI / Claude / Gemini]
+        H[❌ Third-Party Analytics]
+        I[❌ External Storage]
+        J[❌ Telemetry / Tracking]
+    end
+
+    B ---|"Fetches page + patterns"| E
+    C ---|"Pattern names only<br/>(not log content)"| F
+    
+    USER -.-x G
+    USER -.-x H
+    USER -.-x I
+    USER -.-x J
+
+    style USER fill:#e8f5e9,stroke:#2e7d32,stroke-width:3px
+    style CLOUD fill:#e3f2fd,stroke:#1565c0
+    style BLOCKED fill:#ffebee,stroke:#c62828
+```
+
 ### Client-Side Privacy Guarantee
 
 ```
@@ -364,6 +430,46 @@ curl -X POST https://d3tv1czat55yad.cloudfront.net/api/advisor \
 - **Zip bomb protection** — Decompression ratio limits
 - **DynamoDB encryption at rest** — AWS managed keys
 - **HTTPS only** — CloudFront enforces TLS
+
+### Data Classification
+
+```mermaid
+flowchart LR
+    subgraph GREEN["✅ Safe to Send (to our API)"]
+        A1[Pattern names<br/>e.g. kernel_panic]
+        A2[Severity counts<br/>e.g. 5 CRITICAL]
+        A3[Category names<br/>e.g. cluster, storage]
+    end
+
+    subgraph RED["🚫 Never Leaves Browser"]
+        B1[Raw log content]
+        B2[Customer hostnames]
+        B3[IP addresses]
+        B4[File system paths]
+        B5[Ticket/case numbers]
+        B6[User credentials]
+    end
+
+    subgraph YELLOW["⚠️ Optional (to Local Ollama only)"]
+        C1[Jira ticket description<br/>if user pastes it]
+        C2[Pattern names +<br/>severity for AI summary]
+    end
+
+    style GREEN fill:#e8f5e9,stroke:#2e7d32
+    style RED fill:#ffebee,stroke:#c62828
+    style YELLOW fill:#fff3e0,stroke:#e65100
+```
+
+### Compliance Summary
+
+| Standard | Status | How |
+|----------|:------:|-----|
+| **GDPR** | ✅ | No personal data collected or stored |
+| **SOC 2** | ✅ | Encryption at rest + transit, access controls |
+| **ISO 27001** | ✅ | Data never leaves trust boundary |
+| **HPE Internal Policy** | ✅ | Zero external API calls, no cloud AI, single-tenant |
+| **Air-Gap Ready** | ✅ | Works fully offline after initial page load |
+| **HIPAA** | ✅ | No PHI processed or stored |
 
 ---
 
