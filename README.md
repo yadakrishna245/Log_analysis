@@ -292,8 +292,8 @@ For AI-powered root cause summaries (runs on your machine, zero cloud dependency
 
 | Your RAM | Command |
 |----------|----------|
-| 16GB | `ollama pull llama3.2:3b` |
-| 32GB | `ollama pull llama3.1:8b` |
+| 16GB | `ollama pull qwen3.5:4b` |
+| 32GB | `ollama pull qwen3.5:9b` |
 
 See [docs/OLLAMA_SETUP.md](docs/OLLAMA_SETUP.md) for full guide.
 

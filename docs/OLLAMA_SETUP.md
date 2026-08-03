@@ -13,15 +13,17 @@ LogSherlock Pro supports **optional** AI-powered root cause summaries using Olla
 
 ## System Requirements
 
-| Your RAM | Recommended Model | Download Size | RAM Usage |
-|----------|------------------|---------------|----------|
-| 8GB | `llama3.2:1b` | 1.3 GB | ~2 GB |
-| 16GB | `llama3.2:3b` | 2.0 GB | ~4 GB |
-| 32GB | `llama3.1:8b` | 4.7 GB | ~8 GB |
-| 64GB+ | `llama3.1:70b` | 40 GB | ~48 GB |
+| Your RAM | Recommended Model | Download Size | RAM Usage | Accuracy |
+|----------|------------------|---------------|-----------|----------|
+| 8GB | `llama3.2:1b` | 1.3 GB | ~2 GB | Good |
+| 16GB | `qwen3.5:4b` ★ | 3.4 GB | ~5 GB | Excellent |
+| 32GB | `qwen3.5:9b` | 5.5 GB | ~8 GB | Best |
+| 32GB+ | `llama3.1:8b` | 4.7 GB | ~8 GB | Very Good |
 
-**All HPE team laptops (32GB RAM, i7, 1TB SSD) → Use `llama3.1:8b` for best quality.**
-**16GB laptops → Use `llama3.2:3b` (great balance of speed + quality).**
+> **Model priority:** The app auto-selects: qwen3.5 > gemma4 > llama3 > mistral > any available model.
+
+**All HPE team laptops (32GB RAM, i7, 1TB SSD) → Use `qwen3.5:9b` for best quality.**
+**16GB laptops → Use `qwen3.5:4b` (excellent balance of speed + quality).**
 
 ## Installation (One-Time, 2 minutes)
 
@@ -48,10 +50,10 @@ Open terminal/PowerShell and run:
 
 ```bash
 # For 16GB RAM laptops (recommended for most team members)
-ollama pull llama3.2:3b
+ollama pull qwen3.5:4b
 
-# For 32GB RAM laptops (better quality)
-ollama pull llama3.1:8b
+# For 32GB RAM laptops (best quality)
+ollama pull qwen3.5:9b
 
 # For 8GB RAM or fastest response
 ollama pull llama3.2:1b
@@ -70,7 +72,7 @@ Should show your downloaded model.
 ### Step 4: Test
 
 ```bash
-ollama run llama3.2:3b "What causes GFS2 filesystem withdraw?"
+ollama run qwen3.5:4b "What causes GFS2 filesystem withdraw?"
 ```
 
 If you get a response, you're ready!
@@ -100,14 +102,30 @@ If you get a response, you're ready!
 | Issue | Fix |
 |-------|-----|
 | 🤖 shows grey dot (Not detected) | Is Ollama running? Check: `ollama list` |
-| "Mixed content blocked" in browser | Use `http://localhost:5000` instead of CloudFront |
+| "Mixed content blocked" in browser | Configure browser flags (see above) or use `http://localhost:5000` |
 | Slow responses (>30s) | Use smaller model: `ollama pull llama3.2:1b` |
 | Out of memory errors | Close other apps, or use `llama3.2:1b` |
-| Model not found | Run: `ollama pull llama3.2:3b` |
+| Model not found | Run: `ollama pull qwen3.5:4b` |
 
-## Running LogSherlock Locally (for AI features)
+## Browser Configuration (Edge or Chrome)
 
-Since CloudFront uses HTTPS and Ollama uses HTTP (localhost), browsers may block the connection. For AI features, run locally:
+Since CloudFront uses HTTPS and Ollama uses HTTP (localhost), browsers may block the connection. You can either run locally OR configure your browser:
+
+### Option A: Configure Browser (use with CloudFront)
+
+**Microsoft Edge:**
+1. Open `edge://flags/#unsafely-treat-insecure-origin-as-secure`
+2. Add `http://localhost:11434` to the text field
+3. Set to **Enabled**
+4. Click **Relaunch**
+
+**Google Chrome:**
+1. Open `chrome://flags/#unsafely-treat-insecure-origin-as-secure`
+2. Add `http://localhost:11434` to the text field
+3. Set to **Enabled**
+4. Click **Relaunch**
+
+### Option B: Run LogSherlock Locally
 
 ```bash
 cd Log_analysis
