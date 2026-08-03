@@ -689,9 +689,18 @@
             <!-- AI CHAT PAGE -->
             <div id="pg-chat" class="page" style="display:none;">
                 <!-- Header -->
-                <div style="margin-bottom:20px;">
-                    <div style="font-size:22px;font-weight:700;color:var(--text-100);">💬 AI Chat</div>
-                    <div style="font-size:13px;color:var(--text-400);margin-top:4px;">Ask anything about HPE VME, Linux, storage, networking, clusters. Powered by local Ollama — your data stays on your machine.</div>
+                <div style="margin-bottom:20px;display:flex;justify-content:space-between;align-items:flex-start;">
+                    <div>
+                        <div style="font-size:22px;font-weight:700;color:var(--text-100);">💬 AI Chat</div>
+                        <div style="font-size:13px;color:var(--text-400);margin-top:4px;">Ask anything about HPE VME, Linux, storage, networking, clusters. Powered by local Ollama — your data stays on your machine.</div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <label style="font-size:11px;color:var(--text-400);">Model:</label>
+                        <select id="chatModelSelect" style="padding:6px 12px;border-radius:8px;border:1px solid var(--border-default);background:var(--bg-2);color:var(--text-100);font-size:12px;font-family:var(--mono);cursor:pointer;" onchange="localStorage.setItem('ls_chat_model',this.value)">
+                            <option value="auto">Auto (best available)</option>
+                        </select>
+                        <button onclick="clearChatHistory()" style="padding:6px 12px;border-radius:8px;border:1px solid var(--border-subtle);background:transparent;color:var(--text-400);font-size:11px;cursor:pointer;" title="Clear chat history">🗑️ Clear</button>
+                    </div>
                 </div>
                 
                 <!-- Chat Messages Area -->
@@ -2917,6 +2926,31 @@ function showChat() {
     // Update rail active state
     document.querySelectorAll('.rail-item').forEach(x => x.classList.remove('active'));
     document.getElementById('chatInput').focus();
+    // Populate model dropdown
+    loadChatModels();
+}
+
+async function loadChatModels() {
+    try {
+        const endpoint = window._ollamaEndpoint || '/api/ollama';
+        const resp = await fetch(endpoint + '/tags');
+        const data = await resp.json();
+        const select = document.getElementById('chatModelSelect');
+        const saved = localStorage.getItem('ls_chat_model') || 'auto';
+        let html = '<option value="auto">Auto (best available)</option>';
+        (data.models || []).forEach(m => {
+            const size = (m.size / 1e9).toFixed(1) + 'GB';
+            html += `<option value="${m.name}" ${m.name === saved ? 'selected' : ''}>${m.name} (${size})</option>`;
+        });
+        select.innerHTML = html;
+        if (saved !== 'auto') select.value = saved;
+    } catch (e) { /* ignore if Ollama not available */ }
+}
+
+function clearChatHistory() {
+    _chatHistory = [];
+    const container = document.getElementById('chatMessages');
+    container.innerHTML = `<div class="chat-msg assistant"><div class="chat-avatar">🤖</div><div class="chat-bubble">Chat cleared. Ask me anything!</div></div>`;
 }
 
 async function sendChat() {
@@ -2961,11 +2995,19 @@ Be concise and actionable. Give exact commands when possible. Use code blocks fo
         const tagsResp = await fetch(endpoint + '/tags');
         const tagsData = await tagsResp.json();
         const models = tagsData.models || [];
-        let model = models.find(m => m.name.includes('qwen3.5'))?.name
+        
+        // Use user-selected model or auto-detect best
+        const selectedModel = document.getElementById('chatModelSelect')?.value || 'auto';
+        let model;
+        if (selectedModel !== 'auto') {
+            model = selectedModel;
+        } else {
+            model = models.find(m => m.name.includes('qwen3.5'))?.name
                  || models.find(m => m.name.includes('gemma4'))?.name
                  || models.find(m => m.name.includes('qwen'))?.name
                  || models.find(m => m.name.includes('llama3'))?.name
                  || (models[0]?.name || 'qwen3.5:4b');
+        }
         
         const response = await fetch(endpoint + '/generate', {
             method: 'POST',
