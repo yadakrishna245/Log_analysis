@@ -93,6 +93,9 @@ def create_app(config_class=Config):
         # Ollama proxy — local AI, no customer data (only pattern names)
         if request.path.startswith('/api/ollama/'):
             return None
+        # Jira proxy — credentials passed per-request, no data stored server-side
+        if request.path.startswith('/api/jira/'):
+            return None
         if not request.path.startswith('/api/'):
             return None
             
@@ -179,6 +182,100 @@ def create_app(config_class=Config):
             return jsonify(r.json())
         except Exception as e:
             return jsonify({'error': str(e)}), 503
+
+    # ─── Jira API Proxy — avoids CORS, credentials passed per-request ────────
+    @app.route('/api/jira/ticket/<ticket_id>', methods=['POST'])
+    def jira_get_ticket(ticket_id):
+        """Proxy to Jira REST API to fetch ticket details. Credentials from request body."""
+        import requests as req
+        try:
+            data = request.get_json()
+            jira_url = data.get('jira_url', '').rstrip('/')
+            email = data.get('email', '')
+            api_token = data.get('api_token', '')
+
+            if not all([jira_url, email, api_token]):
+                return jsonify({'error': 'Missing Jira credentials (jira_url, email, api_token)'}), 400
+
+            # Fetch issue details
+            r = req.get(
+                f"{jira_url}/rest/api/2/issue/{ticket_id}",
+                auth=(email, api_token),
+                headers={'Accept': 'application/json'},
+                timeout=15
+            )
+            if r.status_code == 401:
+                return jsonify({'error': 'Authentication failed. Check your email and API token.'}), 401
+            if r.status_code == 404:
+                return jsonify({'error': f'Ticket {ticket_id} not found.'}), 404
+            if not r.ok:
+                return jsonify({'error': f'Jira API error: {r.status_code}'}), r.status_code
+
+            issue = r.json()
+            fields = issue.get('fields', {})
+
+            # Extract key info
+            result = {
+                'key': issue.get('key'),
+                'summary': fields.get('summary', ''),
+                'description': fields.get('description', ''),
+                'status': fields.get('status', {}).get('name', ''),
+                'priority': fields.get('priority', {}).get('name', ''),
+                'assignee': fields.get('assignee', {}).get('displayName', 'Unassigned') if fields.get('assignee') else 'Unassigned',
+                'reporter': fields.get('reporter', {}).get('displayName', '') if fields.get('reporter') else '',
+                'created': fields.get('created', ''),
+                'updated': fields.get('updated', ''),
+                'labels': fields.get('labels', []),
+                'components': [c.get('name', '') for c in fields.get('components', [])],
+                'attachments': [{'filename': a.get('filename'), 'size': a.get('size'), 'url': a.get('content')} for a in fields.get('attachment', [])],
+            }
+
+            # Fetch comments
+            comments_data = fields.get('comment', {}).get('comments', [])
+            result['comments'] = [{
+                'author': c.get('author', {}).get('displayName', ''),
+                'body': c.get('body', ''),
+                'created': c.get('created', ''),
+                'updated': c.get('updated', ''),
+            } for c in comments_data[-20:]]  # Last 20 comments
+
+            return jsonify(result)
+        except req.exceptions.Timeout:
+            return jsonify({'error': 'Jira request timed out. Check your Jira URL.'}), 504
+        except req.exceptions.ConnectionError:
+            return jsonify({'error': 'Cannot connect to Jira. Check your URL.'}), 502
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/api/jira/comment/<ticket_id>', methods=['POST'])
+    def jira_post_comment(ticket_id):
+        """Proxy to post a comment to a Jira ticket."""
+        import requests as req
+        try:
+            data = request.get_json()
+            jira_url = data.get('jira_url', '').rstrip('/')
+            email = data.get('email', '')
+            api_token = data.get('api_token', '')
+            comment_body = data.get('comment', '')
+
+            if not all([jira_url, email, api_token, comment_body]):
+                return jsonify({'error': 'Missing required fields'}), 400
+
+            r = req.post(
+                f"{jira_url}/rest/api/2/issue/{ticket_id}/comment",
+                auth=(email, api_token),
+                headers={'Accept': 'application/json', 'Content-Type': 'application/json'},
+                json={'body': comment_body},
+                timeout=15
+            )
+            if r.status_code == 401:
+                return jsonify({'error': 'Authentication failed.'}), 401
+            if not r.ok:
+                return jsonify({'error': f'Jira API error: {r.status_code} - {r.text[:200]}'}), r.status_code
+
+            return jsonify({'success': True, 'comment_id': r.json().get('id', '')})
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
 
     # Live system metrics for demo
     @app.route('/api/health/detailed', methods=['GET'])

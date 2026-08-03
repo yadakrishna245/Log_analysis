@@ -53,3 +53,4 @@ flask_stderr.log
 
 # Instance DBs
 instance/
+CHECKPOINT.md

@@ -124,7 +124,7 @@ flowchart TD
 
 ---
 
-## ✨ Features (23+)
+## ✨ Features (33+)
 
 ### Core Analysis
 | # | Feature | Description |
@@ -169,6 +169,89 @@ flowchart TD
 | 21 | **Runbooks** | 12 step-by-step investigation guides |
 | 22 | **HPE Branding** | Green logo and consistent brand identity |
 | 23 | **CloudFront CDN** | Zero-cold-start serverless deployment |
+
+### Jira Integration (NEW)
+| # | Feature | Description |
+|---|---------|-------------|
+| 24 | **Jira API Connect** | Configure Jira URL + email + API token (stored in browser localStorage only) |
+| 25 | **Fetch Ticket** | Enter ticket ID → pull description, comments, attachments, status |
+| 26 | **Post Comment to Jira** | One-click post RCA report or AI reply directly to Jira ticket |
+| 27 | **Use as Ticket Context** | Load fetched ticket into scanner for analysis |
+| 28 | **Jira AI Advisor** | Fetch ticket → Ask AI for Solution / Suggest where to look |
+| 29 | **Fill with RCA/Reply** | Auto-fill Jira comment box with generated RCA or AI reply |
+
+### AI Comment Reply (NEW)
+| # | Feature | Description |
+|---|---------|-------------|
+| 30 | **💬 Comment Reply Tab** | Paste a Jira comment → AI generates professional L4 engineer reply |
+| 31 | **4 Tone Modes** | Professional, Concise, Detailed Technical, Status Update |
+| 32 | **Context-Aware** | Uses scan results (RCA, findings) as context for better replies |
+| 33 | **Copy & Post** | One-click copy or post directly to Jira |
+
+---
+
+## 🔄 Jira Integration Workflow
+
+```mermaid
+flowchart TD
+    subgraph BROWSER["🖥️ Browser (localStorage)"]
+        A[Jira URL + Email + API Token<br/>Stored in localStorage only]
+    end
+
+    subgraph LOGSHERLOCK["🔍 LogSherlock Pro"]
+        B[🎫 Jira Settings Page]
+        C[📥 Fetch Ticket]
+        D[🧭 Suggest where to look]
+        E[🤖 Ask AI for Solution]
+        F[📤 Post Comment to Jira]
+        G[💬 Comment Reply Generator]
+    end
+
+    subgraph JIRA["🎫 Jira (via API Proxy)"]
+        H[GET /rest/api/2/issue/{id}]
+        I[POST /rest/api/2/issue/{id}/comment]
+    end
+
+    subgraph OLLAMA["💻 Local Ollama"]
+        J[AI Analysis<br/>qwen3.5 / llama3]
+    end
+
+    A --> B
+    B --> C
+    C -->|Ticket ID + Creds| H
+    H -->|Description, Comments, Attachments| C
+    C --> D
+    C --> E
+    E -->|Pattern names + description| J
+    J -->|Root cause + actions| E
+    E --> F
+    G --> F
+    F -->|Comment text + Creds| I
+    I -->|✅ Posted| F
+
+    style BROWSER fill:#e8f5e9,stroke:#2e7d32
+    style LOGSHERLOCK fill:#e3f2fd,stroke:#1565c0
+    style JIRA fill:#fff3e0,stroke:#e65100
+    style OLLAMA fill:#f3e5f5,stroke:#6a1b9a
+```
+
+### Comment Reply Flow
+
+```mermaid
+flowchart LR
+    A[📥 Receive Jira Comment] --> B[Paste into Comment Reply tab]
+    B --> C[Select Tone<br/>Professional / Concise /<br/>Detailed / Status Update]
+    C --> D[🤖 Local Ollama<br/>Generates reply using<br/>scan results as context]
+    D --> E[📋 Copy Reply]
+    E --> F[📤 Post to Jira<br/>or paste manually]
+
+    style A fill:#fff3e0,stroke:#e65100
+    style B fill:#e3f2fd,stroke:#1565c0
+    style C fill:#e8f5e9,stroke:#2e7d32
+    style D fill:#f3e5f5,stroke:#6a1b9a
+    style E fill:#e3f2fd,stroke:#1565c0
+    style F fill:#fff3e0,stroke:#e65100
+```
 
 ---
 
@@ -340,6 +423,10 @@ flowchart LR
 | `GET` | `/api/knowledge/issues` | List all 66 known issues | No user data |
 | `GET` | `/api/knowledge/runbooks` | List all 12 runbooks | No user data |
 | `POST` | `/api/analyze` | Server-side analysis (optional) | Full logs (server mode) |
+| `POST` | `/api/jira/ticket/{id}` | Fetch Jira ticket details (proxy) | Creds per-request, not stored |
+| `POST` | `/api/jira/comment/{id}` | Post comment to Jira ticket (proxy) | Creds per-request, not stored |
+| `GET` | `/api/ollama/tags` | Check available local AI models | No user data |
+| `POST` | `/api/ollama/generate` | Generate AI response (proxy to localhost) | Pattern names only |
 
 ### Example: Fetch Patterns
 ```bash

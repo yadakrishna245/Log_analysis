@@ -412,6 +412,12 @@
             <span id="ollamaStatusDot" style="position:absolute;top:6px;right:6px;width:8px;height:8px;border-radius:50%;background:#71717a;border:2px solid var(--bg-1);"></span>
         </div>
 
+        <!-- Jira Integration -->
+        <div class="rail-item" id="jiraNavItem" onclick="showPage('jira-settings')" tabindex="0" title="Jira Integration" style="position:relative;">
+            <span style="font-size:16px;">🎫</span>
+            <span id="jiraStatusDot" style="position:absolute;top:6px;right:6px;width:8px;height:8px;border-radius:50%;background:#71717a;border:2px solid var(--bg-1);"></span>
+        </div>
+
         <!-- Quick Reference Docs -->
         <div class="rail-item" onclick="toggleQuickRef()" tabindex="0" title="Quick Reference Commands">
             <span style="font-size:16px;">📚</span>
@@ -684,6 +690,82 @@
                     </div>
                     <div class="pg-title">Runbooks</div><div class="pg-desc">Step-by-step investigation guides for junior and senior engineers.</div></div>
                 <div id="runbooksList"></div>
+            </div>
+
+            <!-- JIRA INTEGRATION PAGE -->
+            <div id="page-jira-settings" class="page">
+                <div class="pg-header">
+                    <div class="pg-title">🎫 Jira Integration</div>
+                    <div class="pg-desc">Optional — Connect to your Jira instance to fetch tickets and post comments directly. Credentials stored in your browser only (localStorage).</div>
+                </div>
+
+                <!-- Jira Settings Form -->
+                <div style="background:var(--bg-2);border:1px solid var(--border-default);border-radius:12px;padding:24px;margin-bottom:20px;">
+                    <div style="font-size:14px;font-weight:600;color:var(--text-100);margin-bottom:16px;">⚙️ Jira Credentials</div>
+                    <div style="display:flex;flex-direction:column;gap:12px;">
+                        <div>
+                            <label style="font-size:11px;font-weight:500;color:var(--text-400);text-transform:uppercase;letter-spacing:0.05em;">Jira URL</label>
+                            <input type="text" id="jiraUrl" placeholder="https://your-company.atlassian.net" style="width:100%;margin-top:4px;padding:10px 14px;background:var(--bg-0);border:1px solid var(--border-default);border-radius:8px;font-size:13px;color:var(--text-200);font-family:var(--mono);">
+                        </div>
+                        <div>
+                            <label style="font-size:11px;font-weight:500;color:var(--text-400);text-transform:uppercase;letter-spacing:0.05em;">Email</label>
+                            <input type="email" id="jiraEmail" placeholder="your.name@company.com" style="width:100%;margin-top:4px;padding:10px 14px;background:var(--bg-0);border:1px solid var(--border-default);border-radius:8px;font-size:13px;color:var(--text-200);font-family:var(--sans);">
+                        </div>
+                        <div>
+                            <label style="font-size:11px;font-weight:500;color:var(--text-400);text-transform:uppercase;letter-spacing:0.05em;">API Token <a href="https://id.atlassian.com/manage-profile/security/api-tokens" target="_blank" style="color:var(--hpe-green);font-size:10px;text-decoration:none;">(Generate here ↗)</a></label>
+                            <input type="password" id="jiraToken" placeholder="Your Jira API token" style="width:100%;margin-top:4px;padding:10px 14px;background:var(--bg-0);border:1px solid var(--border-default);border-radius:8px;font-size:13px;color:var(--text-200);font-family:var(--mono);">
+                        </div>
+                        <div style="display:flex;gap:10px;margin-top:8px;">
+                            <button class="btn" onclick="saveJiraSettings()" style="background:var(--hpe-green);">💾 Save Settings</button>
+                            <button class="btn-ghost" onclick="testJiraConnection()">🔌 Test Connection</button>
+                            <button class="btn-ghost" style="border-color:#ef4444;color:#ef4444;" onclick="clearJiraSettings()">🗑️ Clear</button>
+                        </div>
+                        <div id="jiraSettingsStatus" style="font-size:12px;color:var(--text-400);margin-top:4px;display:none;"></div>
+                    </div>
+                    <div style="margin-top:16px;padding:12px;background:var(--bg-0);border-radius:8px;border:1px solid var(--border-subtle);">
+                        <div style="font-size:11px;color:var(--text-400);line-height:1.7;">
+                            🔒 <strong>Privacy:</strong> Credentials stored in browser localStorage only. Never sent to our servers. Jira API calls are proxied through the app to avoid CORS — your token is used per-request and not stored server-side.<br>
+                            💡 <strong>Tip:</strong> Generate a PAT (Personal Access Token) from Jira — it works without SSO/Okta push notification for API calls.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Fetch Ticket Section -->
+                <div style="background:var(--bg-2);border:1px solid var(--border-default);border-radius:12px;padding:24px;margin-bottom:20px;">
+                    <div style="font-size:14px;font-weight:600;color:var(--text-100);margin-bottom:16px;">📥 Fetch Ticket</div>
+                    <div style="display:flex;gap:10px;align-items:center;">
+                        <input type="text" id="jiraTicketId" placeholder="VMESUPP-12345" style="flex:1;padding:10px 14px;background:var(--bg-0);border:1px solid var(--border-default);border-radius:8px;font-size:13px;color:var(--text-200);font-family:var(--mono);">
+                        <button class="btn" onclick="fetchJiraTicket()" style="background:var(--hpe-green);white-space:nowrap;">📥 Fetch</button>
+                    </div>
+                    <div id="jiraTicketResult" style="display:none;margin-top:16px;"></div>
+                    <div id="jiraTicketActions" style="display:none;margin-top:16px;gap:10px;flex-wrap:wrap;">
+                        <button class="btn-ghost" onclick="jiraGetAdvice()">🧭 Suggest where to look</button>
+                        <button class="btn-ghost" style="border-color:#8b5cf6;color:#8b5cf6;" onclick="jiraAskAI()">🤖 Ask AI for Solution</button>
+                    </div>
+                    <div id="jiraAdvisorPanel" style="display:none;background:var(--bg-0);border:1px solid var(--border-default);border-radius:10px;padding:20px;margin-top:16px;">
+                        <div style="font-size:13px;font-weight:500;color:var(--text-100);margin-bottom:12px;">🧭 Investigation Guide</div>
+                        <div id="jiraAdvisorContent" style="font-size:12px;color:var(--text-200);line-height:1.8;white-space:pre-wrap;"></div>
+                    </div>
+                    <div id="jiraAIPanel" style="display:none;background:var(--bg-0);border:1px solid #8b5cf6;border-left:4px solid #8b5cf6;border-radius:10px;padding:20px;margin-top:16px;">
+                        <div style="font-size:13px;font-weight:600;color:#8b5cf6;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:10px;display:flex;align-items:center;gap:8px;">🤖 AI Analysis <span style="font-size:10px;font-weight:400;color:var(--text-400);text-transform:none;">(Local Ollama)</span></div>
+                        <div id="jiraAIContent" style="font-size:13px;color:var(--text-200);line-height:1.8;white-space:pre-wrap;"></div>
+                    </div>
+                </div>
+
+                <!-- Post Comment Section -->
+                <div style="background:var(--bg-2);border:1px solid var(--border-default);border-radius:12px;padding:24px;">
+                    <div style="font-size:14px;font-weight:600;color:var(--text-100);margin-bottom:16px;">📤 Post Comment to Ticket</div>
+                    <div style="display:flex;flex-direction:column;gap:12px;">
+                        <input type="text" id="jiraPostTicketId" placeholder="Ticket ID (e.g., VMESUPP-12345)" style="padding:10px 14px;background:var(--bg-0);border:1px solid var(--border-default);border-radius:8px;font-size:13px;color:var(--text-200);font-family:var(--mono);">
+                        <textarea id="jiraCommentBody" placeholder="Type your comment here, or click a button below to auto-fill with RCA/Reply..." style="min-height:120px;padding:14px;background:var(--bg-0);border:1px solid var(--border-default);border-radius:8px;font-size:13px;color:var(--text-200);font-family:var(--sans);resize:vertical;line-height:1.6;"></textarea>
+                        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                            <button class="btn-ghost" onclick="fillWithRCA()" style="font-size:11px;">📋 Fill with RCA Report</button>
+                            <button class="btn-ghost" onclick="fillWithReply()" style="font-size:11px;">💬 Fill with AI Reply</button>
+                        </div>
+                        <button class="btn" onclick="postJiraComment()" style="background:#8b5cf6;align-self:flex-start;">📤 Post Comment to Jira</button>
+                        <div id="jiraPostStatus" style="font-size:12px;color:var(--text-400);display:none;"></div>
+                    </div>
+                </div>
             </div>
 
             <!-- AI CHAT PAGE -->
@@ -3072,6 +3154,356 @@ function appendChatMessage(role, content, isHTML = false) {
     container.scrollTop = container.scrollHeight;
     return id;
 }
+
+// ─── Jira Integration ───────────────────────────────────────────────────────
+function getJiraCreds() {
+    return {
+        jira_url: localStorage.getItem('ls_jira_url') || '',
+        email: localStorage.getItem('ls_jira_email') || '',
+        api_token: localStorage.getItem('ls_jira_token') || ''
+    };
+}
+
+function saveJiraSettings() {
+    const url = document.getElementById('jiraUrl').value.trim();
+    const email = document.getElementById('jiraEmail').value.trim();
+    const token = document.getElementById('jiraToken').value.trim();
+
+    if (!url || !email || !token) {
+        showJiraStatus('jiraSettingsStatus', '❌ All fields are required.', '#ef4444');
+        return;
+    }
+
+    localStorage.setItem('ls_jira_url', url);
+    localStorage.setItem('ls_jira_email', email);
+    localStorage.setItem('ls_jira_token', token);
+    showJiraStatus('jiraSettingsStatus', '✅ Settings saved to browser localStorage.', 'var(--hpe-green)');
+    updateJiraStatusDot(true);
+}
+
+function clearJiraSettings() {
+    localStorage.removeItem('ls_jira_url');
+    localStorage.removeItem('ls_jira_email');
+    localStorage.removeItem('ls_jira_token');
+    document.getElementById('jiraUrl').value = '';
+    document.getElementById('jiraEmail').value = '';
+    document.getElementById('jiraToken').value = '';
+    showJiraStatus('jiraSettingsStatus', '🗑️ Credentials cleared.', 'var(--text-400)');
+    updateJiraStatusDot(false);
+}
+
+function loadJiraSettings() {
+    const creds = getJiraCreds();
+    try {
+        const urlEl = document.getElementById('jiraUrl');
+        const emailEl = document.getElementById('jiraEmail');
+        const tokenEl = document.getElementById('jiraToken');
+        if (urlEl && creds.jira_url) urlEl.value = creds.jira_url;
+        if (emailEl && creds.email) emailEl.value = creds.email;
+        if (tokenEl && creds.api_token) tokenEl.value = creds.api_token;
+    } catch(e) {}
+    updateJiraStatusDot(!!creds.api_token);
+}
+
+function updateJiraStatusDot(connected) {
+    const dot = document.getElementById('jiraStatusDot');
+    if (dot) dot.style.background = connected ? '#01A982' : '#71717a';
+}
+
+async function testJiraConnection() {
+    const creds = getJiraCreds();
+    if (!creds.jira_url || !creds.email || !creds.api_token) {
+        showJiraStatus('jiraSettingsStatus', '❌ Save settings first.', '#ef4444');
+        return;
+    }
+    showJiraStatus('jiraSettingsStatus', '🔌 Testing connection...', 'var(--text-400)');
+
+    try {
+        const r = await fetch('/api/jira/ticket/TEST-1', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(creds)
+        });
+        const data = await r.json();
+        if (r.status === 401) {
+            showJiraStatus('jiraSettingsStatus', '❌ Auth failed. Check email & API token.', '#ef4444');
+        } else if (r.status === 404) {
+            showJiraStatus('jiraSettingsStatus', '✅ Connected! (TEST-1 not found, but auth works)', 'var(--hpe-green)');
+            updateJiraStatusDot(true);
+        } else if (r.ok) {
+            showJiraStatus('jiraSettingsStatus', '✅ Connected successfully!', 'var(--hpe-green)');
+            updateJiraStatusDot(true);
+        } else {
+            showJiraStatus('jiraSettingsStatus', '❌ ' + (data.error || 'Connection failed'), '#ef4444');
+        }
+    } catch (err) {
+        showJiraStatus('jiraSettingsStatus', '❌ Network error: ' + err.message, '#ef4444');
+    }
+}
+
+async function fetchJiraTicket() {
+    const ticketId = document.getElementById('jiraTicketId').value.trim();
+    if (!ticketId) { alert('Enter a ticket ID'); return; }
+
+    const creds = getJiraCreds();
+    if (!creds.api_token) { alert('Configure Jira settings first (click 🎫 in sidebar)'); return; }
+
+    const resultDiv = document.getElementById('jiraTicketResult');
+    resultDiv.style.display = 'block';
+    resultDiv.innerHTML = '<div style="color:var(--text-400);">📥 Fetching ticket...</div>';
+
+    try {
+        const r = await fetch(`/api/jira/ticket/${encodeURIComponent(ticketId)}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(creds)
+        });
+        const data = await r.json();
+
+        if (!r.ok) {
+            resultDiv.innerHTML = `<div style="color:#ef4444;">❌ ${escapeHtml(data.error || 'Failed to fetch')}</div>`;
+            return;
+        }
+
+        let html = `<div style="border:1px solid var(--border-default);border-radius:8px;padding:16px;background:var(--bg-0);">`;
+        html += `<div style="font-size:14px;font-weight:600;color:var(--hpe-green);margin-bottom:8px;">${escapeHtml(data.key)} — ${escapeHtml(data.summary)}</div>`;
+        html += `<div style="display:flex;gap:16px;flex-wrap:wrap;font-size:11px;color:var(--text-400);margin-bottom:12px;">`;
+        html += `<span>Status: <strong style="color:var(--text-200)">${escapeHtml(data.status)}</strong></span>`;
+        html += `<span>Priority: <strong style="color:var(--text-200)">${escapeHtml(data.priority || 'N/A')}</strong></span>`;
+        html += `<span>Assignee: <strong style="color:var(--text-200)">${escapeHtml(data.assignee)}</strong></span>`;
+        html += `</div>`;
+
+        if (data.description) {
+            html += `<div style="font-size:11px;font-weight:500;color:var(--text-400);margin-bottom:4px;">DESCRIPTION</div>`;
+            html += `<div style="font-size:12px;color:var(--text-200);line-height:1.6;max-height:200px;overflow-y:auto;white-space:pre-wrap;background:var(--bg-2);padding:12px;border-radius:6px;margin-bottom:12px;">${escapeHtml(data.description)}</div>`;
+        }
+
+        if (data.comments && data.comments.length > 0) {
+            html += `<div style="font-size:11px;font-weight:500;color:var(--text-400);margin-bottom:8px;">COMMENTS (${data.comments.length})</div>`;
+            data.comments.slice(-5).forEach(c => {
+                const date = new Date(c.created).toLocaleDateString();
+                html += `<div style="border-left:3px solid var(--border-default);padding:8px 12px;margin-bottom:8px;background:var(--bg-2);border-radius:0 6px 6px 0;">`;
+                html += `<div style="font-size:10px;color:var(--text-400);margin-bottom:4px;"><strong>${escapeHtml(c.author)}</strong> · ${date}</div>`;
+                html += `<div style="font-size:12px;color:var(--text-200);white-space:pre-wrap;line-height:1.5;">${escapeHtml(c.body.substring(0, 500))}${c.body.length > 500 ? '...' : ''}</div>`;
+                html += `</div>`;
+            });
+        }
+
+        if (data.attachments && data.attachments.length > 0) {
+            html += `<div style="font-size:11px;font-weight:500;color:var(--text-400);margin-top:8px;">ATTACHMENTS (${data.attachments.length})</div>`;
+            data.attachments.forEach(a => {
+                const sizeMB = (a.size / (1024*1024)).toFixed(1);
+                html += `<div style="font-size:11px;color:var(--text-300);margin-top:4px;">📎 ${escapeHtml(a.filename)} (${sizeMB} MB)</div>`;
+            });
+        }
+
+        html += `</div>`;
+        html += `<div style="display:flex;gap:8px;margin-top:12px;">`;
+        html += `<button class="btn-ghost" style="font-size:11px" onclick="useTicketAsContext()">📋 Use as Ticket Context</button>`;
+        html += `<button class="btn-ghost" style="font-size:11px" onclick="document.getElementById('jiraPostTicketId').value='${escapeHtml(data.key)}'">📤 Set as Post Target</button>`;
+        html += `</div>`;
+
+        resultDiv.innerHTML = html;
+        window._lastJiraTicket = data;
+        document.getElementById('jiraTicketActions').style.display = 'flex';
+
+    } catch (err) {
+        resultDiv.innerHTML = `<div style="color:#ef4444;">❌ Error: ${escapeHtml(err.message)}</div>`;
+    }
+}
+
+function useTicketAsContext() {
+    if (window._lastJiraTicket) {
+        const t = window._lastJiraTicket;
+        let ctx = `[${t.key}] ${t.summary}\n\n${t.description || ''}`;
+        if (t.comments && t.comments.length > 0) {
+            ctx += '\n\n--- Latest Comments ---\n';
+            t.comments.slice(-3).forEach(c => {
+                ctx += `\n[${c.author}]: ${c.body.substring(0, 300)}\n`;
+            });
+        }
+        document.getElementById('ticketContext').value = ctx;
+        showPage('analyze');
+        flash('Ticket loaded into context — ready to scan or analyze');
+    }
+}
+
+async function postJiraComment() {
+    const ticketId = document.getElementById('jiraPostTicketId').value.trim();
+    const comment = document.getElementById('jiraCommentBody').value.trim();
+
+    if (!ticketId) { alert('Enter a ticket ID'); return; }
+    if (!comment) { alert('Enter a comment to post'); return; }
+
+    const creds = getJiraCreds();
+    if (!creds.api_token) { alert('Configure Jira settings first'); return; }
+
+    const statusDiv = document.getElementById('jiraPostStatus');
+    statusDiv.style.display = 'block';
+    statusDiv.style.color = 'var(--text-400)';
+    statusDiv.textContent = '📤 Posting comment...';
+
+    try {
+        const r = await fetch(`/api/jira/comment/${encodeURIComponent(ticketId)}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({...creds, comment: comment})
+        });
+        const data = await r.json();
+
+        if (r.ok && data.success) {
+            statusDiv.style.color = 'var(--hpe-green)';
+            statusDiv.textContent = `✅ Comment posted to ${ticketId} successfully!`;
+        } else {
+            statusDiv.style.color = '#ef4444';
+            statusDiv.textContent = `❌ ${data.error || 'Failed to post'}`;
+        }
+    } catch (err) {
+        statusDiv.style.color = '#ef4444';
+        statusDiv.textContent = `❌ Error: ${err.message}`;
+    }
+}
+
+function fillWithRCA() {
+    const rca = document.getElementById('jiraReportRaw')?.value || '';
+    if (!rca) { alert('Run a scan first to generate an RCA report'); return; }
+    document.getElementById('jiraCommentBody').value = rca;
+    flash('RCA report loaded');
+}
+
+function fillWithReply() {
+    const reply = document.getElementById('replyContent')?.innerText || '';
+    if (!reply) { alert('Generate a comment reply first (scan → Comment Reply tab)'); return; }
+    document.getElementById('jiraCommentBody').value = reply;
+    flash('AI reply loaded');
+}
+
+function showJiraStatus(elementId, message, color) {
+    const el = document.getElementById(elementId);
+    el.style.display = 'block';
+    el.style.color = color;
+    el.textContent = message;
+}
+
+async function jiraGetAdvice() {
+    if (!window._lastJiraTicket) { alert('Fetch a ticket first'); return; }
+    const t = window._lastJiraTicket;
+    const desc = `${t.summary}\n\n${t.description || ''}`;
+    if (!desc.trim()) { alert('Ticket has no description'); return; }
+
+    const panel = document.getElementById('jiraAdvisorPanel');
+    const content = document.getElementById('jiraAdvisorContent');
+    panel.style.display = 'block';
+    content.innerHTML = '<span style="color:var(--text-400);">🧭 Analyzing ticket...</span>';
+
+    try {
+        const r = await fetch('/api/advisor', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({description: desc})
+        });
+        const data = await r.json();
+        if (r.ok) {
+            let html = '';
+            if (data.summary) html += `<div style="color:var(--hpe-green);font-weight:500;margin-bottom:12px;">${escapeHtml(data.summary)}</div>`;
+            if (data.suggested_files && data.suggested_files.length) {
+                html += '<div style="font-weight:500;margin-bottom:8px;">📂 Files to check:</div>';
+                data.suggested_files.forEach(f => {
+                    html += `<div style="margin-left:12px;margin-bottom:4px;font-family:var(--mono);font-size:11px;">• ${escapeHtml(f)}</div>`;
+                });
+            }
+            if (data.steps && data.steps.length) {
+                html += '<div style="font-weight:500;margin-top:12px;margin-bottom:8px;">🔍 Investigation steps:</div>';
+                data.steps.forEach((s, i) => {
+                    html += `<div style="margin-left:12px;margin-bottom:4px;">${i+1}. ${escapeHtml(s)}</div>`;
+                });
+            }
+            if (data.keywords && data.keywords.length) {
+                html += `<div style="margin-top:12px;font-size:11px;color:var(--text-400);">Keywords: ${data.keywords.join(', ')}</div>`;
+            }
+            content.innerHTML = html || '<div>No specific suggestions available for this ticket.</div>';
+        } else {
+            content.innerHTML = `<span style="color:#ef4444;">❌ ${escapeHtml(data.error || 'Failed')}</span>`;
+        }
+    } catch (err) {
+        content.innerHTML = `<span style="color:#ef4444;">❌ ${escapeHtml(err.message)}</span>`;
+    }
+}
+
+async function jiraAskAI() {
+    if (!window._lastJiraTicket) { alert('Fetch a ticket first'); return; }
+    if (!_ollamaAvailable) {
+        alert('Ollama not detected.\n\nSetup:\n1. Install Ollama: ollama.com/download\n2. Run: ollama pull qwen3.5:4b\n3. Enable in browser flags (click 🤖 icon in sidebar for instructions)');
+        return;
+    }
+
+    const t = window._lastJiraTicket;
+    const desc = `[${t.key}] ${t.summary}\n\n${t.description || ''}`;
+
+    const panel = document.getElementById('jiraAIPanel');
+    const content = document.getElementById('jiraAIContent');
+    panel.style.display = 'block';
+    content.innerHTML = '<div style="color:var(--text-400);display:flex;align-items:center;gap:8px"><div style="width:14px;height:14px;border:2px solid #8b5cf6;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite"></div> Analyzing with local AI...</div>';
+
+    const prompt = `You are an expert HPE VM Essentials (VME) L4 support engineer.
+
+A support ticket has been raised:
+Ticket: ${t.key}
+Summary: ${t.summary}
+Status: ${t.status}
+Priority: ${t.priority || 'N/A'}
+
+Description:
+"""
+${(t.description || 'No description provided').substring(0, 2000)}
+"""
+
+${t.comments && t.comments.length > 0 ? 'Latest comments:\n' + t.comments.slice(-3).map(c => `[${c.author}]: ${c.body.substring(0, 300)}`).join('\n') : ''}
+
+Provide:
+1. **Most Likely Root Cause** (1-2 sentences, be specific)
+2. **Immediate Actions** (3-5 numbered steps with exact commands)
+3. **Files to Check** (list specific log file paths)
+4. **Risk if Not Fixed** (what happens if ignored)
+5. **Similar Known Issues** (any patterns you recognize)
+
+Be concise, actionable, and use HPE VME terminology.`;
+
+    try {
+        const endpoint = window._ollamaEndpoint || '/api/ollama';
+        const tagsResp = await fetch(endpoint + '/tags');
+        const tagsData = await tagsResp.json();
+        const models = tagsData.models || [];
+        let model = models.find(m => m.name.includes('qwen3.5'))?.name
+                 || models.find(m => m.name.includes('gemma4'))?.name
+                 || models.find(m => m.name.includes('qwen'))?.name
+                 || models.find(m => m.name.includes('llama3'))?.name
+                 || models.find(m => m.name.includes('mistral'))?.name
+                 || (models[0]?.name || 'qwen3.5:4b');
+
+        const response = await fetch(endpoint + '/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: model,
+                prompt: prompt,
+                stream: false,
+                options: { temperature: 0.3, num_predict: 800 }
+            })
+        });
+
+        if (!response.ok) throw new Error('Ollama error: ' + response.status);
+        const result = await response.json();
+        const aiText = result.response || 'No response from model.';
+
+        content.innerHTML = `<div style="margin-bottom:8px;font-size:11px;color:var(--text-400)">Model: <strong>${model}</strong> · ${(result.total_duration / 1e9).toFixed(1)}s</div><div style="white-space:pre-wrap;line-height:1.8;">${escapeHtml(aiText)}</div><div style="margin-top:12px;display:flex;gap:8px;"><button class="btn-ghost" style="font-size:11px" onclick="navigator.clipboard.writeText(document.getElementById('jiraAIContent').innerText).then(()=>flash('Copied'))">📋 Copy</button><button class="btn-ghost" style="font-size:11px" onclick="document.getElementById('jiraCommentBody').value=document.getElementById('jiraAIContent').innerText;flash('Loaded into comment box')">📤 Use as Comment</button><button class="btn-ghost" style="font-size:11px" onclick="jiraAskAI()">🔄 Regenerate</button></div>`;
+    } catch (err) {
+        content.innerHTML = `<div style="color:#ef4444;">❌ ${escapeHtml(err.message)}</div>`;
+    }
+}
+
+// Load Jira settings on page init
+setTimeout(loadJiraSettings, 200);
 </script>
 </body>
 </html>
