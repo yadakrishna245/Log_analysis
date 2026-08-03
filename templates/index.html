@@ -2547,11 +2547,14 @@ Be specific, actionable, and concise. Use HPE VME terminology.`;
         const tagsData = await tagsResp.json();
         const models = tagsData.models || [];
         // Prefer llama3.1, then llama3, then any model
-        let model = models.find(m => m.name.includes('llama3.1'))?.name
+        let model = models.find(m => m.name.includes('qwen3.5'))?.name
+                 || models.find(m => m.name.includes('gemma4'))?.name
+                 || models.find(m => m.name.includes('qwen'))?.name
+                 || models.find(m => m.name.includes('llama3.1'))?.name
                  || models.find(m => m.name.includes('llama3'))?.name
                  || models.find(m => m.name.includes('mistral'))?.name
                  || models.find(m => m.name.includes('gemma'))?.name
-                 || (models[0]?.name || 'llama3.1:8b');
+                 || (models[0]?.name || 'qwen3.5:4b');
 
         const response = await fetch((window._ollamaEndpoint || OLLAMA_URL) + '/generate', {
             method: 'POST',
@@ -2635,9 +2638,12 @@ Be concise, actionable, and use HPE VME terminology. Give exact Linux commands.`
         const tagsResp = await fetch(endpoint + '/tags');
         const tagsData = await tagsResp.json();
         const models = tagsData.models || [];
-        let model = models.find(m => m.name.includes('llama3'))?.name
+        let model = models.find(m => m.name.includes('qwen3.5'))?.name
+                 || models.find(m => m.name.includes('gemma4'))?.name
+                 || models.find(m => m.name.includes('qwen'))?.name
+                 || models.find(m => m.name.includes('llama3'))?.name
                  || models.find(m => m.name.includes('mistral'))?.name
-                 || (models[0]?.name || 'llama3.2:3b');
+                 || (models[0]?.name || 'qwen3.5:4b');
 
         const response = await fetch(endpoint + '/generate', {
             method: 'POST',
