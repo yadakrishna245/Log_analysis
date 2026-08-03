@@ -493,7 +493,16 @@
                 <div class="context-area">
                     <div class="context-label">Ticket context</div>
                     <textarea class="context-textarea" id="ticketContext" placeholder="Paste full Jira ticket description here to focus the analysis and improve Jira report output..."></textarea>
-                    <button class="btn-ghost" style="margin-top:8px" onclick="getAdvice()">🧭 Suggest where to look</button>
+                    <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;">
+                        <button class="btn-ghost" onclick="getAdvice()">🧭 Suggest where to look</button>
+                        <button class="btn-ghost" style="border-color:#8b5cf6;color:#8b5cf6;" onclick="askOllamaTicket()">🤖 Ask AI for Solution</button>
+                    </div>
+                </div>
+
+                <!-- AI Ticket Analysis Panel -->
+                <div id="aiTicketPanel" style="display:none;background:var(--bg-2);border:1px solid #8b5cf6;border-left:4px solid #8b5cf6;border-radius:10px;padding:20px;margin-bottom:24px;">
+                    <div style="font-size:13px;font-weight:600;color:#8b5cf6;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:10px;display:flex;align-items:center;gap:8px;">🤖 AI Analysis <span style="font-size:10px;font-weight:400;color:var(--text-400);text-transform:none;">(Local Ollama — no data leaves your machine)</span></div>
+                    <div id="aiTicketContent" style="font-size:14px;color:var(--text-200);line-height:1.8;white-space:pre-wrap;"></div>
                 </div>
 
                 <div id="advisorPanel" style="display:none;background:var(--bg-2);border:1px solid var(--border-default);border-radius:10px;padding:20px;margin-bottom:24px;">
@@ -2582,6 +2591,73 @@ Be specific, actionable, and concise. Use HPE VME terminology.`;
 
     btn.disabled = false;
     btn.textContent = '✨ Generate AI Summary';
+}
+
+// ═══ ASK AI FOR TICKET SOLUTION (No logs needed) ═══════════════════
+async function askOllamaTicket() {
+    const desc = document.getElementById('ticketContext').value.trim();
+    if (!desc) { alert('Paste a Jira ticket description first'); return; }
+    if (!_ollamaAvailable) {
+        alert('Ollama not detected.\n\nSetup:\n1. Install Ollama: ollama.com/download\n2. Run: ollama pull llama3.2:3b\n3. Enable in browser flags (click 🤖 icon in sidebar for instructions)');
+        return;
+    }
+
+    const panel = document.getElementById('aiTicketPanel');
+    const content = document.getElementById('aiTicketContent');
+    panel.style.display = 'block';
+    content.innerHTML = '<div style="color:var(--text-400);display:flex;align-items:center;gap:8px"><div style="width:14px;height:14px;border:2px solid #8b5cf6;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite"></div> Analyzing ticket with local AI...</div>';
+
+    const prompt = `You are an expert HPE VM Essentials (VME) L4 support engineer with deep knowledge of:
+- Pacemaker/Corosync clusters
+- GFS2 shared filesystems & DLM
+- KVM/libvirt virtualization
+- SCSI multipath storage (Alletra, Nimble)
+- Morpheus platform
+- Linux networking (iptables, netplan, bonds)
+
+A support ticket has been raised with this description:
+
+"""
+${desc}
+"""
+
+Provide:
+1. **Most Likely Root Cause** (1-2 sentences, be specific)
+2. **Immediate Actions** (3-5 numbered steps with exact commands)
+3. **Files to Check** (list specific log file paths)
+4. **Risk if Not Fixed** (what happens if ignored)
+5. **Similar Known Issues** (any patterns you recognize)
+
+Be concise, actionable, and use HPE VME terminology. Give exact Linux commands.`;
+
+    try {
+        const endpoint = window._ollamaEndpoint || '/api/ollama';
+        const tagsResp = await fetch(endpoint + '/tags');
+        const tagsData = await tagsResp.json();
+        const models = tagsData.models || [];
+        let model = models.find(m => m.name.includes('llama3'))?.name
+                 || models.find(m => m.name.includes('mistral'))?.name
+                 || (models[0]?.name || 'llama3.2:3b');
+
+        const response = await fetch(endpoint + '/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: model,
+                prompt: prompt,
+                stream: false,
+                options: { temperature: 0.3, num_predict: 800 }
+            })
+        });
+
+        if (!response.ok) throw new Error('Ollama returned error: ' + response.status);
+        const result = await response.json();
+        const aiText = result.response || 'No response from model.';
+
+        content.innerHTML = `<div style="margin-bottom:8px;font-size:11px;color:var(--text-400)">Model: <strong>${model}</strong> · ${(result.total_duration / 1e9).toFixed(1)}s · Local AI</div><div style="white-space:pre-wrap;line-height:1.8;">${escapeHtml(aiText)}</div><div style="margin-top:12px;display:flex;gap:8px;"><button class="btn-ghost" style="font-size:11px" onclick="navigator.clipboard.writeText(document.getElementById('aiTicketContent').innerText).then(()=>this.textContent='✓ Copied')">📋 Copy</button><button class="btn-ghost" style="font-size:11px" onclick="askOllamaTicket()">🔄 Regenerate</button></div>`;
+    } catch (err) {
+        content.innerHTML = `<div style="color:#ef4444;">❌ Error: ${escapeHtml(err.message)}</div>`;
+    }
 }
 
 function escapeHtml(text) {
