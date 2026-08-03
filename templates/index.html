@@ -668,10 +668,10 @@
             <div style="color:var(--hpe-green);">https://ollama.com/download</div>
             <br>
             <div style="color:var(--text-400);margin-bottom:4px;"># Step 2: Pull model (16GB RAM)</div>
-            <div style="color:var(--hpe-green);">ollama pull llama3.2:3b</div>
+            <div style="color:var(--hpe-green);">ollama pull qwen3.5:4b</div>
             <br>
             <div style="color:var(--text-400);margin-bottom:4px;"># Step 2: Pull model (32GB RAM)</div>
-            <div style="color:var(--hpe-green);">ollama pull llama3.1:8b</div>
+            <div style="color:var(--hpe-green);">ollama pull qwen3.5:9b</div>
         </div>
 
         <div style="font-weight:600;color:var(--text-100);margin-bottom:6px;font-size:13px;">🌐 Enable on CloudFront (one-time)</div>
@@ -2507,7 +2507,7 @@ _aiObserver.observe(document.getElementById('results'), { attributes: true, attr
 
 async function generateAISummary() {
     if (!_ollamaAvailable) {
-        alert('Ollama is not running on your machine.\n\nTo enable AI summaries:\n1. Install Ollama: https://ollama.com/download\n2. Run: ollama pull llama3.2:3b\n3. Start Ollama (it runs automatically after install)\n4. Refresh this page');
+        alert('Ollama is not running on your machine.\n\nTo enable AI summaries:\n1. Install Ollama: https://ollama.com/download\n2. Run: ollama pull qwen3.5:4b\n3. Start Ollama (it runs automatically after install)\n4. Refresh this page');
         return;
     }
 
@@ -2587,7 +2587,7 @@ Be specific, actionable, and concise. Use HPE VME terminology.`;
         content.innerHTML = `<div style="color:#ef4444;font-size:12px">❌ Error: ${escapeHtml(err.message)}<br><br>
             <strong>Setup instructions:</strong><br>
             1. Download Ollama: <a href="https://ollama.com/download" target="_blank" style="color:#8b5cf6">ollama.com/download</a><br>
-            2. Open terminal and run: <code style="background:var(--bg-0);padding:2px 6px;border-radius:4px">ollama pull llama3.1:8b</code><br>
+            2. Open terminal and run: <code style="background:var(--bg-0);padding:2px 6px;border-radius:4px">ollama pull qwen3.5:4b</code><br>
             3. Ollama starts automatically — refresh this page<br>
             4. Click "Generate AI Summary" again</div>`;
     }
@@ -2601,7 +2601,7 @@ async function askOllamaTicket() {
     const desc = document.getElementById('ticketContext').value.trim();
     if (!desc) { alert('Paste a Jira ticket description first'); return; }
     if (!_ollamaAvailable) {
-        alert('Ollama not detected.\n\nSetup:\n1. Install Ollama: ollama.com/download\n2. Run: ollama pull llama3.2:3b\n3. Enable in browser flags (click 🤖 icon in sidebar for instructions)');
+        alert('Ollama not detected.\n\nSetup:\n1. Install Ollama: ollama.com/download\n2. Run: ollama pull qwen3.5:4b\n3. Enable in browser flags (click 🤖 icon in sidebar for instructions)');
         return;
     }
 
