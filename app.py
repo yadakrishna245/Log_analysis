@@ -19,7 +19,9 @@ Environment Modes:
 
 import os
 import logging
+import time
 import click
+from collections import defaultdict
 from flask import Flask, send_from_directory, jsonify, render_template, request
 from config import Config
 from models import db
@@ -119,6 +121,22 @@ def create_app(config_class=Config):
             return None
             
         return jsonify({'error': 'Authentication required. Provide X-API-Key header or login.'}), 401
+
+    # Simple rate limiting (no extra dependency)
+    _rate_limit_store = defaultdict(list)
+
+    @app.before_request
+    def rate_limit():
+        """Simple rate limiter: 100 req/min per IP."""
+        if not request.path.startswith('/api/'):
+            return None
+        ip = request.remote_addr or '0.0.0.0'
+        now = time.time()
+        # Clean old entries
+        _rate_limit_store[ip] = [t for t in _rate_limit_store[ip] if now - t < 60]
+        if len(_rate_limit_store[ip]) >= 100:
+            return jsonify({'error': 'Rate limit exceeded. Max 100 requests per minute.'}), 429
+        _rate_limit_store[ip].append(now)
 
     # Security headers
     @app.after_request

@@ -472,6 +472,7 @@
                     </div>
                 </div>
                 <input type="file" id="fileInput" multiple hidden>
+                <div style="text-align:center;font-size:11px;color:var(--text-500);margin-top:8px;">Files up to 200MB: browser scan • Larger files: auto server-side processing</div>
 
                 <!-- Try Demo Button -->
                 <div id="demoButtonWrapper" style="text-align:center;margin:-12px 0 16px;">
@@ -1013,6 +1014,50 @@ async function scanLocally(file) {
     render(result);
 }
 
+// ── LARGE FILE MODE ──────────────────────────────────────────────────
+async function handleFileScan(file) {
+    const MAX_CLIENT_SIZE = 200 * 1024 * 1024; // 200MB
+    if (file.size > MAX_CLIENT_SIZE) {
+        // Large file - use server-side
+        setStatus('scanning', `Large file (${(file.size/1024/1024).toFixed(0)}MB) — using server-side processing...`);
+        await scanServerSide(file);
+    } else {
+        // Normal - client-side
+        await scanLocally(file);
+    }
+}
+
+async function scanServerSide(file) {
+    showProgress(5);
+    setStatus('scanning', `Uploading ${file.name} (${(file.size/1024/1024).toFixed(0)}MB) to local server...`);
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    showProgress(20);
+
+    try {
+        const resp = await fetch('/api/analyze/quick', {
+            method: 'POST',
+            body: formData
+        });
+
+        showProgress(80);
+
+        if (!resp.ok) {
+            const err = await resp.json();
+            throw new Error(err.error || 'Server analysis failed');
+        }
+
+        const data = await resp.json();
+        showProgress(100);
+        render(data);
+    } catch (err) {
+        setStatus('error', 'Server-side scan failed: ' + err.message + '. Try running locally: python app.py');
+        hideProgress();
+    }
+}
+
 // ── MAIN HANDLER ────────────────────────────────────────────────────
 function handleFiles(files) {
     if (!files.length) return;
@@ -1021,7 +1066,7 @@ function handleFiles(files) {
 
     // Client-side scan for tar.gz, tar, and text files
     if (file.name.endsWith('.tar.gz') || file.name.endsWith('.tgz') || file.name.endsWith('.tar') || file.name.endsWith('.log') || file.name.endsWith('.txt')) {
-        scanLocally(file);
+        handleFileScan(file);
         return;
     }
 
@@ -2367,7 +2412,7 @@ async function loadDemo() {
         btn.style.opacity = '1';
         
         // Call the existing scan function
-        await scanLocally(file);
+        await handleFileScan(file);
         
         // Reset button after 3s
         setTimeout(() => {
