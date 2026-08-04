@@ -44,6 +44,63 @@ def access_ping():
     return jsonify({'ok': True}), 200
 
 
+@analytics_bp.route('/api/license/validate', methods=['POST'])
+def validate_license():
+    """Validate a license key against the private monitor repo."""
+    try:
+        data = request.get_json() or {}
+        license_key = data.get('key', '').strip()
+        domain = data.get('domain', '').strip()
+
+        if not license_key:
+            return jsonify({'valid': False, 'reason': 'No key provided'}), 200
+
+        gh_token = os.environ.get('GH_MONITOR_TOKEN', '')
+        if not gh_token:
+            # If no token configured, allow (graceful degradation)
+            return jsonify({'valid': True, 'reason': 'License server not configured'}), 200
+
+        # Fetch licenses.json from private repo
+        resp = http_requests.get(
+            'https://api.github.com/repos/yadakrishna245/HPE-log_analysis_app-monitor/contents/licenses.json',
+            headers={
+                'Accept': 'application/vnd.github.v3.raw',
+                'Authorization': f'token {gh_token}'
+            },
+            timeout=5
+        )
+
+        if resp.status_code != 200:
+            # Can't reach license server — allow with warning
+            return jsonify({'valid': True, 'reason': 'License server unreachable', 'grace': True}), 200
+
+        licenses_data = resp.json()
+        today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+
+        for lic in licenses_data.get('licenses', []):
+            if lic['key'] == license_key and lic.get('active', False):
+                # Check domain match (master keys work on any domain)
+                if lic.get('type') == 'master' or lic.get('domain', '') == domain or lic.get('domain', '') == '*':
+                    # Check expiry
+                    if lic.get('expires_at', '2099-12-31') >= today:
+                        return jsonify({
+                            'valid': True,
+                            'issued_to': lic.get('issued_to', ''),
+                            'expires_at': lic.get('expires_at', ''),
+                            'type': lic.get('type', 'standard')
+                        }), 200
+                    else:
+                        return jsonify({'valid': False, 'reason': 'License expired'}), 200
+                else:
+                    return jsonify({'valid': False, 'reason': 'License not valid for this domain'}), 200
+
+        return jsonify({'valid': False, 'reason': 'Invalid license key'}), 200
+
+    except Exception as e:
+        # On error, allow with grace period
+        return jsonify({'valid': True, 'reason': 'Validation error', 'grace': True}), 200
+
+
 @analytics_bp.route('/api/analytics/track', methods=['POST'])
 def track_event():
     """Track a usage event. Called from frontend on user actions."""
