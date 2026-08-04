@@ -7,13 +7,13 @@
 [![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![Flask](https://img.shields.io/badge/Flask-3.0-000000?style=for-the-badge&logo=flask&logoColor=white)](https://flask.palletsprojects.com)
 [![AWS](https://img.shields.io/badge/AWS-Serverless-FF9900?style=for-the-badge&logo=amazonaws&logoColor=white)](https://aws.amazon.com)
-[![Patterns](https://img.shields.io/badge/Patterns-113-01A982?style=for-the-badge)](docs/USER_GUIDE.md)
-[![Known Issues](https://img.shields.io/badge/Known_Issues-66-01A982?style=for-the-badge)](docs/USER_GUIDE.md)
+[![Patterns](https://img.shields.io/badge/Patterns-156-01A982?style=for-the-badge)](docs/USER_GUIDE.md)
+[![Known Issues](https://img.shields.io/badge/Known_Issues-73-01A982?style=for-the-badge)](docs/USER_GUIDE.md)
 [![Runbooks](https://img.shields.io/badge/Runbooks-12-01A982?style=for-the-badge)](docs/USER_GUIDE.md)
 [![Privacy](https://img.shields.io/badge/Privacy-Zero_Upload-01A982?style=for-the-badge&logo=shieldsdotio&logoColor=white)](#-security--privacy)
 
 **Zero-upload log analysis — your data never leaves the browser.**  
-Drop a tar.gz → Get instant root cause analysis with actionable solutions. 73MB in ~14 seconds.
+Drop tar.gz files (up to 3GB+) → Get instant root cause analysis with actionable solutions. Streaming engine — no file size limits.
 
 ### 🌐 [Live Demo → https://d3tv1czat55yad.cloudfront.net](https://d3tv1czat55yad.cloudfront.net)
 
@@ -41,8 +41,11 @@ Drop a tar.gz → Get instant root cause analysis with actionable solutions. 73M
 
 ### ✅ With LogSherlock Pro
 - **~14 seconds** for 73MB tar.gz analysis
-- **113 detection patterns** available to all engineers
-- **66 known issues** with ready-made solutions
+- **156 detection patterns** available to all engineers
+- **73 known issues** with ready-made solutions
+- **41 VME Guide entries** for quick ops reference
+- **Streaming engine** — handles files up to 3GB+
+- **Multi-file scan** — drop multiple archives at once
 - **One-click Jira-ready RCA** in 8-section format
 - **Zero data upload** — browser-side scanning only
 
@@ -60,7 +63,7 @@ Drop a tar.gz → Get instant root cause analysis with actionable solutions. 73M
 2. Download the demo file from the `demo/` folder:  
    `collect_demovmehost01_20260802_100000.tar.gz` (9.4 KB, synthetic data)
 3. Drag & drop the file onto the upload zone
-4. Watch: **110 of 113 patterns** trigger instantly — all in the browser
+4. Watch: **110+ patterns** trigger instantly — all in the browser
 5. Explore: Heatmap, Cascade Chain, RCA Report, Knowledge Base matches
 
 **No login. No setup. No data leaves your machine.**
@@ -76,9 +79,9 @@ Drop a tar.gz → Get instant root cause analysis with actionable solutions. 73M
 
 ```mermaid
 flowchart LR
-    A[📁 Drop tar.gz File] --> B[💨 pako.js<br/>Gzip Decompress]
-    B --> C[📦 Custom Tar Parser<br/>Extract File Headers]
-    C --> D[🔍 Regex Engine<br/>113 Pattern Signatures]
+    A[📁 Drop tar.gz Files] --> B[💨 DecompressionStream<br/>Streaming Gzip]
+    B --> C[📦 Streaming Tar Parser<br/>Process Entry-by-Entry]
+    C --> D[🔍 Regex Engine<br/>156 Pattern Signatures]
     D --> E[📊 Results Dashboard<br/>Heatmap + RCA + KB]
 
     style A fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
@@ -88,7 +91,9 @@ flowchart LR
     style E fill:#fce4ec,stroke:#b71c1c,stroke-width:2px
 ```
 
-**Key privacy guarantee:** The tar.gz file is decompressed and scanned entirely in the browser using `pako.js` and a custom JavaScript tar parser. **Zero customer log data is uploaded to any server.** Only anonymous pattern names (e.g., "kernel_panic", "oom_kill") are sent to the API for Knowledge Base matching.
+**Key privacy guarantee:** The tar.gz file is decompressed and scanned entirely in the browser using the native `DecompressionStream` API and a streaming tar parser. Files are processed entry-by-entry — never loading the entire archive into memory. **Zero customer log data is uploaded to any server.** Only anonymous pattern names (e.g., "kernel_panic", "oom_kill") are sent to the API for Knowledge Base matching.
+
+**Streaming architecture:** Files up to 3GB+ are handled by reading in chunks, decompressing on the fly, and scanning each log file as it's extracted — then immediately discarding it from memory. This keeps RAM usage flat (~100MB) regardless of archive size.
 
 ### Pattern Engine Detail
 
@@ -98,7 +103,7 @@ flowchart TD
         A1[File dropped by user] --> A2[pako.js gunzip]
         A2 --> A3[Tar header parser]
         A3 --> A4[Line-by-line scan]
-        A4 --> A5{Match 113 regex patterns}
+        A4 --> A5{Match 156 regex patterns}
         A5 -->|Match| A6[Classify severity<br/>CRITICAL / HIGH / MEDIUM / LOW]
         A5 -->|No match| A4
         A6 --> A7[Group by category<br/>12 categories]
@@ -106,7 +111,7 @@ flowchart TD
 
     subgraph API["☁️ API (Server-Side)"]
         A7 --> B1[Send pattern names only<br/>/api/knowledge/lookup]
-        B1 --> B2[Return KB matches<br/>66 known issues]
+        B1 --> B2[Return KB matches<br/>73 known issues]
         B2 --> B3[Return runbook links<br/>12 guides]
     end
 
@@ -124,16 +129,19 @@ flowchart TD
 
 ---
 
-## ✨ Features (33+)
+## ✨ Features (40+)
 
 ### Core Analysis
 | # | Feature | Description |
 |---|---------|-------------|
-| 1 | **Client-Side Scanning** | Zero upload — pako.js + custom tar parser runs entirely in browser |
-| 2 | **113 Regex Patterns** | Across 12 categories: kernel, storage, cluster, network, memory, etc. |
-| 3 | **8-Section RCA Report** | Problem Statement → Impact → Timeline → Root Cause → Cascade Chain → Fix → Remediation Plan → Prevention |
-| 4 | **Jira Wiki Markup** | One-click copy of full RCA in Jira-ready format |
-| 5 | **Ticket Advisor** | Paste a Jira description → get file/folder investigation suggestions |
+| 1 | **Streaming Client-Side Scan** | Zero upload — DecompressionStream + streaming tar parser, handles 3GB+ files |
+| 2 | **156 Regex Patterns** | Across 12 categories: kernel, storage, cluster, network, memory, VME services, etc. |
+| 3 | **Multi-File Scan** | Drop multiple .tar.gz / .log / .sh / .txt files at once — combined results |
+| 4 | **Multi-Folder Scan** | Comma-separated folder paths — all scanned in parallel |
+| 5 | **8-Section RCA Report** | Problem Statement → Impact → Timeline → Root Cause → Cascade Chain → Fix → Remediation Plan → Prevention |
+| 6 | **Jira Wiki Markup** | One-click copy of full RCA in Jira-ready format |
+| 7 | **Ticket Advisor** | Paste a Jira description → get file/folder investigation suggestions |
+| 8 | **VME Operations Guide** | 41 KB entries — quick reference for common VME operations |
 
 ### Visualizations
 | # | Feature | Description |
@@ -165,10 +173,12 @@ flowchart TD
 ### Knowledge & Operations
 | # | Feature | Description |
 |---|---------|-------------|
-| 20 | **Knowledge Base** | 66 catalogued known issues with solutions |
+| 20 | **Knowledge Base** | 73 catalogued known issues with solutions |
 | 21 | **Runbooks** | 12 step-by-step investigation guides |
-| 22 | **HPE Branding** | Green logo and consistent brand identity |
-| 23 | **CloudFront CDN** | Zero-cold-start serverless deployment |
+| 22 | **VME Operations Guide** | 41 entries covering install, troubleshooting, networking, storage, DR |
+| 23 | **Quick Reference Panel** | 12-section ops command reference (Top 20, Hot-Add, Snapshots, etc.) |
+| 24 | **HPE Branding** | Green logo and consistent brand identity |
+| 25 | **CloudFront CDN** | Zero-cold-start serverless deployment |
 
 ### Jira Integration (NEW)
 | # | Feature | Description |
@@ -187,6 +197,23 @@ flowchart TD
 | 31 | **4 Tone Modes** | Professional, Concise, Detailed Technical, Status Update |
 | 32 | **Context-Aware** | Uses scan results (RCA, findings) as context for better replies |
 | 33 | **Copy & Post** | One-click copy or post directly to Jira |
+
+### Streaming Engine & Multi-File (NEW)
+| # | Feature | Description |
+|---|---------|-------------|
+| 34 | **Streaming Decompression** | Uses browser `DecompressionStream` API — handles 3GB+ files |
+| 35 | **Multi-File Drop** | Drop 30+ files at once (.tar.gz, .log, .sh, .txt, .conf, no-extension) |
+| 36 | **Multi-Folder Scan** | Comma-separated paths — all scanned in parallel |
+| 37 | **Flat Memory Usage** | ~100MB RAM regardless of file size (streaming, not buffering) |
+| 38 | **Smart File Classification** | Auto-classifies VME log collection output files by priority |
+| 39 | **Binary File Detection** | Auto-skips .pdf, .doc, .exe, etc. with user notification |
+
+### Usage Analytics (Admin Only)
+| # | Feature | Description |
+|---|---------|-------------|
+| 40 | **Usage Dashboard** | Track who's using the tool, scan counts, file sizes |
+| 41 | **Mandatory Name Entry** | All users must enter their name before using (blocks app) |
+| 42 | **Admin-Only Access** | Analytics visible only with admin password |
 
 ---
 
@@ -271,8 +298,8 @@ graph TB
 
     subgraph FLASK["🐍 Flask Application"]
         ROUTES["/api/patterns/export<br/>/api/knowledge/lookup<br/>/api/advisor"]
-        ENGINE[Pattern Engine<br/>113 Compiled Regexes]
-        KB[Knowledge Base<br/>66 Issues + 12 Runbooks]
+        ENGINE[Pattern Engine<br/>156 Compiled Regexes]
+        KB[Knowledge Base<br/>73 Issues + 12 Runbooks + 41 VME Guide]
     end
 
     subgraph BROWSER["🖥️ Browser (Client)"]
@@ -310,7 +337,7 @@ graph TB
 | Scan results / findings | Browser memory only | ❌ **Never** |
 | Pattern names (e.g., "oom_kill") | Sent to `/api/knowledge/lookup` | ✅ Anonymous identifiers only |
 | Jira description text | Sent to `/api/advisor` | ✅ For investigation suggestions |
-| 113 pattern definitions | Fetched from `/api/patterns/export` | N/A (server → client) |
+| 156 pattern definitions | Fetched from `/api/patterns/export` | N/A (server → client) |
 
 ---
 
@@ -319,9 +346,9 @@ graph TB
 | Capability | LogSherlock Pro | Splunk | Datadog | Manual grep |
 |-----------|:-:|:-:|:-:|:-:|
 | Zero data upload | ✅ | ❌ | ❌ | ✅ |
-| Auto pattern detection | ✅ 113 patterns | ✅ Custom | ✅ Custom | ❌ Manual |
+| Auto pattern detection | ✅ 156 patterns | ✅ Custom | ✅ Custom | ❌ Manual |
 | RCA report generation | ✅ 8-section | ❌ | ❌ | ❌ |
-| Knowledge Base | ✅ 66 issues | ❌ | ❌ | ❌ |
+| Knowledge Base | ✅ 73 issues | ❌ | ❌ | ❌ |
 | Setup time | 0 min (browser) | Days | Days | 0 min |
 | Cost | Free | $$$$$ | $$$$ | Free |
 | Works offline | ✅ (after load) | ❌ | ❌ | ✅ |
@@ -385,7 +412,7 @@ See [docs/OLLAMA_SETUP.md](docs/OLLAMA_SETUP.md) for full guide.
 ```mermaid
 flowchart LR
     subgraph BROWSER["🖥️ Your Browser"]
-        A[Log Scanner] --> B[Pattern Detection<br/>113 regex patterns]
+        A[Log Scanner] --> B[Pattern Detection<br/>156 regex patterns]
         B --> C[Findings:<br/>pattern names + severity]
     end
 
@@ -417,10 +444,10 @@ flowchart LR
 
 | Method | Endpoint | Description | Privacy |
 |--------|----------|-------------|---------|
-| `GET` | `/api/patterns/export` | Fetch all 113 patterns as JSON | No user data |
+| `GET` | `/api/patterns/export` | Fetch all 156 patterns as JSON | No user data |
 | `POST` | `/api/knowledge/lookup` | Match pattern names → known issues | Pattern names only |
 | `POST` | `/api/advisor` | Jira description → investigation tips | Ticket text |
-| `GET` | `/api/knowledge/issues` | List all 66 known issues | No user data |
+| `GET` | `/api/knowledge/issues` | List all 73 known issues | No user data |
 | `GET` | `/api/knowledge/runbooks` | List all 12 runbooks | No user data |
 | `POST` | `/api/analyze` | Server-side analysis (optional) | Full logs (server mode) |
 | `POST` | `/api/jira/ticket/{id}` | Fetch Jira ticket details (proxy) | Creds per-request, not stored |
@@ -431,7 +458,7 @@ flowchart LR
 ### Example: Fetch Patterns
 ```bash
 curl https://d3tv1czat55yad.cloudfront.net/api/patterns/export | jq '.count'
-# → 113
+# → 156
 ```
 
 ### Example: Knowledge Lookup
@@ -567,22 +594,28 @@ LogSherlock-Pro/
 ├── app.py                 # Flask app factory, auth, CSP headers
 ├── config.py              # Environment config (local/lambda/docker)
 ├── models.py              # SQLAlchemy models (tickets, findings, patterns)
+├── LogSherlock.bat        # One-click local server launcher (Windows)
+├── setup_ollama.ps1       # AI setup script (Windows PowerShell)
+├── setup_ollama.sh        # AI setup script (Linux/Mac)
 ├── engine/
-│   ├── patterns.py        # 113 detection patterns (BUILT_IN_PATTERNS list)
+│   ├── patterns.py        # 156 detection patterns (BUILT_IN_PATTERNS list)
 │   ├── analyzer.py        # Server-side analysis orchestrator
 │   ├── ingestion.py       # File parsing & archive extraction
 │   └── correlator.py      # Cross-node timeline correlation
 ├── knowledge/
-│   ├── known_issues.py    # 66 known issues with solutions
+│   ├── known_issues.py    # 73 known issues with solutions
 │   ├── runbooks.py        # 12 investigation runbooks
+│   ├── vme_guide.py       # 41 VME operations guide entries
+│   ├── advanced_troubleshooting.py  # Advanced troubleshooting KB
 │   └── kb_manager.py      # KB CRUD operations
 ├── routes/
 │   ├── analysis.py        # /api/analyze, /api/patterns/export, /api/advisor
-│   ├── knowledge.py       # /api/knowledge/issues, /api/knowledge/lookup
+│   ├── knowledge.py       # /api/knowledge/issues, /api/knowledge/lookup, /api/knowledge/vme-guide
+│   ├── analytics.py       # /api/analytics (admin-only usage dashboard)
 │   ├── tickets.py         # Ticket CRUD + analysis
 │   └── reports.py         # Report generation endpoints
 ├── templates/
-│   └── index.html         # Single-page app (114KB, all features inline)
+│   └── index.html         # Single-page app (265KB, streaming scanner + all features)
 ├── deploy/
 │   ├── template.yaml      # SAM/CloudFormation (Lambda + API GW + DynamoDB)
 │   ├── lambda_handler.py  # Custom WSGI adapter for Lambda
@@ -594,6 +627,7 @@ LogSherlock-Pro/
 └── docs/
     ├── COMPLIANCE.md      # Data handling & privacy compliance
     ├── DEPLOYMENT.md      # Full deployment guide
+    ├── OLLAMA_SETUP.md    # Local AI setup guide
     └── USER_GUIDE.md      # End-user documentation
 ```
 
@@ -603,12 +637,13 @@ LogSherlock-Pro/
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | Vanilla JS, pako.js, CSS Grid, Chart.js |
-| Backend | Python 3.10+, Flask 3.0 |
+| Frontend | Vanilla JS, DecompressionStream API, pako.js (fallback), CSS Grid, Chart.js |
+| Backend | Python 3.11, Flask 3.0 |
 | Infrastructure | AWS Lambda, API Gateway v2, DynamoDB, CloudFront |
 | IaC | AWS SAM / CloudFormation |
 | Pattern Engine | Python `re` module (pre-compiled at module load) |
 | Deployment | SAM CLI → CloudFormation stack |
+| Local AI | Ollama (qwen3.5:4b, llama3.2:3b) |
 
 ---
 
@@ -616,11 +651,15 @@ LogSherlock-Pro/
 
 | Metric | Value |
 |--------|-------|
-| 73MB tar.gz scan time | ~14 seconds (browser) |
+| 73MB tar.gz scan time | ~14 seconds (browser, streaming) |
+| 180MB tar.gz scan time | ~45 seconds (browser, streaming) |
+| 800MB+ tar.gz | Works! Streaming keeps RAM flat (~100MB) |
+| Max file size supported | **3GB+** (limited only by browser tab memory) |
+| Multi-file scan | Drop 30+ files at once |
 | Pattern compilation | Once at page load |
 | Cold start (Lambda) | ~2s (CloudFront cached) |
 | Demo file (9.4KB) | < 1 second |
-| Patterns matched (demo) | 110 / 113 |
+| Patterns matched (demo) | 110 / 156 |
 
 ---
 

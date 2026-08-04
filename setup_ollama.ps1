@@ -64,6 +64,13 @@ if ($LASTEXITCODE -eq 0) {
     Write-Host "  5. Open: https://d3tv1czat55yad.cloudfront.net" -ForegroundColor Cyan
     Write-Host "  6. The robot icon should show GREEN dot" -ForegroundColor Green
     Write-Host ""
+    Write-Host "  Features:" -ForegroundColor White
+    Write-Host "  - 156 detection patterns (kernel, storage, cluster, VME services)" -ForegroundColor White
+    Write-Host "  - Streaming engine: handles files up to 3GB+" -ForegroundColor White
+    Write-Host "  - Multi-file scan: drop 30+ files at once" -ForegroundColor White
+    Write-Host "  - AI-powered root cause analysis (local, private)" -ForegroundColor White
+    Write-Host "  - Jira integration with comment posting" -ForegroundColor White
+    Write-Host ""
     Write-Host "  Your data NEVER leaves your machine!" -ForegroundColor Yellow
 } else {
     Write-Host "[ERROR] Failed to pull model. Check your internet connection." -ForegroundColor Red

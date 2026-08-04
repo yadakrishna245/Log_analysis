@@ -4,8 +4,9 @@ color 0A
 
 echo.
 echo  ========================================
-echo   LogSherlock Pro v1.0.0
+echo   LogSherlock Pro v2.0.0
 echo   HPE VME Log Analysis Suite
+echo   156 patterns - Streaming Engine - 3GB+
 echo   (c) 2026 Krishna Yada
 echo  ========================================
 echo.

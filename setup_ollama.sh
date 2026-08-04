@@ -64,6 +64,13 @@ if [ $? -eq 0 ]; then
     echo "  5. Open: https://d3tv1czat55yad.cloudfront.net"
     echo "  6. Robot icon should show GREEN"
     echo ""
+    echo "  Features:"
+    echo "  - 156 detection patterns (kernel, storage, cluster, VME services)"
+    echo "  - Streaming engine: handles files up to 3GB+"
+    echo "  - Multi-file scan: drop 30+ files at once"
+    echo "  - AI-powered root cause analysis (local, private)"
+    echo "  - Jira integration with comment posting"
+    echo ""
     echo "  Your data NEVER leaves your machine!"
 else
     echo "[ERROR] Failed. Check internet connection."
