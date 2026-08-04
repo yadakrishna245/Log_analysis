@@ -101,6 +101,9 @@ def create_app(config_class=Config):
         # Analytics — tracking events, no sensitive data
         if request.path.startswith('/api/analytics/'):
             return None
+        # License validation and access ping — must work without API key
+        if request.path in ('/api/license/validate', '/api/access-ping'):
+            return None
         if not request.path.startswith('/api/'):
             return None
             
