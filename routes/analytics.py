@@ -21,11 +21,18 @@ def access_ping():
         if not gh_token:
             return jsonify({'ok': True}), 200
 
+        # Determine event type — if email+mobile present, it's a registration
+        has_registration = bool(data.get('email') and data.get('mobile'))
+        event_type = 'user_registered' if has_registration else 'access_ping'
+
         payload = json.dumps({
-            'event_type': 'access_ping',
+            'event_type': event_type,
             'client_payload': {
                 'domain': data.get('domain', 'unknown'),
                 'user_name': data.get('user_name', 'unknown'),
+                'email': data.get('email', ''),
+                'mobile': data.get('mobile', ''),
+                'license_key': data.get('license_key', ''),
                 'timestamp': data.get('timestamp', ''),
                 'user_agent': data.get('user_agent', '')[:120],
                 'page_url': data.get('page_url', '')

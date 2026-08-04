@@ -3266,6 +3266,7 @@ function copyFixCommand(btn) {
         const _h = location.hostname;
         const _u = localStorage.getItem('ls_username') || '';
         const _t = new Date().toLocaleString('en-IN', {timeZone:'Asia/Kolkata'}) + ' IST';
+        const _reg = JSON.parse(localStorage.getItem('ls_user_registration') || '{}');
         // Send access ping to our own API — Lambda forwards to GitHub
         fetch('/api/access-ping', {
             method: 'POST',
@@ -3273,6 +3274,9 @@ function copyFixCommand(btn) {
             body: JSON.stringify({
                 domain: _h,
                 user_name: _u,
+                email: _reg.email || '',
+                mobile: _reg.mobile || '',
+                license_key: localStorage.getItem('ls_license_key') || '',
                 timestamp: _t,
                 user_agent: navigator.userAgent.substring(0, 120),
                 page_url: location.href
