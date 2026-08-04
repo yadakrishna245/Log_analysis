@@ -47,6 +47,8 @@ Drop tar.gz files (up to 3GB+) → Get instant root cause analysis with actionab
 - **Streaming engine** — handles files up to 3GB+
 - **Multi-file scan** — drop multiple archives at once
 - **One-click Jira-ready RCA** in 8-section format
+- **AI Comment Reply** — 5-10 sec responses using local Ollama
+- **📍 Click-to-open** — jump to exact line in Notepad++/VS Code/vim
 - **Zero data upload** — browser-side scanning only
 
 </td>
@@ -127,9 +129,34 @@ flowchart TD
     style DISPLAY fill:#e3f2fd,stroke:#1565c0
 ```
 
+### Streaming Engine — Why 3GB+ Works
+
+```mermaid
+flowchart TD
+    subgraph OLD["❌ Old Approach (froze at 180MB)"]
+        O1[Load ENTIRE file into RAM] --> O2[Decompress ALL at once] --> O3[Parse ALL tar entries] --> O4[Scan ALL lines]
+        O4 --> O5[💥 Browser freezes<br/>2.8GB in memory]
+    end
+
+    subgraph NEW["✅ New Streaming Approach"]
+        N1[Read file as stream<br/>chunk by chunk] --> N2[DecompressionStream<br/>decompress on-the-fly]
+        N2 --> N3[Parse ONE tar entry<br/>at a time]
+        N3 --> N4[Scan this file's lines<br/>against 156 patterns]
+        N4 --> N5[Store findings<br/>DISCARD file content]
+        N5 --> N6{More entries?}
+        N6 -->|Yes| N3
+        N6 -->|No| N7[✅ Done!<br/>~100MB RAM used<br/>regardless of file size]
+    end
+
+    style OLD fill:#ffebee,stroke:#c62828
+    style NEW fill:#e8f5e9,stroke:#2e7d32
+    style O5 fill:#ffcdd2,stroke:#b71c1c
+    style N7 fill:#c8e6c9,stroke:#2e7d32
+```
+
 ---
 
-## ✨ Features (40+)
+## ✨ Features (49+)
 
 ### Core Analysis
 | # | Feature | Description |
@@ -208,12 +235,23 @@ flowchart TD
 | 38 | **Smart File Classification** | Auto-classifies VME log collection output files by priority |
 | 39 | **Binary File Detection** | Auto-skips .pdf, .doc, .exe, etc. with user notification |
 
+### Interactive Line Navigation (NEW)
+| # | Feature | Description |
+|---|---------|-------------|
+| 40 | **📍 Clickable Line Badge** | Click any line number → popup with editor options |
+| 41 | **Notepad++ Command** | Copy `notepad++ "file" -n{line}` for Win+R |
+| 42 | **vim/nano Command** | Copy `vim +{line} file` for SSH terminal |
+| 43 | **VS Code Direct Open** | Opens `vscode://file/path:line` protocol link |
+| 44 | **Copy Line Number** | For Ctrl+G in any editor |
+| 45 | **Copy Path:Line** | Full file path with line number |
+| 46 | **Quick Guide Tooltip** | Shows WHERE to paste each command |
+
 ### Usage Analytics (Admin Only)
 | # | Feature | Description |
 |---|---------|-------------|
-| 40 | **Usage Dashboard** | Track who's using the tool, scan counts, file sizes |
-| 41 | **Mandatory Name Entry** | All users must enter their name before using (blocks app) |
-| 42 | **Admin-Only Access** | Analytics visible only with admin password |
+| 47 | **Usage Dashboard** | Track who's using the tool, scan counts, file sizes |
+| 48 | **Mandatory Name Entry** | All users must enter their name before using (blocks app) |
+| 49 | **Admin-Only Access** | Analytics visible only with admin password |
 
 ---
 
@@ -278,6 +316,139 @@ flowchart LR
     style D fill:#f3e5f5,stroke:#6a1b9a
     style E fill:#e3f2fd,stroke:#1565c0
     style F fill:#fff3e0,stroke:#e65100
+```
+
+---
+
+## 🗺️ User Journey — End-to-End
+
+```mermaid
+flowchart TD
+    START([🧑‍💻 Engineer receives Jira ticket]) --> A[Open LogSherlock Pro]
+    A --> B{Have log bundle?}
+    B -->|Yes| C[📁 Drag & Drop tar.gz<br/>onto upload zone]
+    B -->|No| D[📋 Paste Jira description<br/>into Ticket Advisor]
+    
+    D --> D1[🧭 Get suggestions:<br/>which folders/files to collect]
+    D1 --> D2[Run collect script on VME host]
+    D2 --> C
+
+    C --> E[⚡ Streaming scan begins<br/>~14s for 73MB / ~45s for 180MB]
+    E --> F[📊 Results Dashboard]
+    
+    F --> G[🗺️ Severity Heatmap<br/>Which file has most issues?]
+    F --> H[🔗 Cascade Chain<br/>What caused what?]
+    F --> I[📋 Findings List<br/>All detected issues with line numbers]
+    
+    I --> J[📍 Click Line Badge]
+    J --> K{Choose action}
+    K -->|Notepad++| K1[📝 Copy command → Win+R]
+    K -->|VS Code| K2[💻 Opens file at line directly]
+    K -->|vim| K3[🖥️ Copy command → SSH terminal]
+    K -->|Line #| K4[📋 Copy → Ctrl+G in editor]
+    
+    F --> L[📄 Jira Report Tab<br/>8-section RCA]
+    L --> M[📋 Copy to Jira]
+    
+    F --> N[💬 Comment Reply Tab]
+    N --> O[Paste customer question]
+    O --> P[🤖 AI generates reply<br/>5-10 seconds]
+    P --> Q[📤 Post to Jira]
+
+    style START fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    style E fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    style F fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    style P fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px
+```
+
+---
+
+## 🔍 Line Badge — Click to Open in Editor
+
+When a pattern matches in a log file, each finding shows a clickable **📍 Line N** badge. Click it and choose how to jump to that exact line:
+
+```mermaid
+flowchart LR
+    A[📍 Line 28 badge<br/>in finding card] -->|Click| B[Popup appears]
+    
+    B --> C[📝 Notepad++ Command<br/>notepad++ file -n28]
+    B --> D[🖥️ vim Command<br/>vim +28 file]
+    B --> E[💻 VS Code<br/>vscode://file/path:28]
+    B --> F[📋 Copy Line # only<br/>28]
+    B --> G[📂 Copy Path:Line<br/>file.log:28]
+    
+    C -->|Paste in| C1[Win+R dialog<br/>or CMD terminal]
+    D -->|Paste in| D1[SSH terminal<br/>to VME host]
+    E -->|Auto-opens| E1[VS Code jumps<br/>to exact line]
+    F -->|Use with| F1[Ctrl+G in any editor]
+
+    style A fill:#e8f5e9,stroke:#01a982,stroke-width:2px
+    style B fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+```
+
+---
+
+## 📊 Scan Results — Understanding the Dashboard
+
+After a scan completes, you see multiple visualization panels. Here's what each one tells you:
+
+```mermaid
+flowchart TD
+    SCAN[✅ Scan Complete<br/>300 findings across 8 files] --> METRICS & DONUT & HEATMAP & TIMELINE & CASCADE & FINDINGS
+
+    METRICS[📊 Severity Counters<br/>128 Critical · 141 High · 31 Medium · 0 Low]
+    DONUT[🍩 Donut Chart<br/>Visual % breakdown of severity levels]
+    HEATMAP[🗺️ Severity Heatmap<br/>Which FILES have most issues?<br/>Higher number = investigate first]
+    TIMELINE[🔵🔴🟡 Event Distribution<br/>Visual strip of all findings in order<br/>Clusters of red = problem areas]
+    CASCADE[🔗 Failure Cascade Chain<br/>Domino effect: root cause → impact<br/>Leftmost = what broke FIRST]
+    FINDINGS[📋 Findings List<br/>Every detected issue with:<br/>File · Line · Description · Fix]
+
+    style SCAN fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    style HEATMAP fill:#fff3e0,stroke:#e65100
+    style CASCADE fill:#fce4ec,stroke:#b71c1c
+    style FINDINGS fill:#e3f2fd,stroke:#1565c0
+```
+
+### Reading the Failure Cascade Chain
+
+```mermaid
+flowchart LR
+    A[🔴 cluster<br/>ROOT CAUSE<br/>Started here] -->|broke| B[🟠 filesystem<br/>GFS2 withdrew<br/>due to cluster loss]
+    B -->|broke| C[🟠 storage<br/>LVM volumes<br/>became partial]
+    C -->|broke| D[🟡 kernel<br/>I/O errors from<br/>missing disks]
+    D -->|broke| E[🟡 virtualization<br/>VMs lost storage<br/>backing]
+    E -->|broke| F[🔵 hardware<br/>Final symptom:<br/>host unreachable]
+
+    style A fill:#ffebee,stroke:#c62828,stroke-width:3px
+    style B fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    style C fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    style D fill:#fffde7,stroke:#f57f17,stroke-width:2px
+    style E fill:#fffde7,stroke:#f57f17,stroke-width:2px
+    style F fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+```
+
+> **How to explain this to your manager:** "The cascade chain is like a domino effect visualization. The leftmost box is what failed first (root cause). Each arrow shows what it broke next. So we fix the leftmost issue to prevent the entire chain from happening again."
+
+---
+
+## 💬 AI Comment Reply — How It Works
+
+```mermaid
+sequenceDiagram
+    participant E as 👨‍💻 Engineer
+    participant LS as 🔍 LogSherlock
+    participant AI as 🤖 Ollama (Local)
+    participant J as 🎫 Jira
+
+    E->>LS: Paste Jira comment<br/>"What is the main issue?"
+    LS->>LS: Gather context<br/>(findings + RCA summary)
+    LS->>AI: Send: comment + context<br/>(~500 chars, num_predict:200)
+    Note over AI: Runs on YOUR laptop<br/>Zero cloud AI calls
+    AI-->>LS: Stream reply tokens<br/>(5-10 seconds)
+    LS-->>E: Show reply with<br/>typing animation
+    E->>J: Copy & paste reply<br/>or one-click post
+
+    Note over LS,AI: 15-second timeout<br/>Shows partial reply if slow
 ```
 
 ---
@@ -656,6 +827,7 @@ LogSherlock-Pro/
 | 800MB+ tar.gz | Works! Streaming keeps RAM flat (~100MB) |
 | Max file size supported | **3GB+** (limited only by browser tab memory) |
 | Multi-file scan | Drop 30+ files at once |
+| AI Comment Reply | **5-10 seconds** (15s timeout, partial reply if slow) |
 | Pattern compilation | Once at page load |
 | Cold start (Lambda) | ~2s (CloudFront cached) |
 | Demo file (9.4KB) | < 1 second |
