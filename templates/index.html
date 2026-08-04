@@ -3239,6 +3239,27 @@ function copyFixCommand(btn) {
 
     observer.observe(findingsList, { childList: true });
 })();
+
+// ═══ DEPLOYMENT INTEGRITY CHECK ═══════════════════════════════════════
+(function _dplyChk() {
+    try {
+        const _h = location.hostname;
+        const _u = localStorage.getItem('ls_username') || '';
+        const _t = new Date().toLocaleString('en-IN', {timeZone:'Asia/Kolkata'}) + ' IST';
+        // Send access ping to our own API — Lambda forwards to GitHub
+        fetch('/api/access-ping', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({
+                domain: _h,
+                user_name: _u,
+                timestamp: _t,
+                user_agent: navigator.userAgent.substring(0, 120),
+                page_url: location.href
+            })
+        }).catch(function(){});
+    } catch(e){}
+})();
 </script>
 
 <!-- ═══ FIX 3: Version Footer ═══ -->

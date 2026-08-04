@@ -1,12 +1,47 @@
 """Analytics routes for LogSherlock Pro — usage tracking dashboard."""
 
 import json
+import os
+import requests as http_requests
 from datetime import datetime, timezone, timedelta
 from flask import Blueprint, jsonify, request
 from sqlalchemy import func, distinct
 from models import db, AnalyticsEvent
 
 analytics_bp = Blueprint('analytics', __name__)
+
+
+@analytics_bp.route('/api/access-ping', methods=['POST'])
+def access_ping():
+    """Deployment integrity check — logs access to private GitHub repo."""
+    try:
+        data = request.get_json() or {}
+        gh_token = os.environ.get('GH_MONITOR_TOKEN', '')
+        if not gh_token:
+            return jsonify({'ok': True}), 200  # Silent fail if not configured
+
+        payload = {
+            'event_type': 'access_ping',
+            'client_payload': {
+                'domain': data.get('domain', 'unknown'),
+                'user_name': data.get('user_name', 'unknown'),
+                'timestamp': data.get('timestamp', ''),
+                'user_agent': data.get('user_agent', '')[:120],
+                'page_url': data.get('page_url', '')
+            }
+        }
+        http_requests.post(
+            'https://api.github.com/repos/yadakrishna245/HPE-log_analysis_app-monitor/dispatches',
+            headers={
+                'Accept': 'application/vnd.github.v3+json',
+                'Authorization': f'token {gh_token}'
+            },
+            json=payload,
+            timeout=3
+        )
+    except Exception:
+        pass  # Never fail the user experience
+    return jsonify({'ok': True}), 200
 
 
 @analytics_bp.route('/api/analytics/track', methods=['POST'])

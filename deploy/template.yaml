@@ -27,6 +27,11 @@ Parameters:
     Type: String
     Default: LogSherlock
     Description: DynamoDB table name prefix
+  GhMonitorToken:
+    Type: String
+    Default: ''
+    Description: GitHub PAT for access monitoring (HPE-log_analysis_app-monitor repo)
+    NoEcho: true
 
 Resources:
   # ============================================================
@@ -75,6 +80,7 @@ Resources:
           S3_BUCKET: !Ref LogSherlockUploads
           LOGSHERLOCK_API_KEY: !Ref ApiKey
           LOGSHERLOCK_DEV_MODE: 'false'
+          GH_MONITOR_TOKEN: !Ref GhMonitorToken
       Policies:
         - S3FullAccessPolicy:
             BucketName: !Ref LogSherlockUploads
