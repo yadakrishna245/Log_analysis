@@ -1182,6 +1182,7 @@ async function scanLocally(file) {
                         line_content: line.substring(0, 500),
                         description: p.description,
                         solution_hint: p.solution_hint,
+                        file_date: f.mtime ? new Date(f.mtime * 1000).toLocaleString('en-IN', {timeZone:'Asia/Kolkata'}) + ' IST' : '',
                     });
                     if (findings.length >= MAX_FINDINGS) break;
                 }
@@ -1193,7 +1194,7 @@ async function scanLocally(file) {
         const pct = 50 + Math.round((i / scannable.length) * 45);
         showProgress(pct);
         if (i % 3 === 0) {
-            const fdate = f.mtime ? new Date(f.mtime * 1000).toLocaleString() : '';
+            const fdate = f.mtime ? new Date(f.mtime * 1000).toLocaleString('en-IN', {timeZone:'Asia/Kolkata'}) + ' IST' : '';
             const fname = f.name.split('/').pop();
             setStatus('scanning', `Scanned ${filesAnalyzed}/${scannable.length} files · ${findings.length} findings`);
             updateProgressFileCount(filesAnalyzed, scannable.length, findings.length, fname, fdate);
@@ -1231,8 +1232,8 @@ async function scanLocally(file) {
     if (mtimes.length > 0) {
         const oldest = new Date(Math.min(...mtimes) * 1000);
         const newest = new Date(Math.max(...mtimes) * 1000);
-        const fmt = d => d.toLocaleDateString('en-US', {year:'numeric',month:'short',day:'numeric'});
-        dateRangeStr = fmt(oldest) === fmt(newest) ? ` · 📅 ${fmt(oldest)}` : ` · 📅 ${fmt(oldest)} → ${fmt(newest)}`;
+        const fmt = d => d.toLocaleDateString('en-IN', {year:'numeric',month:'short',day:'numeric',timeZone:'Asia/Kolkata'});
+        dateRangeStr = fmt(oldest) === fmt(newest) ? ` · 📅 ${fmt(oldest)} IST` : ` · 📅 ${fmt(oldest)} → ${fmt(newest)} IST`;
     }
 
     // Build result object (same format as server response)
@@ -1470,7 +1471,7 @@ function render(data){
         <div class="finding">
             <div><span class="badge badge-${x.severity.toLowerCase()}">${x.severity}</span></div>
             <div class="finding-content">
-                <div class="finding-source">${esc(x.file||'')}:${x.line_number||'?'}</div>
+                <div class="finding-source">${esc(x.file||'')}:${x.line_number||'?'}${x.file_date?` <span style="color:var(--text-400);font-size:11px;margin-left:8px;">📅 ${esc(x.file_date)}</span>`:''}</div>
                 <div class="finding-text">${esc(x.description||x.pattern_name||'')}</div>
                 <div class="finding-code">${esc(x.line_content||'')}</div>
                 ${x.solution_hint?`<div class="finding-fix">${esc(x.solution_hint)}</div>`:''}
@@ -1645,7 +1646,7 @@ function buildProfessionalRCA(findings, critCount, highCount, medCount, lowCount
 // PDF Export
 function exportPDF() {
     const pd = $('#printDate');
-    if (pd) pd.textContent = new Date().toLocaleString();
+    if (pd) pd.textContent = _formatIST(Date.now());
     window.print();
 }
 
@@ -1777,7 +1778,7 @@ function renderFindingsList(findings, label, fullPath) {
         <div class="finding">
             <div><span class="badge badge-${x.severity.toLowerCase()}">${x.severity}</span></div>
             <div class="finding-content">
-                <div class="finding-source">${esc(x.file||'')}:${x.line_number||'?'}</div>
+                <div class="finding-source">${esc(x.file||'')}:${x.line_number||'?'}${x.file_date?` <span style="color:var(--text-400);font-size:11px;margin-left:8px;">📅 ${esc(x.file_date)}</span>`:''}</div>
                 <div class="finding-text">${esc(x.description||x.pattern_name||'')}</div>
                 <div class="finding-code">${esc(x.line_content||'')}</div>
                 ${x.solution_hint?`<div class="finding-fix">${esc(x.solution_hint)}</div>`:''}
@@ -1860,8 +1861,24 @@ function openRunbook(k){fetch('/api/knowledge/runbooks/'+k).then(r=>r.json()).th
 });}
 
 // History
-function saveHistory(d){let h=JSON.parse(localStorage.getItem('ls_h')||'[]');h.unshift({t:Date.now(),f:(d.findings||[]).length,n:d.files_analyzed||0,p:$('#folderPath').value||'Upload'});localStorage.setItem('ls_h',JSON.stringify(h.slice(0,50)));}
-function loadHistory(){const h=JSON.parse(localStorage.getItem('ls_h')||'[]');$('#historyList').innerHTML=h.length?h.map(x=>`<div class="history-item"><span class="history-path">${esc(x.p)}</span><span class="history-info">${x.f} findings · ${x.n} files · ${new Date(x.t).toLocaleString()}</span></div>`).join(''):'<p style="color:var(--text-500)">No scans yet.</p>';}
+// Bug 2 note: localStorage is per-browser/per-origin, so different team members
+// on different machines already have completely separate data. No additional isolation needed.
+function _getActualFilename() {
+    // Try folder path first (manual path entry)
+    const fp = $('#folderPath').value.trim();
+    if (fp) return fp;
+    // Try file input (drag-and-drop or file picker)
+    const fi = document.getElementById('fileInput');
+    if (fi && fi.files && fi.files[0]) return fi.files[0].name;
+    return 'Unknown';
+}
+function _formatIST(ts) {
+    return new Date(ts).toLocaleString('en-IN', {timeZone: 'Asia/Kolkata'}) + ' IST';
+}
+function saveHistory(d){let h=JSON.parse(localStorage.getItem('ls_h')||'[]');h.unshift({t:Date.now(),f:(d.findings||[]).length,n:d.files_analyzed||0,p:_getActualFilename()});localStorage.setItem('ls_h',JSON.stringify(h.slice(0,50)));}
+function loadHistory(){const h=JSON.parse(localStorage.getItem('ls_h')||'[]');$('#historyList').innerHTML=h.length?h.map((x,i)=>`<div class="history-item" style="display:flex;align-items:center;justify-content:space-between;"><div style="flex:1;cursor:pointer;" onclick="reviewHistoryItem(${i})"><span class="history-path">${esc(x.p)}</span><span class="history-info">${x.f} findings · ${x.n} files · ${_formatIST(x.t)}</span></div><button onclick="deleteHistoryItem(${i})" style="background:none;border:none;color:var(--text-500);cursor:pointer;padding:4px 8px;font-size:14px;border-radius:4px;" title="Delete this entry">✕</button></div>`).join(''):'<p style="color:var(--text-500)">No scans yet.</p>';}
+function deleteHistoryItem(index){let h=JSON.parse(localStorage.getItem('ls_h')||'[]');h.splice(index,1);localStorage.setItem('ls_h',JSON.stringify(h));loadHistory();}
+function reviewHistoryItem(index){const h=JSON.parse(localStorage.getItem('ls_h')||'[]');if(h[index]){const scanHist=JSON.parse(localStorage.getItem('ls_scan_history')||'[]');const match=scanHist.find(s=>Math.abs(s.timestamp-h[index].t)<5000);if(match&&match.data){render(match.data);document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});}else{flash('Scan data not available. Only recent scans (last 5) store full results.');}}}
 
 // Keys
 $('#folderPath').addEventListener('keydown',e=>{if(e.key==='Enter')analyzeFolder();});
@@ -1931,7 +1948,7 @@ function saveScanHistory(data) {
     const highCount = findings.filter(x => x.severity === 'HIGH').length;
     const medCount = findings.filter(x => x.severity === 'MEDIUM').length;
     const lowCount = findings.filter(x => x.severity === 'LOW').length;
-    const filename = $('#folderPath').value || 'File Upload';
+    const filename = _getActualFilename();
 
     const entry = {
         timestamp: Date.now(),
@@ -1945,6 +1962,12 @@ function saveScanHistory(data) {
     };
 
     let history = JSON.parse(localStorage.getItem('ls_scan_history') || '[]');
+    // Bug 5 fix: Check for duplicates (same filename within 5 seconds)
+    const isDuplicate = history.some(h => Math.abs(h.timestamp - entry.timestamp) < 5000 && h.filename === entry.filename);
+    if (isDuplicate) {
+        renderScanHistoryPanel();
+        return;
+    }
     history.unshift(entry);
     // Keep only last 5, but store data only for recent ones (to avoid localStorage limits)
     history = history.slice(0, 5);
@@ -1977,22 +2000,32 @@ function renderScanHistoryPanel() {
 
     panel.style.display = 'block';
     entries.innerHTML = history.slice(0, 5).map((h, i) => {
-        const time = new Date(h.timestamp).toLocaleString();
+        const time = _formatIST(h.timestamp);
         const fname = (h.filename || 'Unknown').split('\\').pop().split('/').pop();
-        return `<div class="scan-history-entry" onclick="reviewScanHistory(${i})" title="Click to re-view this scan">
-            <div class="scan-history-entry-left">
-                <div class="scan-history-entry-file">${esc(fname)}</div>
-                <div class="scan-history-entry-time">${time}</div>
+        return `<div class="scan-history-entry" style="position:relative;" title="Click to re-view this scan">
+            <div style="flex:1;cursor:pointer;display:flex;align-items:center;" onclick="reviewScanHistory(${i})">
+                <div class="scan-history-entry-left">
+                    <div class="scan-history-entry-file">${esc(fname)}</div>
+                    <div class="scan-history-entry-time">${time}</div>
+                </div>
+                <div class="scan-history-entry-right">
+                    ${h.critical > 0 ? `<span class="scan-history-badge crit">${h.critical}C</span>` : ''}
+                    ${h.high > 0 ? `<span class="scan-history-badge high">${h.high}H</span>` : ''}
+                    ${h.medium > 0 ? `<span class="scan-history-badge med">${h.medium}M</span>` : ''}
+                    ${h.low > 0 ? `<span class="scan-history-badge low">${h.low}L</span>` : ''}
+                    <span style="font-family:var(--mono);font-size:10px;color:var(--text-400)">${h.findingsCount} total</span>
+                </div>
             </div>
-            <div class="scan-history-entry-right">
-                ${h.critical > 0 ? `<span class="scan-history-badge crit">${h.critical}C</span>` : ''}
-                ${h.high > 0 ? `<span class="scan-history-badge high">${h.high}H</span>` : ''}
-                ${h.medium > 0 ? `<span class="scan-history-badge med">${h.medium}M</span>` : ''}
-                ${h.low > 0 ? `<span class="scan-history-badge low">${h.low}L</span>` : ''}
-                <span style="font-family:var(--mono);font-size:10px;color:var(--text-400)">${h.findingsCount} total</span>
-            </div>
+            <button onclick="event.stopPropagation();deleteRecentScan(${i})" style="background:none;border:none;color:var(--text-500);cursor:pointer;padding:4px 8px;font-size:14px;border-radius:4px;position:absolute;top:4px;right:4px;" title="Delete this scan">✕</button>
         </div>`;
     }).join('');
+}
+
+function deleteRecentScan(index) {
+    let history = JSON.parse(localStorage.getItem('ls_scan_history') || '[]');
+    history.splice(index, 1);
+    localStorage.setItem('ls_scan_history', JSON.stringify(history));
+    renderScanHistoryPanel();
 }
 
 function reviewScanHistory(index) {
@@ -2823,7 +2856,7 @@ async function loadAnalyticsDashboard() {
 
         // User list
         document.getElementById('userList').innerHTML = (data.top_users || []).map(u => {
-            const lastSeen = u.last_seen ? new Date(u.last_seen).toLocaleString() : 'Never';
+            const lastSeen = u.last_seen ? new Date(u.last_seen).toLocaleString('en-IN', {timeZone:'Asia/Kolkata'}) + ' IST' : 'Never';
             return `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border-default);">
                 <span>👤 ${u.username || u.user_id}</span>
                 <span style="color:var(--text-500);font-size:11px;">${u.events} events · ${lastSeen}</span>
@@ -2832,7 +2865,7 @@ async function loadAnalyticsDashboard() {
 
         // Recent activity
         document.getElementById('recentActivity').innerHTML = (data.recent_events || []).map(e => {
-            const time = new Date(e.created_at).toLocaleString();
+            const time = new Date(e.created_at).toLocaleString('en-IN', {timeZone:'Asia/Kolkata'}) + ' IST';
             const icon = { page_view: '🌐', scan_started: '🔍', scan_completed: '✅', ai_chat: '💬', comment_reply: '📝', jira_fetch: '🎫', session_end: '🕐' }[e.event_type] || '📌';
             return `<div style="display:flex;gap:8px;padding:4px 0;border-bottom:1px solid var(--border-default);">
                 <span>${icon}</span>
@@ -2912,10 +2945,13 @@ function hideOllamaPopover() {
 // Quick Reference Panel Toggle
 function toggleQuickRef() {
     const panel = document.getElementById('quickRefPanel');
+    const railItem = document.querySelector('.rail-item[onclick*="toggleQuickRef"]');
     if (panel.style.display === 'none' || panel.style.display === '') {
         panel.style.display = 'block';
+        if (railItem) railItem.classList.add('active');
     } else {
         panel.style.display = 'none';
+        if (railItem) railItem.classList.remove('active');
     }
 }
 
@@ -3562,7 +3598,7 @@ async function fetchJiraTicket() {
         if (data.comments && data.comments.length > 0) {
             html += `<div style="font-size:11px;font-weight:500;color:var(--text-400);margin-bottom:8px;">COMMENTS (${data.comments.length})</div>`;
             data.comments.slice(-5).forEach(c => {
-                const date = new Date(c.created).toLocaleDateString();
+                const date = new Date(c.created).toLocaleDateString('en-IN', {timeZone:'Asia/Kolkata'}) + ' IST';
                 html += `<div style="border-left:3px solid var(--border-default);padding:8px 12px;margin-bottom:8px;background:var(--bg-2);border-radius:0 6px 6px 0;">`;
                 html += `<div style="font-size:10px;color:var(--text-400);margin-bottom:4px;"><strong>${escapeHtml(c.author)}</strong> · ${date}</div>`;
                 html += `<div style="font-size:12px;color:var(--text-200);white-space:pre-wrap;line-height:1.5;">${escapeHtml(c.body.substring(0, 500))}${c.body.length > 500 ? '...' : ''}</div>`;
