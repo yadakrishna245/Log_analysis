@@ -2,7 +2,8 @@
 
 import json
 import os
-import requests as http_requests
+import urllib.request
+import urllib.error
 from datetime import datetime, timezone, timedelta
 from flask import Blueprint, jsonify, request
 from sqlalchemy import func, distinct
@@ -18,9 +19,9 @@ def access_ping():
         data = request.get_json() or {}
         gh_token = os.environ.get('GH_MONITOR_TOKEN', '')
         if not gh_token:
-            return jsonify({'ok': True}), 200  # Silent fail if not configured
+            return jsonify({'ok': True}), 200
 
-        payload = {
+        payload = json.dumps({
             'event_type': 'access_ping',
             'client_payload': {
                 'domain': data.get('domain', 'unknown'),
@@ -29,18 +30,20 @@ def access_ping():
                 'user_agent': data.get('user_agent', '')[:120],
                 'page_url': data.get('page_url', '')
             }
-        }
-        http_requests.post(
+        }).encode('utf-8')
+        req = urllib.request.Request(
             'https://api.github.com/repos/yadakrishna245/HPE-log_analysis_app-monitor/dispatches',
+            data=payload,
             headers={
                 'Accept': 'application/vnd.github.v3+json',
-                'Authorization': f'token {gh_token}'
+                'Authorization': f'token {gh_token}',
+                'Content-Type': 'application/json'
             },
-            json=payload,
-            timeout=3
+            method='POST'
         )
+        urllib.request.urlopen(req, timeout=3)
     except Exception:
-        pass  # Never fail the user experience
+        pass
     return jsonify({'ok': True}), 200
 
 
@@ -57,31 +60,27 @@ def validate_license():
 
         gh_token = os.environ.get('GH_MONITOR_TOKEN', '')
         if not gh_token:
-            # If no token configured, allow (graceful degradation)
             return jsonify({'valid': True, 'reason': 'License server not configured'}), 200
 
         # Fetch licenses.json from private repo
-        resp = http_requests.get(
+        req = urllib.request.Request(
             'https://api.github.com/repos/yadakrishna245/HPE-log_analysis_app-monitor/contents/licenses.json',
             headers={
                 'Accept': 'application/vnd.github.v3.raw',
                 'Authorization': f'token {gh_token}'
-            },
-            timeout=5
+            }
         )
-
-        if resp.status_code != 200:
-            # Can't reach license server — allow with warning
+        try:
+            resp = urllib.request.urlopen(req, timeout=5)
+            licenses_data = json.loads(resp.read().decode('utf-8'))
+        except (urllib.error.URLError, urllib.error.HTTPError):
             return jsonify({'valid': True, 'reason': 'License server unreachable', 'grace': True}), 200
 
-        licenses_data = resp.json()
         today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
 
         for lic in licenses_data.get('licenses', []):
             if lic['key'] == license_key and lic.get('active', False):
-                # Check domain match (master keys work on any domain)
                 if lic.get('type') == 'master' or lic.get('domain', '') == domain or lic.get('domain', '') == '*':
-                    # Check expiry
                     if lic.get('expires_at', '2099-12-31') >= today:
                         return jsonify({
                             'valid': True,
@@ -96,8 +95,7 @@ def validate_license():
 
         return jsonify({'valid': False, 'reason': 'Invalid license key'}), 200
 
-    except Exception as e:
-        # On error, allow with grace period
+    except Exception:
         return jsonify({'valid': True, 'reason': 'Validation error', 'grace': True}), 200
 
 
