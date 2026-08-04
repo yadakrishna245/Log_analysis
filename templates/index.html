@@ -1222,209 +1222,25 @@ dlm_tool lockdebug</pre>
 <!-- pako for gzip decompression in browser -->
 <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
 <script>
-// ═══ LICENSE VALIDATION GATE ═══════════════════════════════════════════════
-// App will NOT function without a valid license from Krishna Yada
-// Trial: 7 days from first use. After that = blocked.
+// LICENSE HARD BLOCK - No license = No app. Must enter Name + Email + Mobile + Key.
 (function _licenseGate() {
-    const LICENSE_STORAGE_KEY = 'ls_license_key';
-    const TRIAL_START_KEY = 'ls_trial_start';
-    const TRIAL_DAYS = 7;
-    const LICENSE_CACHE_KEY = 'ls_license_valid';
-    const LICENSE_CACHE_TIME = 'ls_license_checked';
-
-    const savedKey = localStorage.getItem(LICENSE_STORAGE_KEY);
-    const trialStart = localStorage.getItem(TRIAL_START_KEY);
-    const cacheValid = localStorage.getItem(LICENSE_CACHE_KEY);
-    const cacheTime = parseInt(localStorage.getItem(LICENSE_CACHE_TIME) || '0');
-    const now = Date.now();
-
-    // If license was validated in last 4 hours, skip re-check
-    if (cacheValid === 'true' && (now - cacheTime) < 4 * 60 * 60 * 1000) {
-        return; // Valid cached license — proceed
-    }
-
-    // Start trial if first visit
-    if (!trialStart && !savedKey) {
-        localStorage.setItem(TRIAL_START_KEY, String(now));
-    }
-
-    // Check trial expiry
-    const trialStartTime = parseInt(trialStart || String(now));
-    const trialDaysLeft = Math.max(0, TRIAL_DAYS - Math.floor((now - trialStartTime) / (24*60*60*1000)));
-    const trialExpired = trialDaysLeft <= 0;
-
-    // If no license key AND trial expired — BLOCK immediately
-    if (!savedKey && trialExpired) {
-        _showLicenseBlock('Trial expired', 0);
-        return;
-    }
-
-    // If has license key OR still in trial — validate async
-    if (savedKey) {
-        // Validate with server
-        fetch('/api/license/validate', {
-            method: 'POST',
-            headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ key: savedKey, domain: location.hostname })
-        }).then(r => r.json()).then(data => {
-            if (data.valid) {
-                localStorage.setItem(LICENSE_CACHE_KEY, 'true');
-                localStorage.setItem(LICENSE_CACHE_TIME, String(now));
-                // Remove trial banner if exists
-                const tb = document.getElementById('trialBanner');
-                if (tb) tb.remove();
-            } else {
-                localStorage.removeItem(LICENSE_STORAGE_KEY);
-                localStorage.removeItem(LICENSE_CACHE_KEY);
-                if (trialExpired) {
-                    _showLicenseBlock(data.reason || 'Invalid license', 0);
-                } else {
-                    _showTrialBanner(trialDaysLeft, data.reason);
-                }
-            }
-        }).catch(() => {
-            // Server unreachable — if trial valid, allow; if not, block
-            if (!trialExpired) {
-                _showTrialBanner(trialDaysLeft, 'License server unreachable');
-            } else {
-                _showLicenseBlock('Cannot verify license — server unreachable', 0);
-            }
-        });
-    } else if (!trialExpired) {
-        // No key, trial active — show trial banner
-        _showTrialBanner(trialDaysLeft);
-    }
-
-    function _showTrialBanner(daysLeft, msg) {
-        if (document.getElementById('trialBanner')) return;
-        const banner = document.createElement('div');
-        banner.id = 'trialBanner';
-        banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99998;background:linear-gradient(90deg,#ff6b35,#f7c948);color:#000;text-align:center;padding:8px 16px;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:12px;';
-        banner.innerHTML = `
-            <span>⚠️ TRIAL MODE — ${daysLeft} day${daysLeft!==1?'s':''} remaining${msg?' ('+msg+')':''}</span>
-            <button onclick="document.getElementById('licenseModal').style.display='flex'" style="background:#000;color:#fff;border:none;border-radius:4px;padding:4px 12px;font-size:11px;cursor:pointer;">Enter License Key</button>
-            <span style="font-size:10px;opacity:0.7;">Contact: Krishna Yada (yadakrishna245@gmail.com)</span>
-        `;
-        document.body.prepend(banner);
-        _createLicenseModal();
-    }
-
-    function _showLicenseBlock(reason, daysLeft) {
-        // Block the entire app
-        const overlay = document.createElement('div');
-        overlay.id = 'licenseOverlay';
-        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.95);z-index:99999;display:flex;align-items:center;justify-content:center;';
-        overlay.innerHTML = `
-            <div style="background:#1a1a2e;border:2px solid #ef4444;border-radius:16px;padding:48px;max-width:480px;width:90%;text-align:center;">
-                <div style="font-size:48px;margin-bottom:16px;">🔒</div>
-                <h2 style="color:#ef4444;margin:0 0 12px 0;font-size:22px;">License Required</h2>
-                <p style="color:#aaa;margin:0 0 8px 0;font-size:14px;">${reason}</p>
-                <p style="color:#666;margin:0 0 24px 0;font-size:12px;">This software requires a valid license key to operate.<br>Contact the author to obtain a license.</p>
-                <div style="background:#0d0d1a;border-radius:8px;padding:16px;margin-bottom:20px;text-align:left;">
-                    <div style="color:#888;font-size:11px;margin-bottom:8px;">ENTER LICENSE KEY</div>
-                    <input id="licenseKeyInput" type="text" placeholder="LS-XXXX-XXXX-XXXX-XXXX" style="width:100%;padding:12px;border-radius:6px;border:1px solid #333;background:#000;color:#fff;font-family:monospace;font-size:14px;text-align:center;box-sizing:border-box;" />
-                    <button onclick="_activateLicense()" style="width:100%;margin-top:10px;padding:12px;border-radius:6px;border:none;background:#01a982;color:#fff;font-size:14px;font-weight:600;cursor:pointer;">Activate License</button>
-                    <div id="licenseError" style="color:#ef4444;font-size:11px;margin-top:8px;display:none;"></div>
-                </div>
-                <div style="border-top:1px solid #333;padding-top:16px;">
-                    <p style="color:#888;font-size:12px;margin:0;">
-                        <strong style="color:#fff;">Contact for License:</strong><br>
-                        Krishna Yada | Senior Tech Lead | Wipro<br>
-                        📧 yadakrishna245@gmail.com
-                    </p>
-                </div>
-                <div style="margin-top:16px;font-size:10px;color:#555;">
-                    © 2026 Krishna Yada. All Rights Reserved.<br>
-                    Unauthorized use of this software violates the license agreement.
-                </div>
-            </div>
-        `;
-        document.body.appendChild(overlay);
-        setTimeout(() => { const i = document.getElementById('licenseKeyInput'); if(i) i.focus(); }, 100);
-    }
-
-    function _createLicenseModal() {
-        if (document.getElementById('licenseModal')) return;
-        const modal = document.createElement('div');
-        modal.id = 'licenseModal';
-        modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:99999;display:none;align-items:center;justify-content:center;';
-        modal.innerHTML = `
-            <div style="background:#1a1a2e;border:1px solid #01a982;border-radius:16px;padding:36px;max-width:400px;width:90%;text-align:center;">
-                <h3 style="color:#fff;margin:0 0 16px 0;">🔑 Enter License Key</h3>
-                <input id="licenseKeyInputModal" type="text" placeholder="LS-XXXX-XXXX-XXXX-XXXX" style="width:100%;padding:12px;border-radius:6px;border:1px solid #333;background:#0d0d1a;color:#fff;font-family:monospace;font-size:14px;text-align:center;box-sizing:border-box;" />
-                <button onclick="_activateLicenseModal()" style="width:100%;margin-top:10px;padding:12px;border-radius:6px;border:none;background:#01a982;color:#fff;font-size:14px;font-weight:600;cursor:pointer;">Activate</button>
-                <div id="licenseErrorModal" style="color:#ef4444;font-size:11px;margin-top:8px;display:none;"></div>
-                <button onclick="document.getElementById('licenseModal').style.display='none'" style="margin-top:12px;background:none;border:none;color:#888;font-size:12px;cursor:pointer;">Cancel</button>
-            </div>
-        `;
-        document.body.appendChild(modal);
-    }
+    var savedKey = localStorage.getItem('ls_license_key');
+    var cacheValid = localStorage.getItem('ls_license_valid');
+    var cacheTime = parseInt(localStorage.getItem('ls_license_checked') || '0');
+    var userReg = localStorage.getItem('ls_user_registration');
+    var now = Date.now();
+    // If validated in last 6 hours AND registered, allow
+    if (savedKey && cacheValid === 'true' && userReg && (now - cacheTime) < 6*3600000) return;
+    // HARD BLOCK - wipe page and show license form
+    document.documentElement.innerHTML = '<head><meta charset="utf-8"><title>LogSherlock Pro - License Required</title></head><body style="margin:0;background:#0a0a1a;font-family:-apple-system,BlinkMacSystemFont,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px;box-sizing:border-box;"><div style="background:#12122b;border:2px solid #01a982;border-radius:20px;padding:40px 36px;max-width:440px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.8);"><div style="font-size:42px;margin-bottom:8px;">&#x1F510;</div><h2 style="color:#fff;margin:0 0 4px;font-size:22px;">LogSherlock Pro</h2><p style="color:#01a982;margin:0 0 20px;font-size:12px;font-weight:600;letter-spacing:0.5px;">LICENSED SOFTWARE — ACTIVATION REQUIRED</p><div style="text-align:left;margin-bottom:14px;"><label style="color:#aaa;font-size:11px;font-weight:600;display:block;margin-bottom:4px;">FULL NAME *</label><input id="_lic_name" type="text" placeholder="e.g., Rahul Sharma" style="width:100%;padding:10px 14px;border-radius:8px;border:1px solid #333;background:#0a0a1a;color:#fff;font-size:13px;box-sizing:border-box;outline:none;"/></div><div style="text-align:left;margin-bottom:14px;"><label style="color:#aaa;font-size:11px;font-weight:600;display:block;margin-bottom:4px;">EMAIL ADDRESS *</label><input id="_lic_email" type="email" placeholder="e.g., rahul@company.com" style="width:100%;padding:10px 14px;border-radius:8px;border:1px solid #333;background:#0a0a1a;color:#fff;font-size:13px;box-sizing:border-box;outline:none;"/></div><div style="text-align:left;margin-bottom:14px;"><label style="color:#aaa;font-size:11px;font-weight:600;display:block;margin-bottom:4px;">MOBILE NUMBER *</label><input id="_lic_mobile" type="tel" placeholder="e.g., 9876543210" style="width:100%;padding:10px 14px;border-radius:8px;border:1px solid #333;background:#0a0a1a;color:#fff;font-size:13px;box-sizing:border-box;outline:none;"/></div><div style="text-align:left;margin-bottom:20px;"><label style="color:#aaa;font-size:11px;font-weight:600;display:block;margin-bottom:4px;">LICENSE KEY *</label><input id="_lic_key" type="text" placeholder="LS-XXXX-XXXX-XXXX-XXXX" style="width:100%;padding:10px 14px;border-radius:8px;border:1px solid #333;background:#0a0a1a;color:#fff;font-family:monospace;font-size:14px;text-align:center;box-sizing:border-box;outline:none;letter-spacing:1px;"/></div><div id="_lic_error" style="color:#ef4444;font-size:12px;margin-bottom:12px;display:none;padding:8px;background:rgba(239,68,68,0.1);border-radius:6px;"></div><button id="_lic_btn" onclick="_doActivate()" style="width:100%;padding:14px;border-radius:10px;border:none;background:#01a982;color:#fff;font-size:15px;font-weight:700;cursor:pointer;">&#x1F511; Activate License</button><div style="margin-top:20px;padding-top:16px;border-top:1px solid #222;"><p style="color:#666;font-size:11px;margin:0 0 8px;">Don\'t have a license key? Contact:</p><p style="color:#fff;font-size:12px;margin:0;font-weight:500;">Krishna Yada | Senior Tech Lead | Wipro<br><span style="color:#01a982;">yadakrishna245@gmail.com</span></p></div><div style="margin-top:16px;font-size:9px;color:#444;">Copyright 2026 Krishna Yada. All Rights Reserved.</div></div></body>';
+    // Add activation script
+    var s = document.createElement('script');
+    s.textContent = 'function _doActivate(){var n=document.getElementById("_lic_name").value.trim();var e=document.getElementById("_lic_email").value.trim();var m=document.getElementById("_lic_mobile").value.trim();var k=(document.getElementById("_lic_key").value||"").trim().toUpperCase();var err=document.getElementById("_lic_error");var btn=document.getElementById("_lic_btn");if(!n||n.length<2){err.textContent="Please enter your full name.";err.style.display="block";return;}if(!e||e.indexOf("@")<0||e.indexOf(".")<0){err.textContent="Please enter a valid email address.";err.style.display="block";return;}if(!m||m.replace(/[^0-9]/g,"").length<10){err.textContent="Please enter valid mobile number (min 10 digits).";err.style.display="block";return;}if(!k||k.indexOf("LS-")!==0){err.textContent="Invalid license key. Must start with LS-";err.style.display="block";return;}btn.disabled=true;btn.textContent="Validating...";err.style.display="none";fetch("/api/license/validate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({key:k,domain:location.hostname})}).then(function(r){return r.json();}).then(function(data){if(data.valid){localStorage.setItem("ls_license_key",k);localStorage.setItem("ls_license_valid","true");localStorage.setItem("ls_license_checked",String(Date.now()));localStorage.setItem("ls_user_registration",JSON.stringify({name:n,email:e,mobile:m,activated_at:new Date().toISOString()}));localStorage.setItem("ls_username",n);location.reload();}else{btn.disabled=false;btn.textContent="Activate License";err.textContent=data.reason||"Invalid or expired license key.";err.style.display="block";}}).catch(function(){btn.disabled=false;btn.textContent="Activate License";err.textContent="Cannot reach license server. Check internet.";err.style.display="block";});}document.addEventListener("keydown",function(ev){if(ev.key==="Enter")_doActivate();});';
+    document.body.appendChild(s);
+    throw new Error('LICENSE_BLOCK');
 })();
+// END LICENSE GATE
 
-// License activation functions (global)
-function _activateLicense() {
-    const inp = document.getElementById('licenseKeyInput');
-    const key = inp ? inp.value.trim().toUpperCase() : '';
-    if (!key || !key.startsWith('LS-')) {
-        const err = document.getElementById('licenseError');
-        err.textContent = 'Invalid format. Key must start with LS-';
-        err.style.display = 'block';
-        return;
-    }
-    fetch('/api/license/validate', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ key: key, domain: location.hostname })
-    }).then(r => r.json()).then(data => {
-        if (data.valid) {
-            localStorage.setItem('ls_license_key', key);
-            localStorage.setItem('ls_license_valid', 'true');
-            localStorage.setItem('ls_license_checked', String(Date.now()));
-            location.reload();
-        } else {
-            const err = document.getElementById('licenseError');
-            err.textContent = data.reason || 'License validation failed';
-            err.style.display = 'block';
-        }
-    }).catch(() => {
-        const err = document.getElementById('licenseError');
-        err.textContent = 'Cannot reach license server. Try again later.';
-        err.style.display = 'block';
-    });
-}
-
-function _activateLicenseModal() {
-    const inp = document.getElementById('licenseKeyInputModal');
-    const key = inp ? inp.value.trim().toUpperCase() : '';
-    if (!key || !key.startsWith('LS-')) {
-        const err = document.getElementById('licenseErrorModal');
-        err.textContent = 'Invalid format. Key must start with LS-';
-        err.style.display = 'block';
-        return;
-    }
-    fetch('/api/license/validate', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ key: key, domain: location.hostname })
-    }).then(r => r.json()).then(data => {
-        if (data.valid) {
-            localStorage.setItem('ls_license_key', key);
-            localStorage.setItem('ls_license_valid', 'true');
-            localStorage.setItem('ls_license_checked', String(Date.now()));
-            location.reload();
-        } else {
-            const err = document.getElementById('licenseErrorModal');
-            err.textContent = data.reason || 'License validation failed';
-            err.style.display = 'block';
-        }
-    }).catch(() => {
-        const err = document.getElementById('licenseErrorModal');
-        err.textContent = 'Cannot reach license server. Try again later.';
-        err.style.display = 'block';
-    });
-}
-
-// ═══ END LICENSE GATE ═══════════════════════════════════════════════════════
 
 const $ = s => document.querySelector(s);
 const $$ = s => document.querySelectorAll(s);
