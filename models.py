@@ -233,3 +233,32 @@ class Suppression(db.Model):
             'expires_at': self.expires_at.isoformat() if self.expires_at else None,
             'active': self.active,
         }
+
+
+
+class AnalyticsEvent(db.Model):
+    """Usage analytics tracking — who's using what features and for how long."""
+    __tablename__ = 'analytics_events'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.String(64), nullable=False, index=True)  # Browser fingerprint hash
+    username = db.Column(db.String(100), nullable=True)  # Optional display name
+    event_type = db.Column(db.String(50), nullable=False, index=True)  # page_view, scan, ai_chat, comment_reply, jira_fetch
+    event_data = db.Column(db.Text, nullable=True)  # JSON extra data
+    duration_seconds = db.Column(db.Integer, nullable=True)  # Time spent (for sessions)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+
+    __table_args__ = (
+        db.Index('idx_analytics_user_date', 'user_id', 'created_at'),
+    )
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'username': self.username,
+            'event_type': self.event_type,
+            'event_data': self.event_data,
+            'duration_seconds': self.duration_seconds,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+        }

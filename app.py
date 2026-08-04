@@ -22,7 +22,7 @@ import logging
 import time
 import click
 from collections import defaultdict
-from flask import Flask, send_from_directory, jsonify, render_template, request
+from flask import Flask, send_from_directory, jsonify, render_template, request, Response
 from config import Config
 from models import db
 
@@ -46,11 +46,13 @@ def create_app(config_class=Config):
     from routes.knowledge import knowledge_bp
     from routes.analysis import analysis_bp
     from routes.feedback import feedback_bp
+    from routes.analytics import analytics_bp
 
     app.register_blueprint(tickets_bp)
     app.register_blueprint(knowledge_bp)
     app.register_blueprint(analysis_bp)
     app.register_blueprint(feedback_bp)
+    app.register_blueprint(analytics_bp)
 
     # Create database tables
     with app.app_context():
@@ -95,6 +97,9 @@ def create_app(config_class=Config):
             return None
         # Jira proxy — credentials passed per-request, no data stored server-side
         if request.path.startswith('/api/jira/'):
+            return None
+        # Analytics — tracking events, no sensitive data
+        if request.path.startswith('/api/analytics/'):
             return None
         if not request.path.startswith('/api/'):
             return None
@@ -178,8 +183,38 @@ def create_app(config_class=Config):
         import requests as req
         try:
             data = request.get_json()
-            r = req.post('http://localhost:11434/api/generate', json=data, timeout=120)
-            return jsonify(r.json())
+            stream = data.get('stream', False)
+            if stream:
+                # Streaming: pass through chunks as they arrive
+                r = req.post('http://localhost:11434/api/generate', json=data, timeout=120, stream=True)
+                def generate():
+                    for chunk in r.iter_content(chunk_size=None):
+                        if chunk:
+                            yield chunk
+                return Response(generate(), content_type='application/x-ndjson')
+            else:
+                r = req.post('http://localhost:11434/api/generate', json=data, timeout=120)
+                return jsonify(r.json())
+        except Exception as e:
+            return jsonify({'error': str(e)}), 503
+
+    @app.route('/api/ollama/chat', methods=['POST'])
+    def ollama_chat():
+        """Proxy to local Ollama /api/chat — supports think:false for qwen3.5."""
+        import requests as req
+        try:
+            data = request.get_json()
+            stream = data.get('stream', False)
+            if stream:
+                r = req.post('http://localhost:11434/api/chat', json=data, timeout=120, stream=True)
+                def gen_chat():
+                    for chunk in r.iter_content(chunk_size=None):
+                        if chunk:
+                            yield chunk
+                return Response(gen_chat(), content_type='application/x-ndjson')
+            else:
+                r = req.post('http://localhost:11434/api/chat', json=data, timeout=120)
+                return jsonify(r.json())
         except Exception as e:
             return jsonify({'error': str(e)}), 503
 

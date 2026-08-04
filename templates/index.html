@@ -418,6 +418,11 @@
             <span id="jiraStatusDot" style="position:absolute;top:6px;right:6px;width:8px;height:8px;border-radius:50%;background:#71717a;border:2px solid var(--bg-1);"></span>
         </div>
 
+        <!-- Analytics Dashboard -->
+        <div class="rail-item" onclick="showPage('analytics')" tabindex="0" title="Usage Analytics">
+            <span style="font-size:16px;">📊</span>
+        </div>
+
         <!-- Quick Reference Docs -->
         <div class="rail-item" onclick="toggleQuickRef()" tabindex="0" title="Quick Reference Commands">
             <span style="font-size:16px;">📚</span>
@@ -738,7 +743,7 @@
                         <button class="btn" onclick="fetchJiraTicket()" style="background:var(--hpe-green);white-space:nowrap;">📥 Fetch</button>
                     </div>
                     <div id="jiraTicketResult" style="display:none;margin-top:16px;"></div>
-                    <div id="jiraTicketActions" style="display:none;margin-top:16px;gap:10px;flex-wrap:wrap;">
+                    <div id="jiraTicketActions" style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;">
                         <button class="btn-ghost" onclick="jiraGetAdvice()">🧭 Suggest where to look</button>
                         <button class="btn-ghost" style="border-color:#8b5cf6;color:#8b5cf6;" onclick="jiraAskAI()">🤖 Ask AI for Solution</button>
                     </div>
@@ -765,6 +770,62 @@
                         <button class="btn" onclick="postJiraComment()" style="background:#8b5cf6;align-self:flex-start;">📤 Post Comment to Jira</button>
                         <div id="jiraPostStatus" style="font-size:12px;color:var(--text-400);display:none;"></div>
                     </div>
+                </div>
+            </div>
+
+            <!-- ANALYTICS DASHBOARD PAGE -->
+            <div id="page-analytics" class="page">
+                <div style="margin-bottom:20px;">
+                    <h2 style="color:var(--text-100);margin:0 0 4px 0;font-size:20px;">📊 Usage Analytics</h2>
+                    <p style="color:var(--text-400);margin:0;font-size:13px;">Track who's using LogSherlock, scans performed, time spent, and features used.</p>
+                </div>
+
+                <!-- Stats Cards -->
+                <div id="analyticsCards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px;">
+                    <div style="background:var(--bg-2);border-radius:10px;padding:16px;border:1px solid var(--border-default);">
+                        <div style="font-size:11px;color:var(--text-400);text-transform:uppercase;letter-spacing:0.05em;">Total Users</div>
+                        <div id="statTotalUsers" style="font-size:28px;font-weight:700;color:var(--hpe-green);margin-top:4px;">—</div>
+                    </div>
+                    <div style="background:var(--bg-2);border-radius:10px;padding:16px;border:1px solid var(--border-default);">
+                        <div style="font-size:11px;color:var(--text-400);text-transform:uppercase;letter-spacing:0.05em;">Active Today</div>
+                        <div id="statActiveToday" style="font-size:28px;font-weight:700;color:#3b82f6;margin-top:4px;">—</div>
+                    </div>
+                    <div style="background:var(--bg-2);border-radius:10px;padding:16px;border:1px solid var(--border-default);">
+                        <div style="font-size:11px;color:var(--text-400);text-transform:uppercase;letter-spacing:0.05em;">Total Scans</div>
+                        <div id="statTotalScans" style="font-size:28px;font-weight:700;color:#f59e0b;margin-top:4px;">—</div>
+                    </div>
+                    <div style="background:var(--bg-2);border-radius:10px;padding:16px;border:1px solid var(--border-default);">
+                        <div style="font-size:11px;color:var(--text-400);text-transform:uppercase;letter-spacing:0.05em;">Avg Session</div>
+                        <div id="statAvgSession" style="font-size:28px;font-weight:700;color:#8b5cf6;margin-top:4px;">—</div>
+                    </div>
+                    <div style="background:var(--bg-2);border-radius:10px;padding:16px;border:1px solid var(--border-default);">
+                        <div style="font-size:11px;color:var(--text-400);text-transform:uppercase;letter-spacing:0.05em;">Active This Week</div>
+                        <div id="statActiveWeek" style="font-size:28px;font-weight:700;color:#10b981;margin-top:4px;">—</div>
+                    </div>
+                </div>
+
+                <!-- Daily Activity Chart -->
+                <div style="background:var(--bg-2);border-radius:10px;padding:16px;border:1px solid var(--border-default);margin-bottom:16px;">
+                    <h3 style="margin:0 0 12px 0;font-size:14px;color:var(--text-200);">📈 Daily Activity (Last 7 Days)</h3>
+                    <div id="dailyChart" style="display:flex;align-items:flex-end;gap:8px;height:120px;"></div>
+                </div>
+
+                <!-- Feature Usage -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+                    <div style="background:var(--bg-2);border-radius:10px;padding:16px;border:1px solid var(--border-default);">
+                        <h3 style="margin:0 0 12px 0;font-size:14px;color:var(--text-200);">🔧 Feature Usage</h3>
+                        <div id="featureBreakdown" style="font-size:12px;color:var(--text-300);"></div>
+                    </div>
+                    <div style="background:var(--bg-2);border-radius:10px;padding:16px;border:1px solid var(--border-default);">
+                        <h3 style="margin:0 0 12px 0;font-size:14px;color:var(--text-200);">👥 Active Users</h3>
+                        <div id="userList" style="font-size:12px;color:var(--text-300);max-height:200px;overflow-y:auto;"></div>
+                    </div>
+                </div>
+
+                <!-- Recent Activity -->
+                <div style="background:var(--bg-2);border-radius:10px;padding:16px;border:1px solid var(--border-default);">
+                    <h3 style="margin:0 0 12px 0;font-size:14px;color:var(--text-200);">🕐 Recent Activity</h3>
+                    <div id="recentActivity" style="font-size:12px;color:var(--text-300);max-height:250px;overflow-y:auto;"></div>
                 </div>
             </div>
 
@@ -965,7 +1026,7 @@ async function loadPatterns() {
 loadPatterns();
 
 // Nav
-function showPage(p){$$('.page').forEach(x=>x.classList.remove('active'));$$('.rail-item').forEach(x=>x.classList.remove('active'));$('#page-'+p).classList.add('active');document.getElementById('pg-chat').style.display='none';event.currentTarget.classList.add('active');if(p==='knowledge')loadKB();if(p==='runbooks')loadRunbooks();if(p==='history')loadHistory();}
+function showPage(p){$$('.page').forEach(x=>{x.classList.remove('active');x.style.display='';});$$('.rail-item').forEach(x=>x.classList.remove('active'));$('#page-'+p).classList.add('active');document.getElementById('pg-chat').style.display='none';event.currentTarget.classList.add('active');if(p==='knowledge')loadKB();if(p==='runbooks')loadRunbooks();if(p==='history')loadHistory();if(p==='analytics')loadAnalyticsDashboard();}
 function switchTab(t){$$('.tab-item').forEach(x=>x.classList.remove('active'));$$('.tab-pane').forEach(x=>x.classList.remove('active'));event.currentTarget.classList.add('active');$('#tab-'+t).classList.add('active');}
 
 // Drop
@@ -999,6 +1060,10 @@ function parseTar(buffer) {
         const sizeStr = decoder.decode(header.slice(124, 136)).replace(/\0/g, '').trim();
         const size = parseInt(sizeStr, 8) || 0;
 
+        // Parse mtime (bytes 136-147, octal unix timestamp)
+        const mtimeStr = decoder.decode(header.slice(136, 148)).replace(/\0/g, '').trim();
+        const mtime = parseInt(mtimeStr, 8) || 0;
+
         // Parse type (byte 156)
         const type = String.fromCharCode(header[156]);
 
@@ -1007,7 +1072,7 @@ function parseTar(buffer) {
         if ((type === '0' || type === '\0') && size > 0) {
             // Regular file
             const content = view.slice(offset, offset + size);
-            files.push({ name, size, content });
+            files.push({ name, size, content, mtime });
         }
 
         // Move past data (padded to 512-byte blocks)
@@ -1037,6 +1102,7 @@ function classifyFile(name, size) {
 
 // ── CLIENT-SIDE SCANNER ─────────────────────────────────────────────
 async function scanLocally(file) {
+    trackEvent('scan_started', { filename: file.name, size_mb: (file.size/1024/1024).toFixed(1) });
     const startTime = performance.now();
     const patterns = await loadPatterns();
     if (!patterns || !patterns.length) {
@@ -1127,7 +1193,10 @@ async function scanLocally(file) {
         const pct = 50 + Math.round((i / scannable.length) * 45);
         showProgress(pct);
         if (i % 3 === 0) {
+            const fdate = f.mtime ? new Date(f.mtime * 1000).toLocaleString() : '';
+            const fname = f.name.split('/').pop();
             setStatus('scanning', `Scanned ${filesAnalyzed}/${scannable.length} files · ${findings.length} findings`);
+            updateProgressFileCount(filesAnalyzed, scannable.length, findings.length, fname, fdate);
             await new Promise(r => setTimeout(r, 0)); // Let UI update
         }
 
@@ -1156,6 +1225,16 @@ async function scanLocally(file) {
     const elapsed = ((performance.now() - startTime) / 1000).toFixed(1);
     showProgress(100);
 
+    // Calculate log date range from file timestamps
+    const mtimes = scannable.filter(f => f.mtime > 0).map(f => f.mtime);
+    let dateRangeStr = '';
+    if (mtimes.length > 0) {
+        const oldest = new Date(Math.min(...mtimes) * 1000);
+        const newest = new Date(Math.max(...mtimes) * 1000);
+        const fmt = d => d.toLocaleDateString('en-US', {year:'numeric',month:'short',day:'numeric'});
+        dateRangeStr = fmt(oldest) === fmt(newest) ? ` · 📅 ${fmt(oldest)}` : ` · 📅 ${fmt(oldest)} → ${fmt(newest)}`;
+    }
+
     // Build result object (same format as server response)
     const result = {
         findings: findings,
@@ -1166,9 +1245,11 @@ async function scanLocally(file) {
         analysis_time_seconds: parseFloat(elapsed),
         client_side: true,
         jira_report: null,
+        date_range: dateRangeStr,
     };
 
-    setStatus('done', `${findings.length} findings · ${filesAnalyzed} files · ${elapsed}s · 🔒 Zero data uploaded`);
+    setStatus('done', `${findings.length} findings · ${filesAnalyzed} files · ${elapsed}s${dateRangeStr} · 🔒 Zero data uploaded`);
+    trackEvent('scan_completed', { findings: findings.length, files: filesAnalyzed, seconds: elapsed });
     render(result);
 }
 
@@ -2006,10 +2087,14 @@ window.showProgress = function(pct) {
     }
 };
 
-function updateProgressFileCount(scanned, total, findings) {
+function updateProgressFileCount(scanned, total, findings, fileName, fileDate) {
     const el = document.getElementById('progressFileCount');
     if (el) {
-        el.textContent = `📂 ${scanned}/${total} files scanned • ${findings} findings detected`;
+        let info = `📂 ${scanned}/${total} files scanned • ${findings} findings detected`;
+        if (fileName) info += `\n📄 ${fileName}`;
+        if (fileDate) info += ` • 🕒 ${fileDate}`;
+        el.style.whiteSpace = 'pre-line';
+        el.textContent = info;
     }
 }
 
@@ -2640,6 +2725,127 @@ async function loadDemo() {
 // ═══ OLLAMA LOCAL LLM INTEGRATION ═══════════════════════════════════════════
 // Connects to Ollama via Flask proxy (/api/ollama/) to avoid CORS issues
 // The Flask backend forwards to localhost:11434 — data stays on the same machine
+// ═══ USAGE ANALYTICS ════════════════════════════════════════════════
+const _analyticsUserId = (function() {
+    let id = localStorage.getItem('ls_user_id');
+    if (!id) {
+        id = 'u_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 8);
+        localStorage.setItem('ls_user_id', id);
+    }
+    return id;
+})();
+const _sessionStart = Date.now();
+
+function trackEvent(eventType, eventData) {
+    try {
+        const payload = {
+            user_id: _analyticsUserId,
+            username: localStorage.getItem('ls_username') || '',
+            event_type: eventType,
+            event_data: eventData || {},
+        };
+        fetch('/api/analytics/track', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        }).catch(() => {});
+    } catch(e) {}
+}
+
+// Track page view on load
+trackEvent('page_view', { url: location.href });
+
+// Track session duration on page unload
+window.addEventListener('beforeunload', () => {
+    const duration = Math.round((Date.now() - _sessionStart) / 1000);
+    const payload = JSON.stringify({
+        user_id: _analyticsUserId,
+        username: localStorage.getItem('ls_username') || '',
+        event_type: 'session_end',
+        duration_seconds: duration,
+    });
+    navigator.sendBeacon('/api/analytics/track', new Blob([payload], { type: 'application/json' }));
+});
+
+// Set username prompt (shown in analytics)
+function setAnalyticsUsername() {
+    const name = prompt('Enter your name (shown in analytics dashboard):', localStorage.getItem('ls_username') || '');
+    if (name !== null) {
+        localStorage.setItem('ls_username', name.trim());
+        flash('Name set: ' + name.trim());
+    }
+}
+
+async function loadAnalyticsDashboard() {
+    try {
+        const resp = await fetch('/api/analytics/dashboard');
+        if (!resp.ok) throw new Error('Failed to load analytics');
+        const data = await resp.json();
+
+        // Update stat cards
+        document.getElementById('statTotalUsers').textContent = data.total_users || 0;
+        document.getElementById('statActiveToday').textContent = data.active_today || 0;
+        document.getElementById('statTotalScans').textContent = data.total_scans || 0;
+        document.getElementById('statAvgSession').textContent = data.avg_session_minutes ? data.avg_session_minutes + 'm' : '—';
+        document.getElementById('statActiveWeek').textContent = data.active_week || 0;
+
+        // Daily activity chart (simple bar chart)
+        const chart = document.getElementById('dailyChart');
+        const days = (data.daily_activity || []).reverse();
+        const maxEvents = Math.max(...days.map(d => d.events), 1);
+        chart.innerHTML = days.map(d => {
+            const height = Math.max(8, (d.events / maxEvents) * 100);
+            return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;">
+                <div style="font-size:10px;color:var(--text-400);">${d.events}</div>
+                <div style="width:100%;height:${height}px;background:var(--hpe-green);border-radius:4px;min-width:20px;opacity:${d.events > 0 ? 1 : 0.3}"></div>
+                <div style="font-size:10px;color:var(--text-500);">${d.day}</div>
+                <div style="font-size:9px;color:var(--text-500);">${d.users}👤</div>
+            </div>`;
+        }).join('');
+
+        // Feature breakdown
+        const features = data.event_breakdown || {};
+        const featureLabels = {
+            page_view: '🌐 Page Views',
+            scan_started: '🔍 Scans Started',
+            scan_completed: '✅ Scans Completed',
+            ai_chat: '💬 AI Chat',
+            comment_reply: '📝 Comment Reply',
+            jira_fetch: '🎫 Jira Fetch',
+            session_end: '🕐 Sessions',
+        };
+        document.getElementById('featureBreakdown').innerHTML = Object.entries(features)
+            .sort((a, b) => b[1] - a[1])
+            .map(([type, count]) => `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border-default);">
+                <span>${featureLabels[type] || type}</span>
+                <strong style="color:var(--text-100);">${count}</strong>
+            </div>`).join('') || '<p style="color:var(--text-500);">No data yet. Start using the tool!</p>';
+
+        // User list
+        document.getElementById('userList').innerHTML = (data.top_users || []).map(u => {
+            const lastSeen = u.last_seen ? new Date(u.last_seen).toLocaleString() : 'Never';
+            return `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border-default);">
+                <span>👤 ${u.username || u.user_id}</span>
+                <span style="color:var(--text-500);font-size:11px;">${u.events} events · ${lastSeen}</span>
+            </div>`;
+        }).join('') || '<p style="color:var(--text-500);">No users yet.</p>';
+
+        // Recent activity
+        document.getElementById('recentActivity').innerHTML = (data.recent_events || []).map(e => {
+            const time = new Date(e.created_at).toLocaleString();
+            const icon = { page_view: '🌐', scan_started: '🔍', scan_completed: '✅', ai_chat: '💬', comment_reply: '📝', jira_fetch: '🎫', session_end: '🕐' }[e.event_type] || '📌';
+            return `<div style="display:flex;gap:8px;padding:4px 0;border-bottom:1px solid var(--border-default);">
+                <span>${icon}</span>
+                <span style="flex:1;">${e.event_type.replace(/_/g, ' ')}</span>
+                <span style="color:var(--text-500);font-size:11px;">${time}</span>
+            </div>`;
+        }).join('') || '<p style="color:var(--text-500);">No activity yet.</p>';
+
+    } catch(err) {
+        document.getElementById('analyticsCards').innerHTML = `<div style="grid-column:1/-1;padding:20px;color:var(--text-400);text-align:center;">Could not load analytics: ${err.message}</div>`;
+    }
+}
+
 const OLLAMA_URL = '/api/ollama';
 let _ollamaAvailable = false;
 
@@ -2898,6 +3104,7 @@ async function generateCommentReply() {
         alert('Ollama not detected.\n\nSetup:\n1. Install Ollama: ollama.com/download\n2. Run: ollama pull qwen3.5:4b\n3. Enable in browser flags (click 🤖 icon in sidebar for instructions)');
         return;
     }
+    trackEvent('comment_reply', { tone: document.getElementById('replyTone').value });
 
     const tone = document.getElementById('replyTone').value;
     const panel = document.getElementById('replyOutputPanel');
@@ -2931,29 +3138,18 @@ async function generateCommentReply() {
         update: 'Write a status update reply. What was found, current status, next steps. Use bullet points.'
     };
 
-    const prompt = `You are Krishna Yada, an HPE VME L4 Support Engineer. You need to reply to a Jira comment/question on a ticket you're working on.
+    const prompt = `You are Krishna Yada, an HPE VME L4 Support Engineer replying to a Jira comment.
 
-YOUR ANALYSIS CONTEXT (what you found from log analysis):
-${context || 'No scan results available yet. Base your reply on general L4 support knowledge.'}
+CONTEXT FROM LOG ANALYSIS:
+${context || 'No scan data yet.'}
 
-THE COMMENT/QUESTION YOU RECEIVED:
-"""
-${comment}
-"""
+COMMENT TO REPLY TO:
+"${comment}"
 
-REPLY INSTRUCTIONS:
-- ${toneInstructions[tone]}
-- Sound like a real L4 engineer, not a chatbot
-- Reference specific findings if you have them
-- Be helpful and show progress/ownership
-- If asked about ETA, give reasonable estimates (don't promise exact dates)
-- If asked about root cause, explain clearly with evidence from your analysis
-- Use proper Jira formatting if helpful (bullet points with * , bold with *text*)
-- Sign off naturally (no "Best regards" — just end the content)
-- DO NOT use markdown formatting (no ## or **bold**)
-- Use Jira wiki markup: *bold* for emphasis, * for bullet points
-
-OUTPUT: Only the reply text. Nothing else.`;
+INSTRUCTIONS: ${toneInstructions[tone]}
+- Sound like a real engineer, not AI. Reference findings if available.
+- Use Jira markup: *bold*, * for bullets. No markdown.
+- Output ONLY the reply text.`;
 
     try {
         const endpoint = window._ollamaEndpoint || '/api/ollama';
@@ -2967,22 +3163,54 @@ OUTPUT: Only the reply text. Nothing else.`;
                  || models.find(m => m.name.includes('mistral'))?.name
                  || (models[0]?.name || 'qwen3.5:4b');
 
-        const response = await fetch(endpoint + '/generate', {
+        const response = await fetch(endpoint + '/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 model: model,
-                prompt: prompt,
-                stream: false,
-                options: { temperature: 0.5, num_predict: 600 }
+                messages: [{ role: 'user', content: prompt }],
+                stream: true,
+                think: false,
+                options: { temperature: 0.5, num_predict: 400, num_ctx: 2048 }
             })
         });
 
         if (!response.ok) throw new Error('Ollama returned error: ' + response.status);
-        const result = await response.json();
-        const replyText = result.response || 'No response from model.';
 
-        content.innerHTML = `<div style="margin-bottom:8px;font-size:11px;color:var(--text-400)">Model: <strong>${model}</strong> · ${(result.total_duration / 1e9).toFixed(1)}s · Tone: ${tone}</div><div style="white-space:pre-wrap;line-height:1.8;">${escapeHtml(replyText)}</div>`;
+        // Stream the response for instant feedback
+        const reader = response.body.getReader();
+        const textDecoder = new TextDecoder();
+        let replyText = '';
+        let replyInThink = false;
+        let totalDuration = 0;
+        content.innerHTML = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = textDecoder.decode(value, { stream: true });
+            // Each line is a JSON object
+            for (const line of chunk.split('\n').filter(l => l.trim())) {
+                try {
+                    const json = JSON.parse(line);
+                    const rawToken = json.message?.content || json.response || '';
+                    if (rawToken) {
+                        let token = rawToken;
+                        // Filter out <think>...</think> blocks
+                        if (token.includes('<think>')) { replyInThink = true; token = token.split('<think>')[0]; }
+                        if (replyInThink) { if (token.includes('</think>')) { replyInThink = false; token = token.split('</think>').slice(1).join(''); } else { continue; } }
+                        if (!token) continue;
+                        replyText += token;
+                        content.innerHTML = `<div style="white-space:pre-wrap;line-height:1.8;">${escapeHtml(replyText)}<span style="opacity:0.4">▊</span></div>`;
+                    }
+                    if (json.done) {
+                        totalDuration = json.total_duration || 0;
+                    }
+                } catch(e) {}
+            }
+        }
+
+        content.innerHTML = `<div style="margin-bottom:8px;font-size:11px;color:var(--text-400)">Model: <strong>${model}</strong> · ${(totalDuration / 1e9).toFixed(1)}s · Tone: ${tone}</div><div style="white-space:pre-wrap;line-height:1.8;">${escapeHtml(replyText)}</div>`;
         status.textContent = '✓ Done';
         setTimeout(() => { status.style.display = 'none'; }, 3000);
     } catch (err) {
@@ -3003,7 +3231,7 @@ let _chatHistory = [];
 
 function showChat() {
     // Hide all pages, show chat
-    document.querySelectorAll('.page').forEach(p => { p.classList.remove('active'); p.style.display = 'none'; });
+    document.querySelectorAll('.page').forEach(p => { p.classList.remove('active'); p.style.display = ''; });
     document.getElementById('pg-chat').style.display = 'block';
     // Update rail active state
     document.querySelectorAll('.rail-item').forEach(x => x.classList.remove('active'));
@@ -3043,6 +3271,7 @@ async function sendChat() {
         alert('Ollama not detected. Install it first (click 🤖 icon in sidebar for instructions).');
         return;
     }
+    trackEvent('ai_chat', { query_length: msg.length });
     
     // Add user message to UI
     appendChatMessage('user', msg);
@@ -3068,9 +3297,11 @@ async function sendChat() {
 
 Be concise and actionable. Give exact commands when possible. Use code blocks for commands. If you're unsure, say so.`;
     
-    // Build messages for context
-    const messages = _chatHistory.map(m => m.role + ': ' + m.content).join('\n\n');
-    const prompt = systemPrompt + '\n\nConversation so far:\n' + messages + '\n\nassistant:';
+    // Build messages for /api/chat
+    const chatMessages = [
+        { role: 'system', content: systemPrompt },
+        ..._chatHistory
+    ];
     
     try {
         const endpoint = window._ollamaEndpoint || '/api/ollama';
@@ -3091,26 +3322,75 @@ Be concise and actionable. Give exact commands when possible. Use code blocks fo
                  || (models[0]?.name || 'qwen3.5:4b');
         }
         
-        const response = await fetch(endpoint + '/generate', {
+        const response = await fetch(endpoint + '/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 model: model,
-                prompt: prompt,
-                stream: false,
-                options: { temperature: 0.4, num_predict: 1000 }
+                messages: chatMessages,
+                stream: true,
+                think: false,
+                options: { temperature: 0.4, num_predict: 800, num_ctx: 2048 }
             })
         });
         
         if (!response.ok) throw new Error('Ollama error: ' + response.status);
-        const result = await response.json();
-        const aiText = result.response || 'No response.';
         
         // Remove typing indicator
         document.getElementById(typingId)?.remove();
         
-        // Add AI response
-        appendChatMessage('assistant', aiText);
+        // Stream the response word by word
+        const reader = response.body.getReader();
+        const textDecoder = new TextDecoder();
+        let aiText = '';
+        let inThink = false;
+        const msgId = appendChatMessage('assistant', '', true);
+        const bubble = document.getElementById(msgId)?.querySelector('.chat-bubble');
+        
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = textDecoder.decode(value, { stream: true });
+            for (const line of chunk.split('\n').filter(l => l.trim())) {
+                try {
+                    const json = JSON.parse(line);
+                    const token = json.message?.content || json.response || '';
+                    if (token) {
+                        // Filter out <think>...</think> blocks (qwen3.5 thinking mode fallback)
+                        let t = token;
+                        if (t.includes('<think>')) { inThink = true; t = t.split('<think>')[0]; }
+                        if (inThink) { if (t.includes('</think>')) { inThink = false; t = t.split('</think>').slice(1).join(''); } else { continue; } }
+                        if (!t) continue;
+                        aiText += t;
+                        if (bubble) {
+                            let formatted = escapeHtml(aiText);
+                            formatted = formatted.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+                            formatted = formatted.replace(/`([^`]+)`/g, '<code>$1</code>');
+                            formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+                            bubble.innerHTML = formatted + '<span style="opacity:0.4">▊</span>';
+                            bubble.parentElement.parentElement.parentElement.scrollTop = bubble.parentElement.parentElement.parentElement.scrollHeight;
+                        }
+                    }
+                } catch(e) {}
+            }
+        }
+        
+        // Final render without cursor
+        if (bubble) {
+            let formatted = escapeHtml(aiText);
+            formatted = formatted.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+            formatted = formatted.replace(/`([^`]+)`/g, '<code>$1</code>');
+            formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+            formatted = formatted.replace(/^[•\-]\s(.+)$/gm, '• $1');
+            bubble.innerHTML = formatted;
+            // Add copy button
+            const copyBtn = document.createElement('div');
+            copyBtn.className = 'chat-copy-btn';
+            copyBtn.onclick = () => { navigator.clipboard.writeText(aiText).then(() => copyBtn.textContent = '✓ Copied'); };
+            copyBtn.textContent = '📋 Copy';
+            bubble.parentElement.appendChild(copyBtn);
+        }
+        
         _chatHistory.push({ role: 'assistant', content: aiText });
         
     } catch (err) {
@@ -3244,6 +3524,7 @@ async function testJiraConnection() {
 async function fetchJiraTicket() {
     const ticketId = document.getElementById('jiraTicketId').value.trim();
     if (!ticketId) { alert('Enter a ticket ID'); return; }
+    trackEvent('jira_fetch', { ticket_id: ticketId });
 
     const creds = getJiraCreds();
     if (!creds.api_token) { alert('Configure Jira settings first (click 🎫 in sidebar)'); return; }
@@ -3386,10 +3667,14 @@ function showJiraStatus(elementId, message, color) {
 }
 
 async function jiraGetAdvice() {
-    if (!window._lastJiraTicket) { alert('Fetch a ticket first'); return; }
-    const t = window._lastJiraTicket;
-    const desc = `${t.summary}\n\n${t.description || ''}`;
-    if (!desc.trim()) { alert('Ticket has no description'); return; }
+    let desc = '';
+    if (window._lastJiraTicket) {
+        const t = window._lastJiraTicket;
+        desc = `${t.summary}\n\n${t.description || ''}`;
+    } else {
+        desc = document.getElementById('ticketContext')?.value?.trim() || document.getElementById('jiraCommentBody')?.value?.trim() || '';
+    }
+    if (!desc) { alert('Fetch a ticket first, or paste ticket description in the Ticket Context on Scan page'); return; }
 
     const panel = document.getElementById('jiraAdvisorPanel');
     const content = document.getElementById('jiraAdvisorContent');
@@ -3431,14 +3716,20 @@ async function jiraGetAdvice() {
 }
 
 async function jiraAskAI() {
-    if (!window._lastJiraTicket) { alert('Fetch a ticket first'); return; }
     if (!_ollamaAvailable) {
         alert('Ollama not detected.\n\nSetup:\n1. Install Ollama: ollama.com/download\n2. Run: ollama pull qwen3.5:4b\n3. Enable in browser flags (click 🤖 icon in sidebar for instructions)');
         return;
     }
 
-    const t = window._lastJiraTicket;
-    const desc = `[${t.key}] ${t.summary}\n\n${t.description || ''}`;
+    let t = window._lastJiraTicket;
+    let desc = '';
+    if (t) {
+        desc = `[${t.key}] ${t.summary}\n\n${t.description || ''}`;
+    } else {
+        desc = document.getElementById('ticketContext')?.value?.trim() || document.getElementById('jiraCommentBody')?.value?.trim() || '';
+        t = {key: 'N/A', summary: desc.substring(0, 100), status: 'N/A', priority: 'N/A', description: desc, comments: []};
+    }
+    if (!desc) { alert('Fetch a ticket first, or paste description in Ticket Context on Scan page'); return; }
 
     const panel = document.getElementById('jiraAIPanel');
     const content = document.getElementById('jiraAIContent');
