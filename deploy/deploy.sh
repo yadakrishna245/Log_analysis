@@ -1,5 +1,6 @@
 #!/bin/bash
-# LogSherlock Pro - Single-click AWS Serverless Deployment
+# LogSherlock Pro v2.0 - Single-click AWS Serverless Deployment
+# Features: 156 patterns, streaming engine (3GB+), multi-file scan, Jira integration
 # Usage: ./deploy.sh [stack-name] [region] [api-key]
 
 set -e
@@ -45,23 +46,37 @@ sam deploy \
 
 # Get outputs
 echo ""
-echo "[5/6] Retrieving deployment info..."
+echo "[5/7] Retrieving deployment info..."
 API_URL=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --region "$REGION" --query 'Stacks[0].Outputs[?OutputKey==`ApiUrl`].OutputValue' --output text)
 S3_BUCKET=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --region "$REGION" --query 'Stacks[0].Outputs[?OutputKey==`S3BucketName`].OutputValue' --output text)
+CF_DIST_ID=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --region "$REGION" --query 'Stacks[0].Outputs[?OutputKey==`CloudFrontDistributionId`].OutputValue' --output text 2>/dev/null)
+
+# Invalidate CloudFront
+echo ""
+echo "[6/7] Invalidating CloudFront cache..."
+if [ -n "$CF_DIST_ID" ] && [ "$CF_DIST_ID" != "None" ]; then
+    aws cloudfront create-invalidation --distribution-id "$CF_DIST_ID" --paths "/*" --region "$REGION" > /dev/null
+else
+    aws cloudfront create-invalidation --distribution-id "E3V2MZ00F7WXY9" --paths "/*" --region "$REGION" > /dev/null
+fi
+echo "  ✓ CloudFront cache invalidated."
 
 # Summary
 echo ""
-echo "[6/6] ✅ Deployment Complete!"
+echo "[7/7] ✅ Deployment Complete!"
 echo ""
 echo "================================================="
-echo "  LogSherlock Pro - Deployed Successfully!"
+echo "  LogSherlock Pro v2.0 - Deployed Successfully!"
 echo "================================================="
 echo ""
+echo "  CloudFront: https://d3tv1czat55yad.cloudfront.net"
 echo "  API URL:     $API_URL"
 echo "  S3 Bucket:   $S3_BUCKET"
 echo "  API Key:     $API_KEY"
 echo "  Region:      $REGION"
 echo "  Stack:       $STACK_NAME"
+echo ""
+echo "  Features: 156 patterns | Streaming 3GB+ | Multi-file | Jira | Local AI"
 echo ""
 echo "  Test it:"
 echo "    curl -H 'X-API-Key: $API_KEY' $API_URL/api/health"

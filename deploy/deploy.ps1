@@ -1,12 +1,13 @@
 #!/usr/bin/env pwsh
 <#
 .SYNOPSIS
-    Single-click deployment of LogSherlock Pro to AWS Lambda.
+    Single-click deployment of LogSherlock Pro v2.0 to AWS Lambda.
 .DESCRIPTION
-    Deploys the app using AWS SAM CLI. Requires:
+    Deploys the app using AWS SAM CLI + invalidates CloudFront. Requires:
     - AWS CLI configured with credentials
     - AWS SAM CLI installed
     - Python 3.11
+    Features: 156 patterns, streaming engine (3GB+), multi-file scan, Jira integration
 .PARAMETER StackName
     CloudFormation stack name (default: logsherlock-pro)
 .PARAMETER Region
@@ -79,22 +80,37 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 # Get outputs
-Write-Host "`n[5/6] Retrieving deployment info..." -ForegroundColor Yellow
+Write-Host "`n[5/7] Retrieving deployment info..." -ForegroundColor Yellow
 $outputs = aws cloudformation describe-stacks --stack-name $StackName --region $Region --query 'Stacks[0].Outputs' --output json | ConvertFrom-Json
 
 $apiUrl = ($outputs | Where-Object { $_.OutputKey -eq 'ApiUrl' }).OutputValue
 $s3Bucket = ($outputs | Where-Object { $_.OutputKey -eq 'S3BucketName' }).OutputValue
+$cfUrl = ($outputs | Where-Object { $_.OutputKey -eq 'CloudFrontUrl' }).OutputValue
+
+# Invalidate CloudFront cache
+Write-Host "`n[6/7] Invalidating CloudFront cache..." -ForegroundColor Yellow
+$cfDistId = ($outputs | Where-Object { $_.OutputKey -eq 'CloudFrontDistributionId' }).OutputValue
+if ($cfDistId) {
+    aws cloudfront create-invalidation --distribution-id $cfDistId --paths "/*" --region $Region | Out-Null
+    Write-Host "  CloudFront cache invalidated." -ForegroundColor Green
+} else {
+    # Fallback to known distribution ID
+    aws cloudfront create-invalidation --distribution-id "E3V2MZ00F7WXY9" --paths "/*" --region $Region | Out-Null
+    Write-Host "  CloudFront cache invalidated (E3V2MZ00F7WXY9)." -ForegroundColor Green
+}
 
 # Summary
-Write-Host "`n[6/6] Deployment Complete!" -ForegroundColor Green
+Write-Host "`n[7/7] Deployment Complete!" -ForegroundColor Green
 Write-Host "`n$('='*50)" -ForegroundColor Cyan
-Write-Host "  LogSherlock Pro - Deployed Successfully!" -ForegroundColor Cyan
+Write-Host "  LogSherlock Pro v2.0 - Deployed Successfully!" -ForegroundColor Cyan
 Write-Host "$('='*50)" -ForegroundColor Cyan
-Write-Host "`n  API URL:     $apiUrl" -ForegroundColor White
+Write-Host "`n  CloudFront: https://d3tv1czat55yad.cloudfront.net" -ForegroundColor Green
+Write-Host "  API URL:     $apiUrl" -ForegroundColor White
 Write-Host "  S3 Bucket:   $s3Bucket" -ForegroundColor White
 Write-Host "  API Key:     $ApiKey" -ForegroundColor White
 Write-Host "  Region:      $Region" -ForegroundColor White
 Write-Host "  Stack:       $StackName" -ForegroundColor White
+Write-Host "`n  Features: 156 patterns | Streaming 3GB+ | Multi-file | Jira | Local AI" -ForegroundColor Cyan
 Write-Host "`n  Test it:" -ForegroundColor Yellow
 Write-Host "    curl -H 'X-API-Key: $ApiKey' $apiUrl/api/health"
 Write-Host "`n  Destroy it:" -ForegroundColor Yellow
