@@ -423,6 +423,7 @@ def _init_database(app):
     from models import Pattern, KnowledgeEntry
     from engine.patterns import BUILT_IN_PATTERNS
     from knowledge.known_issues import KNOWN_ISSUES
+    from knowledge.vme_guide import VME_GUIDE_ENTRIES
 
     with app.app_context():
         # Add patterns
@@ -461,9 +462,36 @@ def _init_database(app):
                 db.session.add(entry)
                 knowledge_added += 1
 
+        # Add VME guide entries as knowledge entries
+        vme_added = 0
+        for entry in VME_GUIDE_ENTRIES:
+            if entry['title'] not in existing_knowledge:
+                # Build solution text from resolution/steps/commands
+                solution_parts = []
+                if 'resolution' in entry and isinstance(entry['resolution'], list):
+                    solution_parts.extend(entry['resolution'])
+                if 'steps' in entry and isinstance(entry['steps'], list):
+                    solution_parts.extend(entry['steps'])
+                if 'commands' in entry and isinstance(entry['commands'], dict):
+                    solution_parts.extend([f'{k}: {v}' for k, v in entry['commands'].items()])
+
+                kb_entry = KnowledgeEntry(
+                    title=entry['title'],
+                    category=entry.get('category', 'vme_guide'),
+                    product=', '.join(entry.get('products', [])),
+                    symptoms=entry.get('symptoms', entry.get('description', '')),
+                    root_cause=entry.get('root_causes', entry.get('description', '')),
+                    solution='\n'.join(solution_parts) if solution_parts else str(entry.get('description', '')),
+                    prevention=entry.get('prevention', ''),
+                    related_tickets='',
+                )
+                db.session.add(kb_entry)
+                vme_added += 1
+
         db.session.commit()
         print(f'  Patterns added: {patterns_added}')
         print(f'  Knowledge entries added: {knowledge_added}')
+        print(f'  VME guide entries added: {vme_added}')
 
 
 # Application instance

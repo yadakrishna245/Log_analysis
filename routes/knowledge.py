@@ -4,6 +4,7 @@ from flask import Blueprint, request, jsonify
 from models import db, KnowledgeEntry
 from knowledge.known_issues import KNOWN_ISSUES
 from knowledge.runbooks import RUNBOOKS
+from knowledge.vme_guide import VME_GUIDE_ENTRIES
 
 knowledge_bp = Blueprint('knowledge', __name__)
 
@@ -76,14 +77,40 @@ def search_knowledge():
 
     runbook_results.sort(key=lambda x: x['score'], reverse=True)
 
+    # Search VME guide entries
+    vme_results = []
+    for entry in VME_GUIDE_ENTRIES:
+        searchable = ' '.join([
+            entry.get('title', ''),
+            entry.get('description', ''),
+            entry.get('category', ''),
+            entry.get('symptoms', ''),
+            entry.get('root_causes', ''),
+            ' '.join(entry.get('products', [])),
+            ' '.join(entry.get('resolution', [])) if isinstance(entry.get('resolution'), list) else '',
+            ' '.join(entry.get('steps', [])) if isinstance(entry.get('steps'), list) else '',
+            str(entry.get('commands', '')),
+        ]).lower()
+
+        score = sum(1 for term in query_terms if term in searchable)
+        if score > 0:
+            vme_results.append({
+                'source': 'vme_guide',
+                'score': score,
+                'data': entry,
+            })
+
+    vme_results.sort(key=lambda x: x['score'], reverse=True)
+
     return jsonify({
         'query': query,
         'results': {
             'knowledge_entries': [e.to_dict() for e in db_results],
             'known_issues': [r['data'] for r in in_memory_results[:10]],
             'runbooks': runbook_results[:5],
+            'vme_guide': [r['data'] for r in vme_results[:10]],
         },
-        'total_results': len(db_results) + len(in_memory_results) + len(runbook_results),
+        'total_results': len(db_results) + len(in_memory_results) + len(runbook_results) + len(vme_results),
     })
 
 
@@ -136,3 +163,26 @@ def get_runbook(category):
             return jsonify(rb)
 
     return jsonify({'error': f'Runbook "{category}" not found'}), 404
+
+
+@knowledge_bp.route('/api/knowledge/vme-guide', methods=['GET'])
+def get_vme_guide():
+    """Get VME Operations Guide entries, optionally filtered by category."""
+    category = request.args.get('category', '').strip()
+    product = request.args.get('product', '').strip().lower()
+
+    results = VME_GUIDE_ENTRIES
+
+    if category:
+        results = [e for e in results if e.get('category', '').lower() == category.lower()]
+
+    if product:
+        results = [e for e in results if product in [p.lower() for p in e.get('products', [])]]
+
+    categories = sorted(set(e.get('category', '') for e in VME_GUIDE_ENTRIES))
+
+    return jsonify({
+        'entries': results,
+        'total': len(results),
+        'categories': categories,
+    })

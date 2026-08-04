@@ -73,7 +73,7 @@ def analytics_dashboard():
         AnalyticsEvent.duration_seconds.isnot(None)
     ).scalar() or 0
 
-    # Per-user stats (top 20 users)
+    # Per-user stats (top 50 users)
     user_stats = db.session.query(
         AnalyticsEvent.user_id,
         AnalyticsEvent.username,
@@ -81,7 +81,7 @@ def analytics_dashboard():
         func.max(AnalyticsEvent.created_at).label('last_seen'),
     ).group_by(AnalyticsEvent.user_id, AnalyticsEvent.username).order_by(
         func.max(AnalyticsEvent.created_at).desc()
-    ).limit(20).all()
+    ).limit(50).all()
 
     # Daily activity (last 7 days)
     daily_activity = []

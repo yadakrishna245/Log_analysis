@@ -2,6 +2,7 @@
 
 Contains 32+ pre-loaded known issues covering HPE products:
 Morpheus, KVM, Alletra, GFS2, VME, Pacemaker, HVM HA Failover.
+Also see vme_guide.py for 35+ HPE VM Essentials Operations Guide entries.
 """
 
 KNOWN_ISSUES = [
