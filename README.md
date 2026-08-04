@@ -760,46 +760,110 @@ flowchart LR
 
 ## 📂 Project Structure
 
+> 💡 **New developer?** Start with [CONTRIBUTING.md](CONTRIBUTING.md) for a full code walkthrough with diagrams.
+
 ```
 LogSherlock-Pro/
-├── app.py                 # Flask app factory, auth, CSP headers
-├── config.py              # Environment config (local/lambda/docker)
-├── models.py              # SQLAlchemy models (tickets, findings, patterns)
-├── LogSherlock.bat        # One-click local server launcher (Windows)
-├── setup_ollama.ps1       # AI setup script (Windows PowerShell)
-├── setup_ollama.sh        # AI setup script (Linux/Mac)
-├── engine/
-│   ├── patterns.py        # 156 detection patterns (BUILT_IN_PATTERNS list)
-│   ├── analyzer.py        # Server-side analysis orchestrator
-│   ├── ingestion.py       # File parsing & archive extraction
-│   └── correlator.py      # Cross-node timeline correlation
-├── knowledge/
-│   ├── known_issues.py    # 73 known issues with solutions
-│   ├── runbooks.py        # 12 investigation runbooks
-│   ├── vme_guide.py       # 41 VME operations guide entries
-│   ├── advanced_troubleshooting.py  # Advanced troubleshooting KB
-│   └── kb_manager.py      # KB CRUD operations
-├── routes/
-│   ├── analysis.py        # /api/analyze, /api/patterns/export, /api/advisor
-│   ├── knowledge.py       # /api/knowledge/issues, /api/knowledge/lookup, /api/knowledge/vme-guide
-│   ├── analytics.py       # /api/analytics (admin-only usage dashboard)
-│   ├── tickets.py         # Ticket CRUD + analysis
-│   └── reports.py         # Report generation endpoints
-├── templates/
-│   └── index.html         # Single-page app (265KB, streaming scanner + all features)
-├── deploy/
-│   ├── template.yaml      # SAM/CloudFormation (Lambda + API GW + DynamoDB)
-│   ├── lambda_handler.py  # Custom WSGI adapter for Lambda
-│   └── samconfig.toml     # SAM deployment config
-├── demo/
-│   ├── collect_demovmehost01_20260802_100000.tar.gz  # Demo data (9.4KB)
-│   ├── SAMPLE_TICKETS.md  # Sample Jira descriptions for advisor demo
-│   └── README.md          # Explains synthetic data generation
-└── docs/
-    ├── COMPLIANCE.md      # Data handling & privacy compliance
-    ├── DEPLOYMENT.md      # Full deployment guide
-    ├── OLLAMA_SETUP.md    # Local AI setup guide
-    └── USER_GUIDE.md      # End-user documentation
+│
+├── 📄 README.md                    ← You are here
+├── 📄 CONTRIBUTING.md              ← Developer guide: architecture, code map, how-tos
+├── 📄 app.py                       ← Flask app factory (route registration, CORS, CSP)
+├── 📄 config.py                    ← Environment config (local vs lambda vs docker)
+├── 📄 models.py                    ← SQLAlchemy models (Ticket, Finding, Pattern)
+├── 📄 storage.py                   ← Storage abstraction (SQLite local / DynamoDB lambda)
+├── 📄 db_dynamo.py                 ← DynamoDB adapter for serverless mode
+├── 📄 requirements.txt             ← Python dependencies
+├── 📄 Dockerfile                   ← Container build (optional)
+├── 📄 LogSherlock.bat              ← One-click local launcher (Windows)
+├── 📄 setup_ollama.ps1             ← AI setup (Windows)
+├── 📄 setup_ollama.sh              ← AI setup (Linux/Mac)
+│
+├── 🖥️ templates/
+│   └── index.html                  ← THE FRONTEND (275KB single-page app)
+│                                      All JS/CSS/HTML in one file — zero build step
+│
+├── 🔍 engine/                      ← Pattern detection engine
+│   ├── patterns.py                 ← ⭐ 156 regex patterns (core intelligence)
+│   ├── analyzer.py                 ← Server-side analysis orchestrator
+│   ├── ingestion.py                ← File parsing, tar extraction, classification
+│   └── correlator.py               ← Cross-node timeline correlation
+│
+├── 📚 knowledge/                   ← Knowledge base (solutions & guides)
+│   ├── known_issues.py             ← 73 known issues with solutions
+│   ├── runbooks.py                 ← 12 step-by-step investigation guides
+│   ├── vme_guide.py                ← 41 VME operations guide entries
+│   ├── advanced_troubleshooting.py ← Extended troubleshooting procedures
+│   ├── similar_tickets.py          ← Historical ticket patterns
+│   └── kb_manager.py               ← KB CRUD operations
+│
+├── 🌐 routes/                      ← API endpoint definitions
+│   ├── analysis.py                 ← /api/patterns/export, /api/advisor
+│   ├── knowledge.py                ← /api/knowledge/lookup, /issues, /vme-guide
+│   ├── analytics.py                ← /api/analytics (admin-only)
+│   ├── tickets.py                  ← Ticket CRUD (local mode)
+│   ├── reports.py                  ← Report generation
+│   └── feedback.py                 ← User feedback
+│
+├── 🚀 deploy/                      ← AWS serverless deployment
+│   ├── template.yaml               ← SAM/CloudFormation infrastructure
+│   ├── lambda_handler.py           ← WSGI adapter for Lambda
+│   ├── deploy.ps1 / deploy.sh      ← Deploy scripts (build → deploy → invalidate)
+│   └── samconfig.toml              ← SAM CLI config
+│
+├── 🧪 tests/                       ← Test suite (pytest)
+│   ├── test_basic.py               ← Core unit tests
+│   ├── sanity_check.py             ← Quick health check for live API
+│   ├── perf_test.py                ← Performance benchmarks
+│   └── sample_logs/                ← Test log samples
+│
+├── 📦 demo/                        ← Demo data for stakeholder demos
+│   ├── *.tar.gz                    ← 9.4KB synthetic demo bundle
+│   └── SAMPLE_TICKETS.md           ← Sample Jira descriptions
+│
+├── 📖 docs/                        ← Documentation
+│   ├── USER_GUIDE.md               ← End-user docs
+│   ├── DEPLOYMENT.md               ← Full deployment guide
+│   ├── OLLAMA_SETUP.md             ← Local AI setup
+│   ├── COMPLIANCE.md               ← Privacy & data handling
+│   └── PRODUCTION_READINESS.md     ← Production checklist
+│
+└── 🔧 .github/workflows/
+    └── deploy.yml                  ← CI/CD pipeline
+```
+
+### 🧭 Quick Orientation
+
+| I want to... | Look at... |
+|---|---|
+| Understand browser scanning | `templates/index.html` → search `streamTarEntries` |
+| Add a detection pattern | `engine/patterns.py` → append to `BUILT_IN_PATTERNS` |
+| Add a known issue/solution | `knowledge/known_issues.py` → append to `KNOWN_ISSUES` |
+| Add an API endpoint | `routes/` → add function, register in `app.py` |
+| Deploy changes | `deploy/deploy.ps1` (Windows) or `deploy.sh` (Linux) |
+| Test deployed API | `python tests/sanity_check.py` |
+| Demo to stakeholders | Open [live URL](https://d3tv1czat55yad.cloudfront.net), drop `demo/*.tar.gz` |
+
+### 📐 Code Flow Diagram
+
+```mermaid
+flowchart LR
+    subgraph FRONTEND["templates/index.html"]
+        A[User drops file] --> B[streamTarEntries]
+        B --> C[Pattern matching<br/>156 regex]
+        C --> D[renderFindingsList]
+    end
+
+    subgraph BACKEND["routes/ + engine/ + knowledge/"]
+        E["/api/patterns/export"] --> F[engine/patterns.py]
+        G["/api/knowledge/lookup"] --> H[knowledge/known_issues.py]
+        I["/api/advisor"] --> J[AI suggestion logic]
+    end
+
+    C -->|"pattern names only"| G
+    A -->|"page load: fetch patterns"| E
+
+    style FRONTEND fill:#e8f5e9,stroke:#2e7d32
+    style BACKEND fill:#e3f2fd,stroke:#1565c0
 ```
 
 ---
