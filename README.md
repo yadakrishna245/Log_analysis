@@ -901,7 +901,11 @@ flowchart LR
 
 ## 📄 License
 
-MIT License — See [LICENSE](LICENSE) for details.
+**Proprietary Software** — Copyright © 2026 Krishna Yada. All Rights Reserved.
+
+This software is licensed for internal HPE VME Support Engineering use only. Cloning, forking, redistribution, or derivative works require explicit written permission from the author.
+
+See [LICENSE](LICENSE) for full terms.
 
 ---
 

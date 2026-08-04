@@ -1,0 +1,87 @@
+
+PROPRIETARY SOFTWARE LICENSE
+============================
+
+Copyright (c) 2026 Krishna Yada. All Rights Reserved.
+
+SOFTWARE: LogSherlock Pro — Intelligent Log Analysis for HPE VME Support Engineering
+AUTHOR: Krishna Yada (krishna.yada@hpe.com)
+CREATED: 2026
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. GRANT OF USE
+
+   This software is licensed, not sold. Krishna Yada ("Author") grants
+   authorized HPE VME Support Engineering team members a limited,
+   non-exclusive, non-transferable license to USE this software in its
+   deployed form (https://d3tv1czat55yad.cloudfront.net) for internal
+   HPE support operations only.
+
+2. RESTRICTIONS
+
+   Without prior written consent from the Author, you MAY NOT:
+
+   a) Clone, fork, or copy this repository for independent use
+   b) Modify, adapt, or create derivative works from this software
+   c) Redistribute this software to any third party (inside or outside HPE)
+   d) Remove or alter any copyright notices, author attributions, or this license
+   e) Use this software or its source code to build competing or similar tools
+   f) Deploy this software on any infrastructure not owned/managed by the Author
+   g) Claim authorship or ownership of this software or any part thereof
+   h) Use this software for commercial purposes outside HPE internal operations
+
+3. INTELLECTUAL PROPERTY
+
+   All intellectual property rights in this software — including but not limited
+   to the pattern detection engine (156 signatures), knowledge base (73 known
+   issues, 12 runbooks, 41 VME guide entries), streaming architecture, UI/UX
+   design, and all associated documentation — remain the exclusive property of
+   Krishna Yada.
+
+4. ATTRIBUTION REQUIREMENT
+
+   Any reference to this software in presentations, reports, or communications
+   must credit: "LogSherlock Pro — developed by Krishna Yada"
+
+5. NOTIFICATION REQUIREMENT
+
+   If you wish to:
+   - Clone this repository
+   - Use any portion of this code in another project
+   - Share this software with teams outside VME Support Engineering
+   - Modify or extend this software
+
+   You MUST notify the Author in writing and obtain explicit permission BEFORE
+   proceeding. Contact: Krishna Yada (krishna.yada@hpe.com)
+
+6. REVOCATION
+
+   The Author reserves the right to revoke access to this software at any time,
+   for any reason, with or without notice.
+
+7. NO WARRANTY
+
+   THIS SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED. THE AUTHOR SHALL NOT BE LIABLE FOR ANY DAMAGES ARISING FROM THE USE
+   OF THIS SOFTWARE.
+
+8. ENFORCEMENT
+
+   Unauthorized use, copying, or redistribution of this software may result in:
+   - Formal complaint to HPE management and HR
+   - Request for removal of unauthorized copies
+   - Escalation through appropriate HPE IP protection channels
+
+9. GOVERNING LAW
+
+   This license shall be governed by the laws of India. Any disputes shall be
+   resolved in the courts of Hyderabad, Telangana.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+For permissions, collaborations, or inquiries:
+Krishna Yada | HPE VME L4 Support Engineering
+Email: krishna.yada@hpe.com
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
