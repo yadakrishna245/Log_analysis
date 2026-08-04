@@ -1,9 +1,9 @@
 """Pattern detection engine for LogSherlock Pro.
 
-This module defines 156 detection patterns for identifying issues in Linux/HPE
+This module defines 200 detection patterns for identifying issues in Linux/HPE
 system logs (sosreports, support bundles, raw log files). Patterns are organized
-across 12 categories: kernel, storage, cluster, network, memory, filesystem,
-hardware, security, virtualization, service, performance, and application.
+across 13 categories: kernel, storage, cluster, network, memory, filesystem,
+hardware, security, virtualization, service, performance, application, and backup.
 
 Pattern Format:
     Each pattern is a LogPattern dataclass with:
@@ -1583,6 +1583,445 @@ BUILT_IN_PATTERNS: List[LogPattern] = [
         solution_hint='1. virsh domblkerror <vm> (check error type)\n2. virsh domblklist <vm> (find backing storage path)\n3. Check backing storage: multipath -ll, df -h\n4. Check GFS2: cat /sys/fs/gfs2/*/withdraw\n5. If storage recovered: virsh resume <vm>\n6. Check qemu-img check <disk-path> for corruption',
         product='KVM',
     ),
+    # ====================================================================
+    # HARDWARE PATTERNS (6 new)
+    # ====================================================================
+    LogPattern(
+        name='ecc_memory_correctable',
+        regex=r'(EDAC.*CE|corrected.*memory.*error|Hardware Error.*corrected|mce.*memory.*scrubbing)',
+        severity='MEDIUM',
+        category='hardware',
+        description='Correctable ECC memory error detected. Hardware is auto-correcting bit flips. A few are normal but increasing rate indicates DIMM is degrading and will eventually fail uncorrectably.',
+        solution_hint='1. edac-util -s — check error counts\n2. cat /sys/devices/system/edac/mc/mc*/csrow*/ce_count\n3. Track rate — if increasing, plan DIMM replacement\n4. Identify failing DIMM slot from EDAC logs\n5. Schedule replacement during next maintenance window',
+        product='general',
+    ),
+    LogPattern(
+        name='pcie_error',
+        regex=r'(PCIe.*error|AER.*error|pcieport.*error|correctable error received|uncorrectable error)',
+        severity='HIGH',
+        category='hardware',
+        description='PCI Express bus error detected. This can cause device disconnection (NIC, HBA, GPU). Uncorrectable errors may crash the system. Common causes: loose card, faulty slot, or dying hardware.',
+        solution_hint='1. lspci -vvv — check device status\n2. dmesg | grep -i aer — check AER details\n3. Reseat the affected PCIe card\n4. Try a different PCIe slot\n5. Update firmware/driver for the device\n6. If persistent, replace the card or motherboard',
+        product='general',
+    ),
+    LogPattern(
+        name='disk_smart_failure',
+        regex=r'(SMART.*failure|predictive failure|Current_Pending_Sector|Reallocated_Sector_Ct.*[1-9]|offline uncorrectable)',
+        severity='CRITICAL',
+        category='hardware',
+        description='SMART disk health check reports failure or degradation. The disk is predicting its own death — data loss is imminent if not replaced. Reallocated sectors mean the disk is running out of spare sectors.',
+        solution_hint='1. smartctl -a /dev/sdX — full SMART data\n2. Check Reallocated_Sector_Ct and Current_Pending_Sector\n3. Schedule IMMEDIATE disk replacement\n4. Ensure backups are current\n5. If in RAID: mark disk for replacement, rebuild on new disk\n6. Do NOT ignore — disk WILL fail',
+        product='general',
+    ),
+    LogPattern(
+        name='fan_failure',
+        regex=r'(fan.*fail|fan.*critical|fan.*speed.*0|cooling.*alert|thermal.*shutdown.*imminent)',
+        severity='CRITICAL',
+        category='hardware',
+        description='Fan failure or critical cooling alert. Server may overheat and perform emergency thermal shutdown. Data loss possible if shutdown is ungraceful.',
+        solution_hint='1. ipmitool sensor list | grep -i fan\n2. Check iLO/iDRAC/BMC for hardware alerts\n3. Replace failed fan immediately\n4. If in datacenter, check ambient temperature\n5. Reduce workload until fan is replaced\n6. May need to migrate VMs off this host',
+        product='general',
+    ),
+    LogPattern(
+        name='power_supply_failure',
+        regex=r'(power supply.*fail|PSU.*fault|redundancy.*lost|power.*unit.*error|AC.*lost)',
+        severity='CRITICAL',
+        category='hardware',
+        description='Power supply failure or redundancy loss detected. Server is running on single PSU — another failure means complete power loss. Urgent hardware intervention needed.',
+        solution_hint='1. Check iLO/iDRAC/BMC power status\n2. ipmitool sdr | grep -i power\n3. Replace failed PSU immediately\n4. Verify both power feeds are active\n5. Check UPS status\n6. Consider migrating critical VMs until fixed',
+        product='general',
+    ),
+    LogPattern(
+        name='raid_degraded',
+        regex=r'(RAID.*degrad|array.*degrad|md\d+.*degraded|drive.*rebuild|RAID.*fail)',
+        severity='CRITICAL',
+        category='hardware',
+        description='RAID array is degraded — at least one disk has failed. Data is at risk: another disk failure will cause data loss. Rebuild must start immediately.',
+        solution_hint='1. cat /proc/mdstat — check array status\n2. mdadm --detail /dev/mdX\n3. Identify failed disk and replace ASAP\n4. mdadm --manage /dev/mdX --add /dev/sdY\n5. Monitor rebuild: watch cat /proc/mdstat\n6. Do NOT reboot during rebuild unless necessary',
+        product='general',
+    ),
+
+
+    # ====================================================================
+    # PERFORMANCE PATTERNS (8 new)
+    # ====================================================================
+    LogPattern(
+        name='high_load_average',
+        regex=r'load average[s]?:\s*(\d{2,})\.\d+',
+        severity='HIGH',
+        category='performance',
+        description='System load average is extremely high (double digits+). This means more processes are waiting for CPU than available cores. System will feel sluggish, services may timeout.',
+        solution_hint='1. Check: uptime, top -bn1\n2. Identify top consumers: ps aux --sort=-%cpu | head -20\n3. Check for runaway processes or fork bombs\n4. If IO-bound: iostat -x 1 5 to check disk wait\n5. Consider killing non-essential processes\n6. Scale up CPU if persistent',
+        product='general',
+    ),
+    LogPattern(
+        name='io_wait_high',
+        regex=r'(%iowait|iowait|wa)\s*[:\s]+\s*([3-9]\d|100)\.',
+        severity='HIGH',
+        category='performance',
+        description='IO wait is above 30%, meaning CPUs are idle waiting for disk operations. Applications will be slow. Usually caused by: slow storage, too many disk operations, or failing disks.',
+        solution_hint='1. iostat -x 1 5 — check await and %util columns\n2. iotop — find which process is causing IO\n3. Check for failing disks: dmesg | grep -i error\n4. Check multipath status if SAN storage\n5. Consider IO scheduler tuning or faster storage',
+        product='general',
+    ),
+    LogPattern(
+        name='memory_pressure_high',
+        regex=r'(kswapd|direct reclaim|memory pressure|compaction_stall|allocstall)',
+        severity='HIGH',
+        category='performance',
+        description='Kernel is under memory pressure — actively reclaiming pages. This causes latency spikes as processes wait for memory. Precursor to OOM kills.',
+        solution_hint='1. free -h — check available memory\n2. cat /proc/meminfo | grep -i dirty\n3. Check for memory leaks: ps aux --sort=-rss | head\n4. Consider vm.swappiness tuning\n5. Add more RAM or reduce workload\n6. Check if transparent hugepages are causing issues',
+        product='general',
+    ),
+    LogPattern(
+        name='swap_usage_high',
+        regex=r'(swap (total|used).*[1-9]\d{6,}|swapon.*\d+[MG].*used|SwapFree:\s*[0-9]{1,4}\s*kB)',
+        severity='MEDIUM',
+        category='performance',
+        description='System is actively using significant swap space. This severely degrades performance as disk is 100x slower than RAM. Processes may experience hangs and timeouts.',
+        solution_hint='1. free -h — check swap usage\n2. cat /proc/swaps — see swap devices\n3. Find swap consumers: for f in /proc/*/status; do awk "/VmSwap/{print $2}" $f; done\n4. Consider adding RAM\n5. Tune vm.swappiness=10 for production servers',
+        product='general',
+    ),
+    LogPattern(
+        name='context_switch_storm',
+        regex=r'(context switch|ctxt)\s*[:\s]+\s*\d{8,}',
+        severity='MEDIUM',
+        category='performance',
+        description='Extremely high context switch rate detected. This indicates too many threads fighting for CPU, causing overhead. Performance will degrade as CPU spends time switching instead of working.',
+        solution_hint='1. vmstat 1 5 — check cs column\n2. pidstat -w 1 5 — find processes causing switches\n3. Check for too many threads: ps -eLf | wc -l\n4. Reduce thread count in applications\n5. Consider CPU pinning for critical processes',
+        product='general',
+    ),
+    LogPattern(
+        name='disk_latency_high',
+        regex=r'(await|svctm|latency)\s*[=:\s]+\s*(\d{3,})\s*(ms|msec)',
+        severity='HIGH',
+        category='performance',
+        description='Disk latency is in hundreds of milliseconds — extremely slow. Normal is <10ms for SSD, <20ms for HDD. Applications will timeout, databases will stall.',
+        solution_hint='1. iostat -x 1 5 — check await column per device\n2. Check for queue depth saturation: avgqu-sz\n3. Verify multipath is balanced across paths\n4. Check storage array health\n5. Consider IO scheduler change: echo deadline > /sys/block/sdX/queue/scheduler',
+        product='general',
+    ),
+    LogPattern(
+        name='cpu_soft_lockup',
+        regex=r'(BUG: soft lockup|soft lockup.*CPU|watchdog.*BUG.*soft lockup)',
+        severity='CRITICAL',
+        category='performance',
+        description='CPU soft lockup detected — a CPU has been stuck executing kernel code for >20 seconds without yielding. System is partially frozen. May cascade to watchdog reset.',
+        solution_hint='1. Check dmesg for the full stack trace\n2. Identify which process/syscall caused it\n3. Common causes: storage IO stall, spinlock contention\n4. Check if storage paths are healthy\n5. May need kernel parameter: kernel.softlockup_panic=0\n6. If repeated, likely hardware or driver issue',
+        product='general',
+    ),
+    LogPattern(
+        name='numa_imbalance',
+        regex=r'(numa.*imbalance|node\s+\d+.*free.*0|NUMA.*mismatch|cross.node.*allocation)',
+        severity='MEDIUM',
+        category='performance',
+        description='NUMA memory imbalance detected. Processes are accessing memory from remote NUMA nodes, causing 2-3x latency penalty. VMs and databases are especially sensitive to this.',
+        solution_hint='1. numactl --hardware — check node memory\n2. numastat -m — see per-node allocation\n3. Pin VMs to NUMA nodes: virsh numatune\n4. Check automatic NUMA balancing: cat /proc/sys/kernel/numa_balancing\n5. For databases: numactl --interleave=all',
+        product='general',
+    ),
+
+    # ====================================================================
+    # SECURITY PATTERNS (7 new)
+    # ====================================================================
+    LogPattern(
+        name='ssh_brute_force',
+        regex=r'(Failed password.*from.*repeated|maximum authentication attempts|Too many authentication failures|pam_unix.*authentication failure.*rhost)',
+        severity='HIGH',
+        category='security',
+        description='SSH brute force attack detected. Multiple failed login attempts from an external IP. The attacker is trying common username/password combinations to gain access.',
+        solution_hint='1. Check: journalctl -u sshd | grep Failed\n2. Block IP: firewall-cmd --add-rich-rule="rule family=ipv4 source address=X.X.X.X reject"\n3. Install fail2ban for auto-blocking\n4. Disable password auth: PasswordAuthentication no in sshd_config\n5. Use SSH keys only\n6. Change SSH port if exposed to internet',
+        product='general',
+    ),
+    LogPattern(
+        name='unauthorized_sudo',
+        regex=r'(sudo.*NOT in sudoers|sudo.*incident.*reported|user NOT in sudoers|COMMAND.*not allowed)',
+        severity='HIGH',
+        category='security',
+        description='User attempted sudo without authorization. This could be a legitimate user who needs elevated access, or an attacker trying to escalate privileges after gaining initial access.',
+        solution_hint='1. Check who: grep "NOT in sudoers" /var/log/secure\n2. Verify if legitimate: contact the user\n3. If legitimate: visudo to add access\n4. If suspicious: check user login history, review commands\n5. Consider audit trail: auditctl -w /etc/sudoers',
+        product='general',
+    ),
+    LogPattern(
+        name='file_integrity_changed',
+        regex=r'(AIDE.*changed|tripwire.*violation|integrity.*check.*fail|rpm -V.*[SM5DLUGTP])',
+        severity='HIGH',
+        category='security',
+        description='File integrity monitoring detected unauthorized file changes. System binaries or config files were modified outside of normal package management. Could indicate compromise.',
+        solution_hint='1. Review changed files: aide --check\n2. Compare with package: rpm -V <package>\n3. Check modification time: stat <file>\n4. If binary changed: reinstall package\n5. Check for rootkits: rkhunter --check\n6. Review recent user activity in /var/log/secure',
+        product='general',
+    ),
+    LogPattern(
+        name='firewall_zone_misconfigured',
+        regex=r'(firewall.*zone.*public.*interface|FirewallD.*not running|firewalld.*dead|nftables.*failed)',
+        severity='HIGH',
+        category='security',
+        description='Firewall is misconfigured, not running, or interfaces are in wrong zones. System may be exposed to unauthorized network access. Critical for production servers.',
+        solution_hint='1. firewall-cmd --state\n2. firewall-cmd --get-active-zones\n3. firewall-cmd --list-all\n4. Ensure correct zone for each interface\n5. systemctl enable --now firewalld\n6. Verify required ports only: firewall-cmd --list-ports',
+        product='general',
+    ),
+    LogPattern(
+        name='ssl_certificate_expiring',
+        regex=r'(certificate.*expir|ssl.*expir|x509.*not after|cert.*will expire|TLS.*expir)',
+        severity='HIGH',
+        category='security',
+        description='SSL/TLS certificate is expired or expiring soon. Services using this certificate will show security warnings, and clients may refuse to connect. Automated renewals may have failed.',
+        solution_hint='1. openssl x509 -in cert.pem -noout -dates\n2. Check all certs: find /etc/pki -name "*.pem" -exec openssl x509 -noout -enddate -in {} \\;\n3. Renew with certbot or your CA\n4. Restart affected services after renewal\n5. Set up monitoring/auto-renewal',
+        product='general',
+    ),
+    LogPattern(
+        name='audit_policy_violation',
+        regex=r'(auditd.*overflow|audit.*backlog.*limit|type=AVC.*denied|type=SYSCALL.*key=)',
+        severity='MEDIUM',
+        category='security',
+        description='Linux audit subsystem flagged a policy violation or is experiencing backlog overflow. Audit overflow means security events are being DROPPED — you have a blind spot.',
+        solution_hint='1. ausearch -m AVC -ts recent\n2. If overflow: increase backlog in /etc/audit/auditd.conf\n3. auditctl -l — list current rules\n4. aureport --summary — get overview\n5. Check disk space for audit logs\n6. sealert -a /var/log/audit/audit.log for SELinux issues',
+        product='general',
+    ),
+    LogPattern(
+        name='account_lockout',
+        regex=r'(account.*locked|pam_tally.*deny|pam_faillock.*locked|user account.*expired|account is locked)',
+        severity='MEDIUM',
+        category='security',
+        description='User account has been locked out due to too many failed login attempts or account expiration. If this is a service account, associated services will fail to start.',
+        solution_hint='1. pam_tally2 --user=<username> — check attempts\n2. pam_tally2 --user=<username> --reset — unlock\n3. faillock --user <username> --reset\n4. chage -l <username> — check expiry\n5. If service account: passwd -u <username>\n6. Review why lockout happened — security event?',
+        product='general',
+    ),
+
+    # ====================================================================
+    # KERNEL PATTERNS (6 new)
+    # ====================================================================
+    LogPattern(
+        name='kernel_taint',
+        regex=r'(Tainted:.*[PFWROECBUILDAHMT]|kernel.*tainted|module.*taints kernel)',
+        severity='MEDIUM',
+        category='kernel',
+        description='Kernel is tainted — an out-of-tree, proprietary, or unsigned module was loaded. Support teams may not investigate crashes on tainted kernels. Common with GPU drivers and some storage drivers.',
+        solution_hint='1. cat /proc/sys/kernel/tainted — check taint flags\n2. dmesg | grep -i taint — find which module\n3. Taint flags: P=proprietary, O=out-of-tree, F=forced\n4. If crash occurs: try reproducing without the tainting module\n5. Update the offending driver to a supported version',
+        product='general',
+    ),
+    LogPattern(
+        name='kernel_rcu_stall',
+        regex=r'(rcu_sched.*stall|rcu.*detected stall|rcu_preempt.*stall|INFO: rcu.*self-detected stall)',
+        severity='CRITICAL',
+        category='kernel',
+        description='RCU (Read-Copy-Update) stall detected — a CPU has been stuck in kernel code without yielding for a long time. The system is partially locked up. Often precedes or accompanies soft lockups.',
+        solution_hint='1. Check dmesg for the full stack trace on the stalled CPU\n2. Common causes: spinlock held too long, interrupt storm\n3. Check storage paths — IO stall is common trigger\n4. Verify NIC driver is not blocking: ethtool -S\n5. Consider kernel parameter: rcupdate.rcu_cpu_stall_timeout=60\n6. May indicate hardware issue (faulty CPU/memory)',
+        product='general',
+    ),
+    LogPattern(
+        name='kernel_oops',
+        regex=r'(kernel.*Oops|BUG:.*kernel|Oops:.*\[#\d+\]|general protection fault)',
+        severity='CRITICAL',
+        category='kernel',
+        description='Kernel oops detected — a non-fatal kernel error. The kernel encountered an unexpected condition (null pointer, protection fault). System may continue but is in an unstable state.',
+        solution_hint='1. Capture full dmesg output\n2. Check stack trace for the faulting module\n3. If module-related: update or remove the module\n4. Check if kernel version has known bugs\n5. If repeated: update kernel or apply vendor patch\n6. Consider kdump for detailed crash analysis',
+        product='general',
+    ),
+    LogPattern(
+        name='kernel_hung_task',
+        regex=r'(hung_task|blocked for more than \d+ seconds|task.*blocked.*uninterruptible|INFO: task.*blocked)',
+        severity='HIGH',
+        category='kernel',
+        description='Process has been stuck in uninterruptible sleep (D-state) for more than 120 seconds. Usually waiting for IO that never completes. The process cannot be killed normally.',
+        solution_hint='1. ps aux | grep " D " — find D-state processes\n2. cat /proc/<pid>/wchan — see what it waits on\n3. Check storage: multipath -ll, dmesg\n4. Common cause: NFS/CIFS mount with unreachable server\n5. Try: echo 1 > /proc/sysrq-trigger (show blocked tasks)\n6. May need to fix underlying IO path or reboot',
+        product='general',
+    ),
+    LogPattern(
+        name='kernel_module_load_fail',
+        regex=r'(modprobe.*FATAL|insmod.*failed|module.*not found|modprobe.*module.*not found in|Required key not available)',
+        severity='HIGH',
+        category='kernel',
+        description='Kernel module failed to load. This can prevent hardware from working (NIC, storage HBA, GPU) or features from functioning. Common after kernel updates when modules need rebuilding.',
+        solution_hint='1. modprobe <module> — try loading manually\n2. modinfo <module> — check if it exists\n3. dkms status — check if DKMS modules need rebuild\n4. dkms autoinstall — rebuild for current kernel\n5. Verify kernel-devel package matches running kernel\n6. Check Secure Boot if "Required key not available"',
+        product='general',
+    ),
+    LogPattern(
+        name='kernel_panic_on_oops',
+        regex=r'(Kernel panic.*not syncing|VFS:.*unable to mount root|not syncing:.*Fatal exception|Attempted to kill init)',
+        severity='CRITICAL',
+        category='kernel',
+        description='Kernel panic — system has completely crashed and halted. No recovery without reboot. Common causes: failed root mount, corrupted initramfs, critical driver crash, or OOM with panic_on_oom.',
+        solution_hint='1. Check kdump/vmcore if configured\n2. Review serial console or crash dump\n3. If VFS mount issue: check fstab and initramfs\n4. Boot to rescue mode and fix\n5. dracut --force to rebuild initramfs\n6. Check if recent kernel update broke things',
+        product='general',
+    ),
+
+
+    # ====================================================================
+    # BACKUP PATTERNS (4 new)
+    # ====================================================================
+    LogPattern(
+        name='backup_space_insufficient',
+        regex=r'(backup.*no space|backup.*insufficient.*space|backup.*disk full|No space left.*backup)',
+        severity='HIGH',
+        category='backup',
+        description='Backup failed due to insufficient disk space. Backup repository or staging area is full. Data protection is compromised until resolved — no new backups are being created.',
+        solution_hint='1. df -h <backup_path> — check space\n2. Remove oldest backups: find <path> -mtime +30 -delete\n3. Check retention policy — too many kept?\n4. Compress old backups: gzip\n5. Expand backup volume: lvextend\n6. Consider offloading to object storage',
+        product='general',
+    ),
+    LogPattern(
+        name='backup_timeout',
+        regex=r'(backup.*timed? ?out|backup.*exceeded.*time|backup job.*timeout|backup.*did not complete)',
+        severity='HIGH',
+        category='backup',
+        description='Backup job timed out before completing. Data is not fully protected. Causes: too much data changed, slow network to backup target, storage performance issues, or resource contention.',
+        solution_hint='1. Check backup logs for which phase timed out\n2. Increase timeout: adjust backup schedule/policy\n3. Check network to backup target: iperf3\n4. Consider incremental vs full backup\n5. Schedule during low-activity window\n6. Check if concurrent backups are competing for IO',
+        product='general',
+    ),
+    LogPattern(
+        name='backup_corruption_detected',
+        regex=r'(backup.*corrupt|backup.*checksum.*mismatch|backup.*integrity.*fail|restore.*verification.*fail)',
+        severity='CRITICAL',
+        category='backup',
+        description='Backup data corruption detected. The backup cannot be reliably restored. This is a data protection emergency — you may not have any valid recovery point.',
+        solution_hint='1. Check storage media for errors\n2. Attempt to verify other recent backups\n3. Run immediate new backup if source data is intact\n4. Check for bit-rot: scrub backup storage\n5. Review backup software logs for root cause\n6. Consider different backup storage medium',
+        product='general',
+    ),
+    LogPattern(
+        name='snapshot_failed',
+        regex=r'(snapshot.*fail|snapshot.*error|cannot create snapshot|snapshot.*abort|snapshot.*overflow)',
+        severity='HIGH',
+        category='backup',
+        description='VM or LVM snapshot creation failed. This blocks backup operations and point-in-time recovery. Common causes: insufficient space in snapshot pool, too many existing snapshots, or COW overflow.',
+        solution_hint='1. lvs — check snapshot usage percent\n2. Remove old snapshots: lvremove\n3. Extend snapshot: lvextend -L +10G\n4. Check COW space: lvs -a | grep cow\n5. For VMs: virsh snapshot-list <domain>\n6. Reduce IO during snapshot creation',
+        product='general',
+    ),
+
+    # ====================================================================
+    # SYSTEM PATTERNS (5 new)
+    # ====================================================================
+    LogPattern(
+        name='systemd_dependency_failed',
+        regex=r'(Dependency failed|Job.*failed.*dependency|dependency.*not.*met|Bound.*terminated)',
+        severity='HIGH',
+        category='system',
+        description='A systemd service could not start because a service it depends on failed. This can cascade — one failed service can prevent multiple others from starting.',
+        solution_hint='1. systemctl list-dependencies <service> — see deps\n2. systemctl status <failed_dep> — check why dep failed\n3. journalctl -u <service> — check logs\n4. Fix the root dependency first\n5. systemctl reset-failed && systemctl start <service>',
+        product='general',
+    ),
+    LogPattern(
+        name='boot_failure',
+        regex=r'(Failed to start.*Emergency|emergency\.target|rescue\.target.*reached|dracut.*failed|initramfs.*emergency)',
+        severity='CRITICAL',
+        category='system',
+        description='System booted into emergency/rescue mode — normal boot failed. Common causes: bad fstab entry, corrupted filesystem, missing initramfs, or failed root mount.',
+        solution_hint='1. Check: journalctl -xb — boot logs\n2. If fstab issue: mount -o remount,rw / then fix /etc/fstab\n3. If initramfs: dracut --force --regenerate-all\n4. If filesystem: fsck /dev/<device>\n5. If GRUB: check boot parameters\n6. Verify root= parameter matches actual root device',
+        product='general',
+    ),
+    LogPattern(
+        name='time_jump_detected',
+        regex=r'(time.*jump|clock.*jump|time.*step|System clock.*changed|systemd-timesyncd.*jumped)',
+        severity='HIGH',
+        category='system',
+        description='System clock jumped significantly. This breaks: TLS certificate validation, cluster quorum (corosync), scheduled tasks, log ordering, and Kerberos authentication. May indicate NTP fix or VM resume.',
+        solution_hint='1. timedatectl — check current sync status\n2. journalctl --since "1 hour ago" | grep -i time\n3. If VM: check hypervisor clock sync settings\n4. chronyc tracking — verify NTP source\n5. If cluster: check corosync token timeouts\n6. May need to restart time-sensitive services',
+        product='general',
+    ),
+    LogPattern(
+        name='core_dump_generated',
+        regex=r'(core dump|dumped core|coredump|systemd-coredump|Process.*dumping core)',
+        severity='MEDIUM',
+        category='system',
+        description='A process crashed and generated a core dump. This indicates a software bug (segfault, abort, assertion failure). If it is a critical service, it may have restarted or be down.',
+        solution_hint='1. coredumpctl list — see recent dumps\n2. coredumpctl info <PID> — get details\n3. coredumpctl debug <PID> — open in gdb\n4. Check if service auto-restarted: systemctl status\n5. Report to vendor with core dump and logs\n6. Check if known bug in current version',
+        product='general',
+    ),
+    LogPattern(
+        name='entropy_pool_exhausted',
+        regex=r'(random.*pool.*exhausted|urandom.*warning|getrandom.*blocked|entropy.*insufficient|random: crng init done)',
+        severity='MEDIUM',
+        category='system',
+        description='System random number pool is exhausted or not yet initialized. Cryptographic operations (SSH, TLS, key generation) may block or use weak randomness. Common in VMs without hardware RNG.',
+        solution_hint='1. cat /proc/sys/kernel/random/entropy_avail\n2. Install: yum install rng-tools\n3. Enable: systemctl enable --now rngd\n4. For VMs: add virtio-rng device\n5. Check: cat /sys/devices/virtual/misc/hw_random/rng_available\n6. Alternative: install haveged daemon',
+        product='general',
+    ),
+
+
+    # ====================================================================
+    # APPLICATION PATTERNS (4 new)
+    # ====================================================================
+    LogPattern(
+        name='mysql_replication_broken',
+        regex=r'(Slave.*SQL.*error|replica.*stopped|replication.*broken|Seconds_Behind_Master.*NULL|Last_SQL_Error)',
+        severity='CRITICAL',
+        category='application',
+        description='MySQL/MariaDB replication is broken. The replica is no longer receiving updates from the primary. Data divergence is growing every second. Applications reading from replica will serve stale data.',
+        solution_hint='1. SHOW SLAVE STATUS\\G — check Last_SQL_Error\n2. If duplicate key: SET GLOBAL sql_slave_skip_counter = 1; START SLAVE;\n3. If position lost: CHANGE MASTER with correct GTID\n4. Check network to primary: telnet <primary> 3306\n5. If badly diverged: rebuild replica from backup\n6. Monitor Seconds_Behind_Master after fix',
+        product='general',
+    ),
+    LogPattern(
+        name='elasticsearch_cluster_red',
+        regex=r'(cluster health.*red|ClusterBlockException|unassigned.*shard|index.*read.only|FORBIDDEN/12/index read-only)',
+        severity='CRITICAL',
+        category='application',
+        description='Elasticsearch cluster is in RED state — primary shards are unassigned. Data is being lost or queries are returning incomplete results. Usually caused by node failure or disk full.',
+        solution_hint='1. curl localhost:9200/_cluster/health?pretty\n2. curl localhost:9200/_cat/shards?v&h=index,shard,prirep,state,unassigned.reason\n3. If disk full: curl -XPUT localhost:9200/_all/_settings -d \'{"index.blocks.read_only_allow_delete": null}\'\n4. Clear disk space\n5. Check node status: curl localhost:9200/_cat/nodes?v',
+        product='general',
+    ),
+    LogPattern(
+        name='redis_maxmemory_reached',
+        regex=r'(maxmemory.*reached|OOM command not allowed|Can\'t save in background|redis.*MISCONF|used_memory.*exceeds)',
+        severity='HIGH',
+        category='application',
+        description='Redis has hit its memory limit. Write operations are being rejected. Applications relying on Redis for caching or queuing will fail. Background saves may also be failing.',
+        solution_hint='1. redis-cli INFO memory — check used_memory\n2. redis-cli CONFIG SET maxmemory <higher>\n3. Set eviction policy: CONFIG SET maxmemory-policy allkeys-lru\n4. Check for key bloat: redis-cli --bigkeys\n5. Consider Redis cluster for scaling\n6. Monitor: DBSIZE and INFO memory regularly',
+        product='general',
+    ),
+    LogPattern(
+        name='nginx_upstream_timeout',
+        regex=r'(upstream timed out|upstream prematurely closed|no live upstreams|connect\(\) failed.*upstream|upstream.*connection refused)',
+        severity='HIGH',
+        category='application',
+        description='Nginx cannot reach its backend/upstream servers. Users are seeing 502/504 errors. The backend application is either down, overloaded, or unreachable.',
+        solution_hint='1. Check backend: systemctl status <app>\n2. Test directly: curl localhost:<backend_port>\n3. Check connections: ss -tlnp | grep <port>\n4. If overloaded: increase proxy_read_timeout\n5. Scale backend or add more upstream servers\n6. Check logs: /var/log/nginx/error.log',
+        product='general',
+    ),
+
+    # ====================================================================
+    # NETWORK PATTERNS (2 new)
+    # ====================================================================
+    LogPattern(
+        name='tcp_connection_reset',
+        regex=r'(Connection reset by peer|ECONNRESET|TCP.*reset|RST.*received|broken pipe)',
+        severity='MEDIUM',
+        category='network',
+        description='TCP connection was forcibly reset by the remote end. This can indicate: remote service crashed, firewall killing idle connections, load balancer timeout, or network instability.',
+        solution_hint='1. Check if remote service is running\n2. Check firewall timeout settings (conntrack)\n3. Enable TCP keepalive: sysctl net.ipv4.tcp_keepalive_time=300\n4. Check load balancer idle timeout settings\n5. If intermittent: check for MTU issues (ping -M do -s 1472)\n6. tcpdump for exact RST source',
+        product='general',
+    ),
+    LogPattern(
+        name='network_packet_loss',
+        regex=r'(\d+% packet loss|packets? lost|rx_dropped|tx_dropped|RX errors:\s*[1-9]|TX errors:\s*[1-9])',
+        severity='HIGH',
+        category='network',
+        description='Network packet loss or interface errors detected. Applications will experience retransmissions, slow connections, and timeouts. Can cause cluster split-brain if inter-node communication is affected.',
+        solution_hint='1. ip -s link — check error counters\n2. ethtool -S <interface> — detailed NIC stats\n3. ping -c 100 <gateway> — measure loss\n4. Check cable/switch port: ethtool <interface>\n5. If bonding: cat /proc/net/bonding/bond0\n6. Check for duplex mismatch or speed issues',
+        product='general',
+    ),
+
+    # ====================================================================
+    # CLUSTER PATTERN (1 new)
+    # ====================================================================
+    LogPattern(
+        name='pacemaker_maintenance_mode',
+        regex=r'(maintenance-mode.*true|maintenance.*mode.*enabled|Maintenance mode.*active|is-managed.*false.*all)',
+        severity='MEDIUM',
+        category='cluster',
+        description='Cluster is in maintenance mode — Pacemaker will NOT monitor, start, stop, or recover any resources. If a service fails, it stays failed. Often left on accidentally after maintenance.',
+        solution_hint='1. pcs property show maintenance-mode\n2. If accidentally left on: pcs property set maintenance-mode=false\n3. Check individual resource maintenance: pcs resource show\n4. pcs resource manage <resource> — re-enable specific resource\n5. Verify all resources came back: pcs status\n6. Set alerts for maintenance mode duration',
+        product='general',
+    ),
+
+    # ====================================================================
+    # STORAGE PATTERN (1 new)
+    # ====================================================================
+    LogPattern(
+        name='thin_pool_full',
+        regex=r'(thin pool.*full|thin.*metadata.*full|pool.*out of space|dm-thin.*no space|WARNING.*pool.*is.*100)',
+        severity='CRITICAL',
+        category='storage',
+        description='LVM thin pool is 100% full. ALL thin volumes in this pool are now frozen — IO will hang or error. VMs using thin LVs will pause. This is often the root cause of mysterious cluster-wide outages.',
+        solution_hint='1. lvs — check data_percent and metadata_percent\n2. Emergency extend: lvextend -L +50G <vg>/<pool>\n3. If metadata full: lvextend --poolmetadatasize +1G\n4. Set autoextend: /etc/lvm/lvm.conf thin_pool_autoextend_threshold\n5. Remove old snapshots to free space\n6. Monitor: lvs -o+data_percent regularly',
+        product='general',
+    ),
+
 ]
 
 
