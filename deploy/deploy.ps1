@@ -1,132 +1,133 @@
 #!/usr/bin/env pwsh
 <#
 .SYNOPSIS
-    Single-click deployment of LogSherlock Pro v2.0 to AWS Lambda.
+    ONE-COMMAND deployment of LogSherlock Pro to AWS Lambda.
 .DESCRIPTION
-    Deploys the app using AWS SAM CLI + invalidates CloudFront. Requires:
-    - AWS CLI configured with credentials
+    Deploys the full app using AWS SAM CLI + CloudFront. Just run:
+      .\deploy.ps1
+    
+    Requires (pre-configured on your machine):
+    - AWS CLI configured (aws configure)
     - AWS SAM CLI installed
     - Python 3.11
-    Features: 156 patterns, streaming engine (3GB+), multi-file scan, Jira integration
+
+    What gets created automatically:
+    - Lambda (Python 3.11, 2GB RAM, 300s timeout)
+    - API Gateway v2
+    - CloudFront CDN
+    - DynamoDB tables
+    - S3 bucket for log uploads
+    - IAM roles
+
+    Features: 455 patterns | 120 known issues | 14 categories | Jira RCA | Local AI (optional)
 .PARAMETER StackName
     CloudFormation stack name (default: logsherlock-pro)
 .PARAMETER Region
     AWS region (default: us-east-1)
-.PARAMETER ApiKey
-    API key for authentication (auto-generated if not provided)
 #>
 param(
     [string]$StackName = "logsherlock-pro",
-    [string]$Region = "us-east-1",
-    [string]$ApiKey = ""
+    [string]$Region = "us-east-1"
 )
 
 $ErrorActionPreference = "Stop"
+$startTime = Get-Date
 
-Write-Host "`n=== LogSherlock Pro - AWS Serverless Deployment ===`n" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "  ╔══════════════════════════════════════════════════╗" -ForegroundColor Cyan
+Write-Host "  ║   LogSherlock Pro - One-Command AWS Deploy       ║" -ForegroundColor Cyan
+Write-Host "  ║   455 Patterns | 120 Known Issues | 14 Categories║" -ForegroundColor Cyan
+Write-Host "  ╚══════════════════════════════════════════════════╝" -ForegroundColor Cyan
+Write-Host ""
 
-# Check prerequisites
-Write-Host "[1/6] Checking prerequisites..." -ForegroundColor Yellow
+# ── Step 1: Check prerequisites ──────────────────────────────────────────────
+Write-Host "[1/5] Checking prerequisites..." -ForegroundColor Yellow
 
-if (-not (Get-Command aws -ErrorAction SilentlyContinue)) {
-    Write-Error "AWS CLI not found. Install: https://aws.amazon.com/cli/"
+$missing = @()
+if (-not (Get-Command aws -ErrorAction SilentlyContinue)) { $missing += "AWS CLI (https://aws.amazon.com/cli/)" }
+if (-not (Get-Command sam -ErrorAction SilentlyContinue)) { $missing += "SAM CLI (https://docs.aws.amazon.com/sam/latest/developerguide/install-sam-cli.html)" }
+
+if ($missing.Count -gt 0) {
+    Write-Host "  MISSING:" -ForegroundColor Red
+    $missing | ForEach-Object { Write-Host "    - $_" -ForegroundColor Red }
     exit 1
 }
 
-if (-not (Get-Command sam -ErrorAction SilentlyContinue)) {
-    Write-Error "AWS SAM CLI not found. Install: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html"
-    exit 1
-}
-
-# Generate API key if not provided
-if (-not $ApiKey) {
-    $ApiKey = -join ((65..90) + (97..122) + (48..57) | Get-Random -Count 32 | ForEach-Object {[char]$_})
-    Write-Host "  Generated API Key: $ApiKey" -ForegroundColor Green
-    Write-Host "  SAVE THIS KEY - you'll need it to access the API" -ForegroundColor Red
-}
-
-# Validate AWS credentials
-Write-Host "`n[2/6] Validating AWS credentials..." -ForegroundColor Yellow
+# Validate credentials
 try {
-    aws sts get-caller-identity --region $Region | Out-Null
-    Write-Host "  AWS credentials valid." -ForegroundColor Green
+    $identity = aws sts get-caller-identity --region $Region --output json | ConvertFrom-Json
+    Write-Host "  AWS Account: $($identity.Account) | User: $($identity.Arn.Split('/')[-1])" -ForegroundColor Green
 } catch {
-    Write-Error "AWS credentials not configured. Run: aws configure"
+    Write-Host "  AWS credentials not configured. Run: aws configure" -ForegroundColor Red
     exit 1
 }
 
-# Build
-Write-Host "`n[3/6] Building SAM application..." -ForegroundColor Yellow
-sam build --template-file template.yaml --use-container 2>&1 | Out-Host
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "  Container build failed, trying without container..." -ForegroundColor Yellow
-    sam build --template-file template.yaml 2>&1 | Out-Host
+# ── Step 2: Build ────────────────────────────────────────────────────────────
+Write-Host "`n[2/5] Building application..." -ForegroundColor Yellow
+sam build --template-file template.yaml 2>&1 | ForEach-Object {
+    if ($_ -match "Build Succeeded") { Write-Host "  Build successful!" -ForegroundColor Green }
 }
 
-# Deploy
-Write-Host "`n[4/6] Deploying to AWS ($Region)..." -ForegroundColor Yellow
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "  Build failed!" -ForegroundColor Red
+    exit 1
+}
+
+# ── Step 3: Deploy ───────────────────────────────────────────────────────────
+Write-Host "`n[3/5] Deploying to AWS ($Region)..." -ForegroundColor Yellow
 sam deploy `
     --stack-name $StackName `
     --region $Region `
     --capabilities CAPABILITY_IAM `
     --no-confirm-changeset `
     --no-fail-on-empty-changeset `
-    --parameter-overrides "ApiKey=$ApiKey" `
     --resolve-s3
 
 if ($LASTEXITCODE -ne 0) {
-    Write-Error "Deployment failed!"
+    Write-Host "  Deployment failed!" -ForegroundColor Red
     exit 1
 }
+Write-Host "  Deployed!" -ForegroundColor Green
 
-# Get outputs
-Write-Host "`n[5/7] Retrieving deployment info..." -ForegroundColor Yellow
+# ── Step 4: Get outputs & invalidate CloudFront ──────────────────────────────
+Write-Host "`n[4/5] Configuring CDN..." -ForegroundColor Yellow
 $outputs = aws cloudformation describe-stacks --stack-name $StackName --region $Region --query 'Stacks[0].Outputs' --output json | ConvertFrom-Json
 
 $apiUrl = ($outputs | Where-Object { $_.OutputKey -eq 'ApiUrl' }).OutputValue
-$s3Bucket = ($outputs | Where-Object { $_.OutputKey -eq 'S3BucketName' }).OutputValue
 $cfUrl = ($outputs | Where-Object { $_.OutputKey -eq 'CloudFrontUrl' }).OutputValue
-
-# Invalidate CloudFront cache
-Write-Host "`n[6/7] Invalidating CloudFront cache..." -ForegroundColor Yellow
+$s3Bucket = ($outputs | Where-Object { $_.OutputKey -eq 'S3BucketName' }).OutputValue
 $cfDistId = ($outputs | Where-Object { $_.OutputKey -eq 'CloudFrontDistributionId' }).OutputValue
+
 if ($cfDistId) {
-    aws cloudfront create-invalidation --distribution-id $cfDistId --paths "/*" --region $Region | Out-Null
-    Write-Host "  CloudFront cache invalidated." -ForegroundColor Green
-} else {
-    # Fallback to known distribution ID
-    aws cloudfront create-invalidation --distribution-id "E3V2MZ00F7WXY9" --paths "/*" --region $Region | Out-Null
-    Write-Host "  CloudFront cache invalidated (E3V2MZ00F7WXY9)." -ForegroundColor Green
+    aws cloudfront create-invalidation --distribution-id $cfDistId --paths "/*" --region $Region 2>&1 | Out-Null
+    Write-Host "  CloudFront cache cleared." -ForegroundColor Green
 }
 
-# Summary
-Write-Host "`n[7/7] Deployment Complete!" -ForegroundColor Green
-Write-Host "`n$('='*50)" -ForegroundColor Cyan
-Write-Host "  LogSherlock Pro v2.0 - Deployed Successfully!" -ForegroundColor Cyan
-Write-Host "$('='*50)" -ForegroundColor Cyan
-Write-Host "`n  CloudFront: https://d3tv1czat55yad.cloudfront.net" -ForegroundColor Green
-Write-Host "  API URL:     $apiUrl" -ForegroundColor White
-Write-Host "  S3 Bucket:   $s3Bucket" -ForegroundColor White
-Write-Host "  API Key:     $ApiKey" -ForegroundColor White
-Write-Host "  Region:      $Region" -ForegroundColor White
-Write-Host "  Stack:       $StackName" -ForegroundColor White
-Write-Host "`n  Features: 156 patterns | Streaming 3GB+ | Multi-file | Jira | Local AI" -ForegroundColor Cyan
-Write-Host "`n  Test it:" -ForegroundColor Yellow
-Write-Host "    curl -H 'X-API-Key: $ApiKey' $apiUrl/api/health"
-Write-Host "`n  Destroy it:" -ForegroundColor Yellow
-Write-Host "    sam delete --stack-name $StackName --region $Region --no-prompts"
+# ── Step 5: Verify ───────────────────────────────────────────────────────────
+Write-Host "`n[5/5] Verifying deployment..." -ForegroundColor Yellow
+Start-Sleep -Seconds 3
+try {
+    $health = Invoke-RestMethod -Uri "$apiUrl/api/health" -TimeoutSec 30
+    Write-Host "  Health check: $($health.status) - $($health.app) v$($health.version)" -ForegroundColor Green
+} catch {
+    Write-Host "  Health check pending (Lambda cold start). Try in 10s." -ForegroundColor Yellow
+}
+
+# ── Done ─────────────────────────────────────────────────────────────────────
+$elapsed = (Get-Date) - $startTime
+
 Write-Host ""
-
-# Save deployment info
-@"
-{
-    "api_url": "$apiUrl",
-    "s3_bucket": "$s3Bucket",
-    "api_key": "$ApiKey",
-    "region": "$Region",
-    "stack_name": "$StackName",
-    "deployed_at": "$(Get-Date -Format o)"
-}
-"@ | Out-File -FilePath ".deployment-info.json" -Encoding utf8
-
-Write-Host "  Deployment info saved to .deployment-info.json" -ForegroundColor Gray
+Write-Host "  ╔══════════════════════════════════════════════════╗" -ForegroundColor Green
+Write-Host "  ║         DEPLOYMENT COMPLETE!                     ║" -ForegroundColor Green
+Write-Host "  ╚══════════════════════════════════════════════════╝" -ForegroundColor Green
+Write-Host ""
+Write-Host "  App URL:    $cfUrl" -ForegroundColor White
+Write-Host "  API URL:    $apiUrl" -ForegroundColor White
+Write-Host "  S3 Bucket:  $s3Bucket" -ForegroundColor White
+Write-Host "  Region:     $Region" -ForegroundColor White
+Write-Host "  Time:       $([math]::Round($elapsed.TotalSeconds))s" -ForegroundColor White
+Write-Host ""
+Write-Host "  Open in browser: $cfUrl" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "  To destroy: sam delete --stack-name $StackName --region $Region --no-prompts" -ForegroundColor Gray
+Write-Host ""

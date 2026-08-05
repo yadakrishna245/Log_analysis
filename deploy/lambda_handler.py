@@ -7,7 +7,7 @@ What it does:
     1. Sets up the Lambda environment (DynamoDB backend, /tmp directories)
     2. Creates the Flask app via the standard create_app() factory
     3. Initializes the SQLite database in /tmp (for session-local operations)
-    4. Seeds DynamoDB with the 113 patterns and 66 known issues on first cold start
+    4. Seeds DynamoDB with the 455 patterns and 120 known issues on first cold start
     5. Translates API Gateway v2 HTTP events ↔ Flask WSGI requests/responses
 
 Architecture:
