@@ -67,13 +67,26 @@ Since keys are validated client-side, you can't remotely revoke them. But you ca
 
 ## Future: Google Sheets Live Tracking
 
-When Google Apps Script access is available, the app will automatically send activation data to a Google Sheet:
+When Google Apps Script access is available, the app will automatically send activation data to a Google Sheet.
 
+### 🔗 Google Links (DON'T LOSE THESE)
+
+| Service | URL |
+|---------|-----|
+| **Google Form** (collects data) | https://docs.google.com/forms/d/164urwFBv2B2KEAKxAocZ_8lgt7z2d3nrj0X-XiFmFlQ |
+| **Google Sheet** (stores responses) | https://docs.google.com/spreadsheets/d/1clqwHt2FEsK1JA_0ZlMFaB_qLrP39zluCLVhDxgzM_c |
+| **Form ID** | `164urwFBv2B2KEAKxAocZ_8lgt7z2d3nrj0X-XiFmFlQ` |
+| **Sheet ID** | `1clqwHt2FEsK1JA_0ZlMFaB_qLrP39zluCLVhDxgzM_c` |
+
+### Sheet Headers:
 | Key | Name | Machine_ID | Activation_Date | Expiry_Days | Browser | OS | Status |
 |-----|------|-----------|-----------------|-------------|---------|-----|--------|
 | IEAZ-00FC-0BC1-12RQ | Bob Smith | M-4A8F2C01 | 2026-08-05 | 30 | Chrome | Win11 | ACTIVE |
 
-The code for this is already built into `index.html` — just needs the Google Form/Sheet webhook URL to be configured.
+### Status:
+- ⚠️ Google Apps Script integration blocked (multi-account issue on Krishna's browser)
+- Code is already in `index.html` — just needs the publishable form URL updated
+- To fix later: log into single Google account → Forms → get the `/formResponse` URL → update `index.html`
 
 ---
 
