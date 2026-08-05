@@ -1487,7 +1487,7 @@ async function* streamTarEntries(file) {
     reader.releaseLock();
 }
 
-// ── CLIENT-SIDE SCANNER (streaming — supports files up to 3GB+) ─────
+// ── CLIENT-SIDE SCANNER (Web Worker — prevents UI freeze on any file size) ─────
 async function scanLocally(file) {
     trackEvent('scan_started', { filename: file.name, size_mb: (file.size/1024/1024).toFixed(1) });
     const startTime = performance.now();
@@ -1498,161 +1498,91 @@ async function scanLocally(file) {
     }
 
     const sizeMB = (file.size/1024/1024).toFixed(0);
-    setStatus('scanning', `Streaming ${file.name} (${sizeMB}MB) — decompressing on the fly...`);
+    setStatus('scanning', `Processing ${file.name} (${sizeMB}MB) — scanning in background...`);
     showProgress(5);
 
-    const findings = [];
-    let filesAnalyzed = 0;
-    let filesSkipped = 0;
-    let totalLines = 0;
-    let totalEntries = 0;
-    const MAX_FINDINGS = 300;
-    const decoder = new TextDecoder('utf-8', {fatal: false});
-    let mediumCount = 0;
-    const mtimes = [];
+    const patternData = patterns.map(p => ({
+        name: p.name, severity: p.severity, category: p.category,
+        description: p.description, solution_hint: p.solution_hint || '',
+        regex: p.compiled.source, flags: p.compiled.flags,
+    }));
 
-    try {
-        // Check if browser supports DecompressionStream
-        if ((file.name.endsWith('.tar.gz') || file.name.endsWith('.tgz')) && typeof DecompressionStream === 'undefined') {
-            // Fallback to pako for older browsers (loads entire file)
-            setStatus('scanning', `Browser lacks streaming support. Loading ${sizeMB}MB with pako...`);
-            const arrayBuffer = await file.arrayBuffer();
-            showProgress(20);
-            const decompressed = pako.inflate(new Uint8Array(arrayBuffer));
-            showProgress(40);
-            const tarFiles = parseTar(decompressed.buffer);
-            // Process with old method
-            const scannable = tarFiles
-                .map(f => ({...f, priority: classifyFile(f.name, f.size)}))
-                .filter(f => f.priority !== 'skip')
-                .sort((a,b) => (a.priority==='high'?0:1) - (b.priority==='high'?0:1));
-            for (const f of scannable) {
-                if (findings.length >= MAX_FINDINGS) break;
-                const text = decoder.decode(f.content);
-                const lines = text.split('\n');
-                filesAnalyzed++;
-                for (let ln = 0; ln < Math.min(lines.length, 50000); ln++) {
-                    totalLines++;
-                    const line = lines[ln];
-                    if (!line || !PREFILTER_RE.test(line)) continue;
-                    for (const p of patterns) {
-                        if (p.compiled.test(line)) {
-                            findings.push({pattern_name:p.name,severity:p.severity,category:p.category,file:f.name,line_number:ln+1,line_content:line.substring(0,500),description:p.description,solution_hint:p.solution_hint,file_date:f.mtime?new Date(f.mtime*1000).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'})+' IST':''});
-                            if (findings.length >= MAX_FINDINGS) break;
-                        }
-                    }
-                    if (findings.length >= MAX_FINDINGS) break;
-                }
+    const prefilterWords = PREFILTER_RE.source.split('|');
+
+    return new Promise((resolve) => {
+        const worker = new Worker('/static/scan-worker.js');
+
+        worker.onmessage = async function(e) {
+            const msg = e.data;
+
+            if (msg.type === 'progress') {
+                const pct = Math.min(90, 10 + Math.round((msg.filesAnalyzed / Math.max(msg.filesAnalyzed + 10, 50)) * 80));
+                showProgress(pct);
+                const info = msg.bytesRead ? `${(msg.bytesRead/1024/1024).toFixed(0)}/${sizeMB}MB` : `${msg.filesAnalyzed} files`;
+                setStatus('scanning', `Scanning: ${info} · ${(msg.totalLines/1000).toFixed(0)}K lines · ${msg.findings} findings`);
             }
-            showProgress(95);
-        } else {
-            // STREAMING MODE — handles any file size
-            for await (const entry of streamTarEntries(file)) {
-                totalEntries++;
-                const priority = classifyFile(entry.name, entry.size);
-                if (priority === 'skip') { filesSkipped++; continue; }
-                if (priority === 'medium' && mediumCount >= 50) continue;
-                if (priority === 'medium') mediumCount++;
-                if (findings.length >= MAX_FINDINGS) continue; // keep streaming but stop collecting
 
-                if (entry.mtime > 0) mtimes.push(entry.mtime);
-
-                // Scan this file immediately
-                const text = decoder.decode(entry.content);
-                const lines = text.split('\n');
-                filesAnalyzed++;
-                const maxLines = entry.size > 5*1024*1024 ? 30000 : (entry.size > 1024*1024 ? 50000 : 100000);
-
-                for (let ln = 0; ln < Math.min(lines.length, maxLines); ln++) {
-                    totalLines++;
-                    const line = lines[ln];
-                    if (!line || !PREFILTER_RE.test(line)) continue;
-                    for (const p of patterns) {
-                        if (p.compiled.test(line)) {
-                            findings.push({
-                                pattern_name: p.name,
-                                severity: p.severity,
-                                category: p.category,
-                                file: entry.name,
-                                line_number: ln + 1,
-                                line_content: line.substring(0, 500),
-                                description: p.description,
-                                solution_hint: p.solution_hint,
-                                file_date: entry.mtime ? new Date(entry.mtime * 1000).toLocaleString('en-IN', {timeZone:'Asia/Kolkata'}) + ' IST' : '',
-                            });
-                            if (findings.length >= MAX_FINDINGS) break;
-                        }
-                    }
-                    if (findings.length >= MAX_FINDINGS) break;
-                }
-
-                // Update progress every few files
-                if (filesAnalyzed % 2 === 0) {
-                    const pct = Math.min(90, 10 + Math.round((filesAnalyzed / Math.max(filesAnalyzed + 10, 50)) * 80));
-                    showProgress(pct);
-                    const fname = entry.name.split('/').pop();
-                    setStatus('scanning', `Streaming: ${filesAnalyzed} files scanned · ${findings.length} findings · ${totalEntries} entries processed`);
-                    updateProgressFileCount(filesAnalyzed, totalEntries, findings.length, fname, '');
-                    await new Promise(r => setTimeout(r, 0)); // yield to UI
-                }
+            if (msg.type === 'error') {
+                setStatus('error', 'Scan failed: ' + msg.message);
+                hideProgress();
+                worker.terminate();
+                resolve();
             }
-        }
-    } catch(e) {
-        if (findings.length > 0) {
-            // Got partial results before error — show them
-            setStatus('scanning', `⚠️ Stream interrupted (${e.message}) — showing partial results...`);
-        } else {
-            setStatus('error', 'Scan failed: ' + e.message);
+
+            if (msg.type === 'done') {
+                worker.terminate();
+                showProgress(95);
+                setStatus('scanning', 'Looking up knowledge base...');
+
+                let dateRangeStr = '';
+                if (msg.mtimes && msg.mtimes.length > 0) {
+                    const sorted = msg.mtimes.sort((a,b) => a - b);
+                    const fmt = (ts) => new Date(ts * 1000).toLocaleString('en-IN', {timeZone:'Asia/Kolkata'}) + ' IST';
+                    dateRangeStr = ` · ${fmt(sorted[0])} → ${fmt(sorted[sorted.length-1])}`;
+                }
+
+                const findings = msg.findings.map(f => ({
+                    ...f,
+                    file_date: f.file_date && f.file_date !== '' ? new Date(f.file_date).toLocaleString('en-IN', {timeZone:'Asia/Kolkata'}) + ' IST' : '',
+                }));
+
+                const uniquePatterns = [...new Set(findings.map(f => f.pattern_name))];
+                let relatedIssues = [];
+                try {
+                    const ctx = $('#ticketContext').value || '';
+                    const kbResp = await fetch('/api/knowledge/lookup', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({pattern_names: uniquePatterns, description: ctx})
+                    });
+                    const kbData = await kbResp.json();
+                    relatedIssues = kbData.related_issues || [];
+                } catch(e) {}
+
+                const elapsed = ((performance.now() - startTime) / 1000).toFixed(1);
+                const result = {
+                    findings, findings_count: findings.length,
+                    files_analyzed: msg.filesAnalyzed, total_lines: msg.totalLines,
+                    related_issues: relatedIssues, analysis_time_seconds: parseFloat(elapsed),
+                    client_side: true, jira_report: null, date_range: dateRangeStr,
+                };
+
+                setStatus('done', `${findings.length} findings · ${msg.filesAnalyzed} files · ${elapsed}s${dateRangeStr} · 🔒 Zero data uploaded`);
+                trackEvent('scan_completed', { findings: findings.length, files: msg.filesAnalyzed, seconds: elapsed });
+                render(result);
+                resolve();
+            }
+        };
+
+        worker.onerror = function(err) {
+            setStatus('error', 'Worker error: ' + (err.message || 'Unknown'));
             hideProgress();
-            return;
-        }
-    }
+            worker.terminate();
+            resolve();
+        };
 
-    showProgress(95);
-    setStatus('scanning', 'Looking up knowledge base...');
-
-    // Send only pattern names to backend for KB lookup (zero log data sent!)
-    const uniquePatterns = [...new Set(findings.map(f => f.pattern_name))];
-    let relatedIssues = [];
-    try {
-        const ctx = $('#ticketContext').value || '';
-        const kbResp = await fetch('/api/knowledge/lookup', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({pattern_names: uniquePatterns, description: ctx})
-        });
-        const kbData = await kbResp.json();
-        relatedIssues = kbData.related_issues || [];
-    } catch(e) { /* KB lookup is optional */ }
-
-    const elapsed = ((performance.now() - startTime) / 1000).toFixed(1);
-    showProgress(100);
-
-    // Calculate log date range from file timestamps
-    let dateRangeStr = '';
-    if (mtimes.length > 0) {
-        const oldest = new Date(Math.min(...mtimes) * 1000);
-        const newest = new Date(Math.max(...mtimes) * 1000);
-        const fmt = d => d.toLocaleDateString('en-IN', {year:'numeric',month:'short',day:'numeric',timeZone:'Asia/Kolkata'});
-        dateRangeStr = fmt(oldest) === fmt(newest) ? ` · 📅 ${fmt(oldest)} IST` : ` · 📅 ${fmt(oldest)} → ${fmt(newest)} IST`;
-    }
-
-    // Build result object (same format as server response)
-    const result = {
-        findings: findings,
-        findings_count: findings.length,
-        files_analyzed: filesAnalyzed,
-        total_lines: totalLines,
-        related_issues: relatedIssues,
-        analysis_time_seconds: parseFloat(elapsed),
-        client_side: true,
-        jira_report: null,
-        date_range: dateRangeStr,
-    };
-
-    setStatus('done', `${findings.length} findings · ${filesAnalyzed} files · ${elapsed}s${dateRangeStr} · 🔒 Zero data uploaded`);
-    trackEvent('scan_completed', { findings: findings.length, files: filesAnalyzed, seconds: elapsed });
-    render(result);
+        worker.postMessage({ file, patterns: patternData, prefilterWords });
+    });
 }
 
 // ── FILE SCAN HANDLER (all sizes handled client-side via streaming) ──
