@@ -35,11 +35,14 @@ tests/
 htmlcov/
 .coverage
 
-# Deploy (SAM specific - not needed in container)
+# Deploy (SAM specific)
 deploy/.aws-sam/
 deploy/samconfig.toml
 
-# Documentation (optional in container)
+# Docker folder itself
+docker/
+
+# Documentation
 docs/
 CHECKPOINT.md
 CONTRIBUTING.md
@@ -57,3 +60,6 @@ setup_ollama.*
 *.zip
 node_modules/
 demo/
+flask_stderr.log
+flask_stdout.log
+logsherlock.db

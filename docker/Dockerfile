@@ -3,17 +3,18 @@
 # HPE VME L4 Support Engineering Tool
 # © 2026 Krishna Yada
 # ─────────────────────────────────────────────────────────────────────────────
-# Usage:
-#   docker build -t logsherlock-pro .
-#   docker run -d -p 5000:5000 --name logsherlock logsherlock-pro
 #
-# With Ollama (optional AI):
+# Build & Run:
+#   cd docker
 #   docker-compose up -d
 #
-# Environment Variables:
-#   LOGSHERLOCK_DEV_MODE=true    → Bypass API key auth (for local dev)
-#   API_KEY=logsherlock-hpe-2026 → Production API key
-#   OLLAMA_HOST=http://host.docker.internal:11434  → Ollama connection (optional)
+# Or manually:
+#   docker build -t logsherlock-pro -f docker/Dockerfile .
+#   docker run -d -p 5000:5000 --name logsherlock logsherlock-pro
+#
+# With Ollama AI (optional):
+#   docker-compose --profile ai up -d
+#
 # ─────────────────────────────────────────────────────────────────────────────
 
 FROM python:3.11-slim AS builder
@@ -31,7 +32,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Production image (minimal)
+# Production image (minimal ~200MB)
 # ─────────────────────────────────────────────────────────────────────────────
 FROM python:3.11-slim
 
@@ -58,7 +59,6 @@ COPY routes/ ./routes/
 COPY services/ ./services/
 COPY templates/ ./templates/
 COPY static/ ./static/
-COPY deploy/lambda_handler.py ./deploy/
 
 # Create required directories with proper permissions
 RUN mkdir -p uploads logs reports extracted data instance \
@@ -73,7 +73,7 @@ ENV FLASK_APP=app.py \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     LOGSHERLOCK_DEV_MODE=true \
-    OLLAMA_HOST=http://host.docker.internal:11434
+    OLLAMA_HOST=http://ollama:11434
 
 # Switch to non-root user
 USER logsherlock

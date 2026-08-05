@@ -4,9 +4,12 @@
 # © 2026 Krishna Yada
 # ─────────────────────────────────────────────────────────────────────────────
 #
-# Quick Start:
-#   docker-compose up -d              → Start LogSherlock (without AI)
-#   docker-compose --profile ai up -d → Start LogSherlock + Ollama AI
+# ONE-COMMAND DEPLOY:
+#   cd docker
+#   docker-compose up -d
+#
+# With Ollama AI:
+#   docker-compose --profile ai up -d
 #
 # Access:
 #   App:    http://localhost:5000
@@ -17,18 +20,22 @@
 #
 # Rebuild after code changes:
 #   docker-compose up -d --build
+#
+# View logs:
+#   docker-compose logs -f logsherlock
+#
 # ─────────────────────────────────────────────────────────────────────────────
 
 version: '3.8'
 
 services:
   # ═══════════════════════════════════════════════════════════════════════════
-  # LogSherlock Pro — Main Application
+  # LogSherlock Pro — Main Application (455 patterns, 120 known issues)
   # ═══════════════════════════════════════════════════════════════════════════
   logsherlock:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: docker/Dockerfile
     container_name: logsherlock-pro
     ports:
       - "5000:5000"
@@ -37,7 +44,6 @@ services:
       - OLLAMA_HOST=http://ollama:11434
       - FLASK_ENV=production
     volumes:
-      # Persist uploads and database between restarts
       - logsherlock_uploads:/app/uploads
       - logsherlock_data:/app/data
       - logsherlock_logs:/app/logs
@@ -84,7 +90,7 @@ services:
       - logsherlock-net
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# Volumes (persistent data)
+# Volumes (persistent data survives container restarts)
 # ═══════════════════════════════════════════════════════════════════════════════
 volumes:
   logsherlock_uploads:
