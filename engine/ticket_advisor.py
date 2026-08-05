@@ -5,12 +5,20 @@ responses WITHOUT requiring Ollama or any external AI. Uses pattern matching
 against the 455 built-in patterns, 120 known issues, and runbooks to produce
 complete ready-to-post replies.
 
+Enhanced with iterative conversation support:
+- analyze_conversation(messages) for multi-turn context-aware responses
+- Follow-up result analysis with smart pattern detection
+- Command safety classification (safe/medium/high risk levels)
+- GFS2/Morpheus-specific follow-up detection logic
+- All responses complete in <100ms (pure pattern matching, no external calls)
+
 Output includes:
 - Root Cause Analysis
-- Detailed Action Plan with commands
+- Detailed Action Plan with commands and risk_level
 - Safety Notes (production impact assessment)
 - Next Steps
 - Related Known Issues & Bug IDs
+- Conversation metadata (turn number, context detected, processing time)
 """
 
 import re
@@ -18,8 +26,172 @@ import time
 from typing import Dict, List, Optional, Tuple
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# FOLLOW-UP PATTERN DEFINITIONS
+# ─────────────────────────────────────────────────────────────────────────────
+
+FOLLOWUP_PATTERNS = [
+    # DB fix applied but GUI not updated
+    {'triggers': ['still shows', 'not corrected', 'gui still', 'display was not', 'directory pool'],
+     'context': 'db_fix_gui_mismatch',
+     'response': 'sync_overwriting_fix'},
+
+    # Service restarted but no effect
+    {'triggers': ['restarted', 'restart', 'incognito', 'hard refresh', 'ctrl+shift+r'],
+     'context': 'restart_no_effect',
+     'response': 'disable_sync_options'},
+
+    # Customer asking questions about the issue
+    {'triggers': ['customer has', 'customer asking', 'what triggers', 'what operation', 'any way to resolve'],
+     'context': 'customer_questions',
+     'response': 'explain_sync_trigger'},
+
+    # SQL output pasted
+    {'triggers': ['mysql>', 'select', 'datastore_type_id', '+----+'],
+     'context': 'sql_output',
+     'response': 'interpret_sql_results'},
+
+    # Option tested successfully
+    {'triggers': ['working', 'fixed', 'shows gfs2', 'confirmed', 'option a worked', 'option b worked'],
+     'context': 'fix_confirmed',
+     'response': 'maintenance_window_steps'},
+
+    # New errors reported
+    {'triggers': ['error', 'failed', 'cannot', 'denied', 'timeout', 'withdrawal'],
+     'context': 'new_error',
+     'response': 'analyze_new_error'},
+
+    # Command output pasted
+    {'triggers': ['root@', '# ', '$ ', 'output:', 'result:'],
+     'context': 'command_output',
+     'response': 'interpret_command_output'},
+]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# COMMAND RISK CLASSIFICATION PATTERNS
+# ─────────────────────────────────────────────────────────────────────────────
+
+SAFE_COMMAND_PATTERNS = [
+    r'\bgrep\b', r'\bcat\b', r'\btail\b', r'\bhead\b', r'\bless\b', r'\bmore\b',
+    r'\bmount\s*\|\s*grep\b', r'\bvirsh\s+list\b', r'\bpcs\s+status\b',
+    r'\bpcs\s+constraint\s+show\b', r'\bpcs\s+resource\s+show\b',
+    r'\bcorosync-cfgtool\b', r'\bcorosync-quorumtool\b',
+    r'\bdlm_tool\s+(ls|status)\b', r'\bsg_persist\s+--in\b',
+    r'\bmultipath\s+-ll\b', r'\bmultipathd\s+show\b',
+    r'\biscsiadm\s+-m\s+session\b', r'\bvirsh\s+dominfo\b',
+    r'\bvirsh\s+pool-list\b', r'\bvirsh\s+vol-list\b',
+    r'\bjournalctl\b', r'\bdmesg\b', r'\buptime\b', r'\bfree\b', r'\bdf\b',
+    r'\btop\b', r'\bhtop\b', r'\biostat\b', r'\bwatch\b',
+    r'\bSELECT\b', r'\bselect\b',
+    r'\bsystemctl\s+status\b', r'\bhistory\b',
+    r'Ctrl\+Shift\+R', r'Hard refresh', r'incognito',
+    r'Infrastructure\s*→.*→.*→', r'\bpcs\s+stonith\s+show\b',
+    r'\bpcs\s+stonith\s+history\b', r'\bfence_tool\s+dump\b',
+]
+
+MEDIUM_COMMAND_PATTERNS = [
+    r'\bmorpheus-ctl\s+(stop|start|restart)\b',
+    r'\bsystemctl\s+(stop|start|restart|reload)\b',
+    r'\bUPDATE\b', r'\bINSERT\b', r'\bALTER\b',
+    r'\bUncheck\b', r'\buncheck\b',
+    r'\bpcs\s+node\s+standby\b', r'\bpcs\s+resource\s+(move|ban|clear)\b',
+    r'\bvirsh\s+(start|shutdown|reboot|suspend|resume)\b',
+    r'\biscsiadm.*--login\b', r'\biscsiadm.*--logout\b',
+    r'\bservice\s+\w+\s+(stop|start|restart)\b',
+    r'\bsed\s+-i\b', r'\bvi\s\b', r'\bvim\s\b',
+    r'\bdisable\b.*sync', r'\benable\b.*sync',
+]
+
+HIGH_COMMAND_PATTERNS = [
+    r'\bfsck\b', r'\be2fsck\b', r'\bxfs_repair\b',
+    r'\bvirsh\s+destroy\b', r'\bvirsh\s+undefine\b',
+    r'\bDROP\b', r'\bDELETE\s+FROM\b', r'\bTRUNCATE\b',
+    r'\bumount\b(?!.*grep)', r'\bforce\b',
+    r'\bdd\s+if=\b', r'\bmkfs\b', r'\bparted\b', r'\bfdisk\b',
+    r'\brm\s+-rf\b', r'\brm\s+-r\b',
+    r'\bpcs\s+cluster\s+(stop|destroy)\b',
+    r'\bpcs\s+stonith\s+fence\b',
+    r'\bsg_persist\s+--out\b',
+    r'\b--force\b', r'\b-f\b.*mount',
+]
+
+
+def _classify_command_risk(command: str) -> Tuple[str, str]:
+    """Classify a command's risk level.
+
+    Returns:
+        Tuple of (risk_level, risk_reason)
+    """
+    if not command or command.strip() == '':
+        return ('safe', 'No command to execute')
+
+    cmd_lower = command.lower()
+
+    # Check HIGH risk first (most dangerous)
+    for pattern in HIGH_COMMAND_PATTERNS:
+        if re.search(pattern, command, re.IGNORECASE):
+            if 'fsck' in cmd_lower:
+                return ('high', 'Filesystem repair can modify data structures')
+            if 'destroy' in cmd_lower:
+                return ('high', 'Force-kills VM immediately without graceful shutdown')
+            if 'drop' in cmd_lower or 'delete from' in cmd_lower or 'truncate' in cmd_lower:
+                return ('high', 'Destructive database operation - data loss risk')
+            if 'umount' in cmd_lower:
+                return ('high', 'Unmounting active filesystem can disrupt services')
+            if 'mkfs' in cmd_lower or 'dd if=' in cmd_lower:
+                return ('high', 'Overwrites data on target device')
+            if 'rm -r' in cmd_lower:
+                return ('high', 'Recursive deletion - data loss risk')
+            if 'cluster' in cmd_lower and ('stop' in cmd_lower or 'destroy' in cmd_lower):
+                return ('high', 'Cluster-wide impact - all services may failover')
+            if 'sg_persist' in cmd_lower and '--out' in cmd_lower:
+                return ('high', 'Modifies SCSI reservations on shared storage')
+            if 'fence' in cmd_lower:
+                return ('high', 'Will power-cycle the target node')
+            return ('high', 'Potentially destructive operation on production system')
+
+    # Check MEDIUM risk
+    for pattern in MEDIUM_COMMAND_PATTERNS:
+        if re.search(pattern, command, re.IGNORECASE):
+            if 'morpheus-ctl' in cmd_lower:
+                return ('medium', 'Service restart - brief UI unavailability (~2-3 min)')
+            if 'update' in cmd_lower or 'insert' in cmd_lower or 'alter' in cmd_lower:
+                return ('medium', 'Database modification - changes persistent state')
+            if 'systemctl' in cmd_lower and any(x in cmd_lower for x in ['stop', 'start', 'restart']):
+                return ('medium', 'Service state change - may affect dependent services')
+            if 'uncheck' in cmd_lower or 'disable' in cmd_lower:
+                return ('medium', 'Configuration change - alters system behavior')
+            if 'virsh' in cmd_lower:
+                return ('medium', 'VM state change operation')
+            if 'standby' in cmd_lower or 'move' in cmd_lower or 'ban' in cmd_lower:
+                return ('medium', 'Cluster resource relocation - may trigger failover')
+            return ('medium', 'Service/configuration change with recoverable impact')
+
+    # Check SAFE
+    for pattern in SAFE_COMMAND_PATTERNS:
+        if re.search(pattern, command, re.IGNORECASE):
+            return ('safe', 'Read-only operation - no system changes')
+
+    # Default: if contains pipe to grep or just reading, it's safe
+    if '| grep' in command or cmd_lower.startswith('cat ') or cmd_lower.startswith('grep '):
+        return ('safe', 'Read-only operation - no system changes')
+
+    # GUI instructions are safe
+    if '→' in command or 'refresh' in cmd_lower or 'incognito' in cmd_lower:
+        return ('safe', 'Browser/GUI action - no backend impact')
+
+    # Unknown commands default to medium for caution
+    return ('medium', 'Command impact not fully classified - review before executing')
+
+
+
+
 class TicketAdvisor:
-    """Generates structured L4 support responses from ticket descriptions."""
+    """Generates structured L4 support responses from ticket descriptions.
+
+    Supports both single-shot analysis (analyze()) and iterative conversation
+    flow (analyze_conversation()) for multi-turn troubleshooting sessions.
+    """
 
     def __init__(self):
         self._load_knowledge()
@@ -73,6 +245,8 @@ class TicketAdvisor:
     def analyze(self, description: str, ticket_key: str = '', summary: str = '') -> Dict:
         """Main entry point - analyze ticket and generate structured response.
 
+        This is the original single-shot analysis method. Kept for backward compatibility.
+
         Args:
             description: Full ticket description text
             ticket_key: Optional Jira ticket key (e.g., 'MORPHL4-77')
@@ -116,6 +290,909 @@ class TicketAdvisor:
         }
 
         return response
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # ITERATIVE CONVERSATION SUPPORT
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def analyze_conversation(self, messages: List[Dict[str, str]]) -> Dict:
+        """Analyze a conversation thread and provide context-aware response.
+
+        This is the main new entry point for iterative troubleshooting sessions.
+        On first message (single user message), delegates to analyze() for initial analysis.
+        On follow-up messages, uses full conversation context for smart next steps.
+
+        Args:
+            messages: List of conversation messages in format:
+                [{"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}, ...]
+                First user message is always the original Jira ticket description.
+                Subsequent user messages are follow-up updates from L3 team.
+
+        Returns:
+            Structured response dict with response_type, action_plan (with risk_level),
+            formatted_reply, and conversation metadata.
+        """
+        start_time = time.time()
+
+        if not messages:
+            return self._empty_response(start_time)
+
+        # Extract user messages only
+        user_messages = [m for m in messages if m.get('role') == 'user']
+
+        if not user_messages:
+            return self._empty_response(start_time)
+
+        # First message = original ticket description
+        original_ticket = user_messages[0].get('content', '')
+
+        # If only one user message, this is initial analysis
+        if len(user_messages) == 1:
+            result = self.analyze(original_ticket)
+            # Enhance with conversation format
+            return self._enhance_to_conversation_format(
+                result, start_time, conversation_turn=1, context_detected='initial_ticket'
+            )
+
+        # Multiple messages = follow-up conversation
+        current_message = user_messages[-1].get('content', '')
+        conversation_context = {
+            'original_ticket': original_ticket,
+            'all_messages': messages,
+            'user_messages': user_messages,
+            'turn_number': len(user_messages),
+            'original_categories': self._detect_categories(original_ticket.lower()),
+        }
+
+        followup_result = self._analyze_followup(current_message, conversation_context)
+
+        # Add metadata
+        followup_result['metadata'] = {
+            'processing_time_ms': round((time.time() - start_time) * 1000, 1),
+            'conversation_turn': len(user_messages),
+            'context_detected': followup_result.get('_context_detected', 'followup'),
+        }
+
+        # Remove internal key
+        followup_result.pop('_context_detected', None)
+
+        return followup_result
+
+    def _empty_response(self, start_time: float) -> Dict:
+        """Return an empty response for edge cases."""
+        return {
+            'response_type': 'initial_analysis',
+            'root_cause': 'No message content provided for analysis.',
+            'action_plan': [],
+            'safety_notes': ['No actions to assess.'],
+            'next_steps': ['Provide the Jira ticket description for analysis.'],
+            'formatted_reply': 'No content provided. Please paste the Jira ticket description.',
+            'categories': [],
+            'matched_issues': [],
+            'metadata': {
+                'processing_time_ms': round((time.time() - start_time) * 1000, 1),
+                'conversation_turn': 0,
+                'context_detected': 'empty',
+            },
+        }
+
+    def _enhance_to_conversation_format(self, result: Dict, start_time: float,
+                                         conversation_turn: int, context_detected: str) -> Dict:
+        """Enhance a standard analyze() result to the conversation response format."""
+        # Add risk_level to every action_plan step
+        enhanced_plan = []
+        for step in result.get('action_plan', []):
+            cmd = step.get('command', '')
+            risk_level, risk_reason = _classify_command_risk(cmd)
+            enhanced_plan.append({
+                'step': step.get('step', ''),
+                'command': cmd,
+                'note': step.get('note', ''),
+                'risk_level': risk_level,
+                'risk_reason': risk_reason,
+            })
+
+        return {
+            'response_type': 'initial_analysis',
+            'root_cause': result.get('root_cause', ''),
+            'action_plan': enhanced_plan,
+            'safety_notes': result.get('safety_notes', []),
+            'next_steps': result.get('next_steps', []),
+            'formatted_reply': result.get('formatted_reply', ''),
+            'categories': result.get('categories', []),
+            'matched_issues': result.get('matched_issues', []),
+            'metadata': {
+                'processing_time_ms': round((time.time() - start_time) * 1000, 1),
+                'conversation_turn': conversation_turn,
+                'context_detected': context_detected,
+            },
+        }
+
+
+
+    def _analyze_followup(self, current_message: str, conversation_context: Dict) -> Dict:
+        """Analyze a follow-up message in conversation context.
+
+        Detects what the user is reporting (success, failure, partial fix, new info)
+        and provides context-aware next steps.
+
+        Args:
+            current_message: The latest user message
+            conversation_context: Dict with original_ticket, all_messages, user_messages,
+                                  turn_number, original_categories
+
+        Returns:
+            Structured response dict with follow-up guidance
+        """
+        msg_lower = current_message.lower()
+        original_categories = conversation_context.get('original_categories', [])
+
+        # Detect which follow-up pattern matches
+        detected_context = self._detect_followup_context(msg_lower)
+
+        # Route to appropriate response generator
+        if detected_context == 'db_fix_gui_mismatch':
+            return self._respond_sync_overwriting_fix(current_message, conversation_context, detected_context)
+        elif detected_context == 'restart_no_effect':
+            return self._respond_disable_sync_options(current_message, conversation_context, detected_context)
+        elif detected_context == 'customer_questions':
+            return self._respond_explain_sync_trigger(current_message, conversation_context, detected_context)
+        elif detected_context == 'sql_output':
+            return self._respond_interpret_sql(current_message, conversation_context, detected_context)
+        elif detected_context == 'fix_confirmed':
+            return self._respond_maintenance_window(current_message, conversation_context, detected_context)
+        elif detected_context == 'new_error':
+            return self._respond_new_error(current_message, conversation_context, detected_context)
+        elif detected_context == 'command_output':
+            return self._respond_interpret_command(current_message, conversation_context, detected_context)
+        else:
+            # Generic follow-up - re-analyze with combined context
+            return self._respond_generic_followup(current_message, conversation_context, detected_context)
+
+    def _detect_followup_context(self, msg_lower: str) -> str:
+        """Detect which follow-up pattern the message matches.
+
+        Returns the context string for the best matching pattern.
+        """
+        best_match = None
+        best_score = 0
+
+        for pattern in FOLLOWUP_PATTERNS:
+            score = 0
+            for trigger in pattern['triggers']:
+                if trigger.lower() in msg_lower:
+                    score += 1
+            if score > best_score:
+                best_score = score
+                best_match = pattern['context']
+
+        return best_match if best_score > 0 else 'generic'
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # FOLLOW-UP RESPONSE GENERATORS
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def _respond_sync_overwriting_fix(self, message: str, context: Dict, detected: str) -> Dict:
+        """DB fix applied but GUI still shows wrong value - sync is overwriting."""
+        action_plan = [
+            {'step': 'Confirm the cloud sync is overwriting the DB fix',
+             'command': "mysql -e \"SELECT id, name, datastore_type_id FROM datastore WHERE name LIKE 'NEOST%';\"",
+             'note': 'If type_id reverted to 1, the sync has overwritten your fix',
+             'risk_level': 'safe', 'risk_reason': 'Read-only SELECT query'},
+            {'step': 'Stop Morpheus UI immediately to halt sync cycle',
+             'command': 'morpheus-ctl stop morpheus-ui',
+             'note': 'Running VMs unaffected - only stops the web interface and background sync',
+             'risk_level': 'medium', 'risk_reason': 'Service restart - brief UI unavailability (~2-3 min)'},
+            {'step': 'Re-apply the DB fix',
+             'command': "mysql -e \"UPDATE datastore SET datastore_type_id = 5 WHERE datastore_type_id = 1 AND name LIKE 'NEOST%';\"",
+             'note': 'Type 5 = GFS2 Pool. This only changes a label, no storage impact.',
+             'risk_level': 'medium', 'risk_reason': 'Database modification - changes persistent state'},
+            {'step': 'Disable the cloud sync BEFORE starting UI',
+             'command': 'morpheus-ctl start morpheus-ui\n# Then immediately: Infrastructure → Clouds → Edit → Uncheck "Inventory Existing Instances" → Save',
+             'note': 'You must disable sync within 60 seconds of UI start, before the first sync cycle runs',
+             'risk_level': 'medium', 'risk_reason': 'Service restart + configuration change'},
+            {'step': 'Verify fix is holding after 5 minutes',
+             'command': "mysql -e \"SELECT id, name, datastore_type_id FROM datastore WHERE name LIKE 'NEOST%';\"\n# Also check GUI with Ctrl+Shift+R",
+             'note': 'If type_id stays at 5 and GUI shows GFS2 Pool, the fix is holding',
+             'risk_level': 'safe', 'risk_reason': 'Read-only verification'},
+        ]
+
+        formatted_reply = self._format_followup_reply(
+            title="SYNC OVERWRITING DB FIX — Disable Inventory Sync Required",
+            analysis="The cloud sync cycle is reverting your DB update back to Directory Pool (type_id=1). "
+                     "This happens because the sync reads libvirt XML which shows <pool type='dir'> for GFS2 pools. "
+                     "The fix must be paired with disabling the inventory sync to prevent reversion.",
+            action_plan=action_plan,
+            next_steps=[
+                "Once fix is confirmed holding, inform customer the display is corrected",
+                "Plan Morpheus 8.1.2 upgrade which permanently fixes MORPH-7774",
+                "Do NOT re-enable 'Inventory Existing Instances' until after the upgrade",
+            ]
+        )
+
+        return {
+            'response_type': 'followup_guidance',
+            'root_cause': 'Cloud inventory sync is overwriting the manual DB fix on every sync cycle. '
+                          'The sync reads libvirt pool XML where GFS2 appears as type=dir, causing Morpheus to reclassify it.',
+            'action_plan': action_plan,
+            'safety_notes': [
+                'morpheus-ctl stop/start only affects the web UI, not running VMs or storage',
+                'DB update only changes a classification label, not actual storage configuration',
+                'Disabling Inventory sync pauses discovery only - no impact on existing VMs or operations',
+            ],
+            'next_steps': [
+                'Verify DB fix holds for >10 minutes after disabling sync',
+                'Plan Morpheus 8.1.2 upgrade for permanent code-level fix (MORPH-7774)',
+                'Do NOT re-enable inventory sync until upgrade is complete',
+            ],
+            'formatted_reply': formatted_reply,
+            'categories': context.get('original_categories', []),
+            'matched_issues': [],
+            '_context_detected': detected,
+        }
+
+    def _respond_disable_sync_options(self, message: str, context: Dict, detected: str) -> Dict:
+        """Service restarted but issue persists - offer Option A and Option B."""
+        action_plan = [
+            {'step': 'Option A: Uncheck Inventory Existing Instances (less disruptive)',
+             'command': 'Infrastructure → Clouds → [KVM Cloud] → Edit → Uncheck "Inventory Existing Instances" → Save',
+             'note': 'This stops the sync that overwrites type. Existing VMs/storage are completely unaffected.',
+             'risk_level': 'medium', 'risk_reason': 'Configuration change - disables background discovery'},
+            {'step': 'Option A verification: Wait 5 min then check DB',
+             'command': "mysql -e \"SELECT id, name, datastore_type_id FROM datastore WHERE name LIKE 'NEOST%';\"",
+             'note': 'type_id should remain 5 (GFS2 Pool) after 5 minutes',
+             'risk_level': 'safe', 'risk_reason': 'Read-only SELECT query'},
+            {'step': 'Option B: Disable the cloud entirely (more disruptive but guaranteed)',
+             'command': 'Infrastructure → Clouds → [KVM Cloud] → Edit → Set Status to "Disabled" → Save',
+             'note': 'This completely stops all sync operations. Use if Option A alone does not hold.',
+             'risk_level': 'medium', 'risk_reason': 'Disables cloud integration - no new discovery/sync'},
+            {'step': 'After Option A or B: Re-apply DB fix if needed',
+             'command': "morpheus-ctl stop morpheus-ui\nmysql -e \"UPDATE datastore SET datastore_type_id = 5 WHERE datastore_type_id = 1 AND name LIKE 'NEOST%';\"\nmorpheus-ctl start morpheus-ui",
+             'note': 'Only needed if type_id has reverted back to 1',
+             'risk_level': 'medium', 'risk_reason': 'Service restart + database modification'},
+            {'step': 'Final verification',
+             'command': "Hard refresh (Ctrl+Shift+R) or incognito window → check datastore display\nmysql -e \"SELECT id, name, datastore_type_id FROM datastore WHERE name LIKE 'NEOST%';\"",
+             'note': 'Both GUI and DB should show GFS2 Pool (type_id=5)',
+             'risk_level': 'safe', 'risk_reason': 'Read-only verification'},
+        ]
+
+        formatted_reply = self._format_followup_reply(
+            title="SERVICE RESTART ALONE IS INSUFFICIENT — Two Options to Stop Sync Overwrite",
+            analysis="Restarting the service or refreshing the browser does not fix the root cause. "
+                     "The Morpheus cloud sync runs on a scheduled interval and will overwrite the DB fix "
+                     "every time it runs. You need to DISABLE the sync, not just restart the service.\n\n"
+                     "Two options (try A first, escalate to B if needed):",
+            action_plan=action_plan,
+            next_steps=[
+                "Try Option A first (less disruptive)",
+                "If Option A does not hold after 10 minutes, apply Option B",
+                "Once stable, plan the Morpheus 8.1.2 upgrade for permanent fix",
+                "After upgrade, re-enable the cloud integration",
+            ]
+        )
+
+        return {
+            'response_type': 'followup_guidance',
+            'root_cause': 'Service restart does not address the root cause. The scheduled cloud inventory sync '
+                          'runs independently and overwrites the datastore type on every cycle.',
+            'action_plan': action_plan,
+            'safety_notes': [
+                'Option A (uncheck Inventory): Only pauses background discovery. No impact on existing VMs.',
+                'Option B (disable cloud): Stops all sync operations. Existing VMs continue running normally.',
+                'Neither option affects KVM/libvirt directly - VMs keep running regardless.',
+            ],
+            'next_steps': [
+                'Apply Option A and monitor for 10 minutes',
+                'Escalate to Option B only if A fails',
+                'Plan Morpheus 8.1.2 upgrade (permanent fix)',
+            ],
+            'formatted_reply': formatted_reply,
+            'categories': context.get('original_categories', []),
+            'matched_issues': [],
+            '_context_detected': detected,
+        }
+
+    def _respond_explain_sync_trigger(self, message: str, context: Dict, detected: str) -> Dict:
+        """Customer asking what triggers the issue - provide explanation."""
+        action_plan = [
+            {'step': 'Explain the trigger mechanism to the customer',
+             'command': '',
+             'note': 'See formatted reply below for customer-ready explanation',
+             'risk_level': 'safe', 'risk_reason': 'Information only - no system changes'},
+            {'step': 'Show the customer the libvirt pool XML as evidence',
+             'command': "virsh pool-dumpxml <pool-name> | grep 'type='",
+             'note': 'This shows <pool type=dir> which is what Morpheus reads during sync',
+             'risk_level': 'safe', 'risk_reason': 'Read-only command'},
+            {'step': 'Reference the fix version',
+             'command': '',
+             'note': 'Morpheus 8.1.2 contains the code fix for MORPH-7774. Until then, workaround is disabling sync.',
+             'risk_level': 'safe', 'risk_reason': 'Information only'},
+        ]
+
+        explanation = (
+            "**What triggers the reclassification:**\n\n"
+            "1. Morpheus performs periodic cloud inventory sync with all connected KVM hypervisors\n"
+            "2. During sync, it reads libvirt storage pool XML definitions from each host\n"
+            "3. GFS2 shared filesystems are defined in libvirt as <pool type='dir'> because "
+            "libvirt has NO native GFS2 pool type — it treats them as directory-type pools\n"
+            "4. Morpheus sync code (pre-8.1.2) reads type='dir' and maps it to 'Directory Pool'\n"
+            "5. This overwrites any manual DB correction on every sync cycle (typically every 5-10 min)\n\n"
+            "**What operations trigger a full re-sync:**\n"
+            "- Adding new hypervisor hosts to the cloud\n"
+            "- Manually clicking 'Refresh' on the cloud\n"
+            "- The scheduled inventory cycle (automatic)\n\n"
+            "**Resolution path:**\n"
+            "- Immediate: Disable inventory sync + manual DB fix (workaround)\n"
+            "- Permanent: Upgrade to Morpheus 8.1.2 which fixes MORPH-7774 in code"
+        )
+
+        formatted_reply = self._format_followup_reply(
+            title="EXPLANATION: What Triggers the Datastore Type Reclassification",
+            analysis=explanation,
+            action_plan=action_plan,
+            next_steps=[
+                "Share this explanation with the customer",
+                "Confirm workaround (disable sync) is in place",
+                "Provide upgrade timeline for Morpheus 8.1.2",
+            ]
+        )
+
+        return {
+            'response_type': 'followup_guidance',
+            'root_cause': 'Morpheus cloud sync reads libvirt pool XML where GFS2 pools appear as type=dir. '
+                          'The sync code in pre-8.1.2 versions incorrectly maps this to Directory Pool.',
+            'action_plan': action_plan,
+            'safety_notes': [
+                'This explanation is safe to share with the customer',
+                'The issue is a known software bug (MORPH-7774), not a misconfiguration',
+            ],
+            'next_steps': [
+                'Share explanation with customer',
+                'Confirm workaround is active (inventory sync disabled)',
+                'Provide Morpheus 8.1.2 upgrade ETA',
+            ],
+            'formatted_reply': formatted_reply,
+            'categories': context.get('original_categories', []),
+            'matched_issues': [],
+            '_context_detected': detected,
+        }
+
+    def _respond_interpret_sql(self, message: str, context: Dict, detected: str) -> Dict:
+        """User pasted SQL output - interpret the results."""
+        msg_lower = message.lower()
+
+        # Try to detect type_id values in the output
+        has_type_5 = 'type_id' in msg_lower and '5' in message
+        has_type_1 = 'type_id' in msg_lower and '1' in message
+
+        if has_type_5 and not has_type_1:
+            # DB shows correct value (5 = GFS2)
+            analysis = ("SQL output confirms datastore_type_id = 5 (GFS2 Pool) in the database. "
+                        "The DB fix is holding correctly.\n\n"
+                        "If the GUI still shows 'Directory Pool' despite DB being correct, this is a "
+                        "caching issue. Try: hard refresh (Ctrl+Shift+R), incognito window, or wait for "
+                        "the UI cache to expire (~5 min).\n\n"
+                        "If the GUI updates correctly, the immediate fix is complete. Focus on preventing "
+                        "the sync from overwriting it again.")
+            response_type = 'verification'
+        elif has_type_1:
+            # DB shows wrong value (1 = Directory Pool)
+            analysis = ("SQL output shows datastore_type_id = 1 (Directory Pool) — the sync has overwritten "
+                        "the fix, OR the fix was never applied.\n\n"
+                        "The sync must be disabled BEFORE re-applying the DB fix, otherwise it will be "
+                        "overwritten again within minutes.")
+            response_type = 'followup_guidance'
+        else:
+            # Generic SQL output interpretation
+            analysis = ("SQL output received. Analyzing the results in context of the datastore "
+                        "reclassification issue.\n\n"
+                        "Key values to check:\n"
+                        "- datastore_type_id = 1 means Directory Pool (incorrect for GFS2)\n"
+                        "- datastore_type_id = 5 means GFS2 Pool (correct)\n"
+                        "- If type_id keeps reverting to 1, the inventory sync is active and overwriting")
+            response_type = 'followup_guidance'
+
+        action_plan = [
+            {'step': 'Verify current DB state explicitly',
+             'command': "mysql -e \"SELECT id, name, datastore_type_id, DATE_FORMAT(last_updated, '%Y-%m-%d %H:%i:%s') as last_updated FROM datastore WHERE name LIKE 'NEOST%';\"",
+             'note': 'Check last_updated timestamp to see if sync recently modified the row',
+             'risk_level': 'safe', 'risk_reason': 'Read-only SELECT query'},
+            {'step': 'Check if inventory sync is still enabled',
+             'command': "mysql -e \"SELECT id, name, inventory_level FROM compute_zone WHERE zone_type = 'standard';\"",
+             'note': 'If inventory_level is not off, sync is still active and will overwrite',
+             'risk_level': 'safe', 'risk_reason': 'Read-only SELECT query'},
+            {'step': 'Confirm fix status in GUI',
+             'command': 'Open incognito browser → Infrastructure → Storage → check datastore types displayed',
+             'note': 'If GUI shows Directory Pool but DB shows 5, it may be a UI cache issue',
+             'risk_level': 'safe', 'risk_reason': 'Browser verification only'},
+        ]
+
+        formatted_reply = self._format_followup_reply(
+            title="SQL OUTPUT INTERPRETATION",
+            analysis=analysis,
+            action_plan=action_plan,
+            next_steps=[
+                "Confirm whether inventory sync is disabled",
+                "If DB shows type_id=5 but GUI wrong → UI cache issue, hard refresh",
+                "If DB shows type_id=1 → sync still active, must disable first",
+                "Focus on sync prevention as the priority",
+            ]
+        )
+
+        return {
+            'response_type': response_type,
+            'root_cause': 'Interpreting SQL output in context of MORPH-7774 datastore reclassification bug.',
+            'action_plan': action_plan,
+            'safety_notes': [
+                'All verification commands are read-only SELECT queries',
+                'No changes will be made during this verification step',
+            ],
+            'next_steps': [
+                'Confirm sync is disabled before any further DB changes',
+                'If type_id=5 and GUI correct → fix is holding, monitor',
+                'If type_id=1 → re-apply fix with sync disabled',
+            ],
+            'formatted_reply': formatted_reply,
+            'categories': context.get('original_categories', []),
+            'matched_issues': [],
+            '_context_detected': detected,
+        }
+
+
+
+    def _respond_maintenance_window(self, message: str, context: Dict, detected: str) -> Dict:
+        """Fix confirmed working - provide maintenance window steps (Part A/B/C/D)."""
+        msg_lower = message.lower()
+
+        # Determine if they specifically mentioned which option worked
+        if 'option b' in msg_lower:
+            fix_method = "Option B (cloud disabled)"
+        elif 'option a' in msg_lower:
+            fix_method = "Option A (inventory sync unchecked)"
+        elif 'migration' in msg_lower and 'working' in msg_lower:
+            # Migration working - provide close-out response
+            return self._respond_migration_confirmed(message, context, detected)
+        else:
+            fix_method = "workaround applied"
+
+        action_plan = [
+            {'step': 'Part A: Document current stable state',
+             'command': "mysql -e \"SELECT id, name, datastore_type_id FROM datastore WHERE name LIKE 'NEOST%';\"\nmount | grep gfs2\npcs status",
+             'note': 'Capture baseline before any maintenance changes. Save output for the ticket.',
+             'risk_level': 'safe', 'risk_reason': 'Read-only verification commands'},
+            {'step': 'Part B: Schedule Morpheus 8.1.2 upgrade maintenance window',
+             'command': '',
+             'note': 'Coordinate with customer for 2-4 hour window. Upgrade includes MORPH-7774 fix. '
+                     'Pre-stage: download upgrade package, verify backup, confirm rollback plan.',
+             'risk_level': 'safe', 'risk_reason': 'Planning step - no system changes'},
+            {'step': 'Part C: Pre-upgrade checklist',
+             'command': 'morpheus-ctl status\nmorpheus-ctl backup\ndf -h /opt/morpheus\ncat /etc/morpheus/morpheus.rb',
+             'note': 'Verify all services healthy, take backup, confirm disk space (need ~5GB free), save config',
+             'risk_level': 'safe', 'risk_reason': 'Read-only status checks and backup'},
+            {'step': 'Part D: Post-upgrade verification',
+             'command': "# After 8.1.2 upgrade:\n"
+                        "# 1. Re-enable 'Inventory Existing Instances' on the cloud\n"
+                        "# 2. Wait for one full sync cycle (~10 min)\n"
+                        "# 3. Verify:\n"
+                        "mysql -e \"SELECT id, name, datastore_type_id FROM datastore WHERE name LIKE 'NEOST%';\"\n"
+                        "# Should remain type_id=5 even with sync re-enabled",
+             'note': 'If type_id stays at 5 after re-enabling sync, MORPH-7774 fix is confirmed working',
+             'risk_level': 'safe', 'risk_reason': 'Post-upgrade verification - read-only checks'},
+        ]
+
+        formatted_reply = self._format_followup_reply(
+            title=f"FIX CONFIRMED ({fix_method}) — Maintenance Window Planning",
+            analysis=f"Great news — the immediate fix is confirmed working via {fix_method}. "
+                     f"The datastore now correctly shows as GFS2 Pool.\n\n"
+                     f"This is a WORKAROUND. The permanent fix requires upgrading to Morpheus 8.1.2 "
+                     f"which contains the MORPH-7774 code fix. Until then, keep the sync disabled.\n\n"
+                     f"Here's the maintenance window plan (Parts A through D):",
+            action_plan=action_plan,
+            next_steps=[
+                f"Immediate: Confirm with customer that display is now correct",
+                "Short-term: Keep inventory sync disabled (workaround in place)",
+                "Medium-term: Schedule Morpheus 8.1.2 upgrade maintenance window",
+                "Post-upgrade: Re-enable sync and verify fix holds permanently",
+                "If VM migration is needed, test migration BEFORE re-enabling sync",
+            ]
+        )
+
+        return {
+            'response_type': 'verification',
+            'root_cause': f'Fix confirmed via {fix_method}. Datastore type displaying correctly as GFS2 Pool. '
+                          f'Permanent fix requires Morpheus 8.1.2 upgrade (MORPH-7774).',
+            'action_plan': action_plan,
+            'safety_notes': [
+                'Current fix is stable but temporary - sync must remain disabled',
+                'Do NOT re-enable inventory sync until Morpheus 8.1.2 is installed',
+                'Running VMs and storage operations are unaffected by the workaround',
+                'Backup Morpheus before upgrade (morpheus-ctl backup)',
+            ],
+            'next_steps': [
+                'Notify customer: display fix confirmed, permanent fix planned',
+                'Schedule Morpheus 8.1.2 upgrade window',
+                'Keep inventory sync disabled until upgrade',
+                'Test VM migration if needed before re-enabling sync',
+            ],
+            'formatted_reply': formatted_reply,
+            'categories': context.get('original_categories', []),
+            'matched_issues': [],
+            '_context_detected': detected,
+        }
+
+    def _respond_migration_confirmed(self, message: str, context: Dict, detected: str) -> Dict:
+        """Migration confirmed working - close out with upgrade recommendation."""
+        action_plan = [
+            {'step': 'Confirm all VMs migrated successfully',
+             'command': 'virsh list --all\n# Verify all expected VMs are running on target host',
+             'note': 'All VMs should be in running state on the destination host',
+             'risk_level': 'safe', 'risk_reason': 'Read-only status check'},
+            {'step': 'Verify storage access post-migration',
+             'command': 'mount | grep gfs2\ndf -h /mnt/',
+             'note': 'All GFS2 mounts should be rw and accessible',
+             'risk_level': 'safe', 'risk_reason': 'Read-only filesystem check'},
+            {'step': 'Document resolution for ticket closure',
+             'command': '',
+             'note': 'Update Jira with: root cause (MORPH-7774), workaround applied, upgrade planned',
+             'risk_level': 'safe', 'risk_reason': 'Documentation only'},
+        ]
+
+        formatted_reply = self._format_followup_reply(
+            title="MIGRATION CONFIRMED — Resolution Summary & Ticket Closure",
+            analysis="VM migration is confirmed working. All components are functioning correctly:\n"
+                     "- Datastore type: GFS2 Pool (correct)\n"
+                     "- VM migration: successful\n"
+                     "- Storage access: confirmed\n\n"
+                     "This ticket can be moved to 'Pending Upgrade' or closed with the following resolution.",
+            action_plan=action_plan,
+            next_steps=[
+                "Close ticket with resolution: Workaround applied (MORPH-7774), upgrade to 8.1.2 planned",
+                "Schedule Morpheus 8.1.2 upgrade for permanent fix",
+                "No further action needed until upgrade window",
+            ]
+        )
+
+        return {
+            'response_type': 'verification',
+            'root_cause': 'Issue fully resolved via workaround. Migration confirmed working. '
+                          'Root cause: MORPH-7774 (cloud sync reclassification bug). '
+                          'Permanent fix: Morpheus 8.1.2 upgrade.',
+            'action_plan': action_plan,
+            'safety_notes': [
+                'System is stable - no further changes needed',
+                'Keep inventory sync disabled until 8.1.2 upgrade',
+            ],
+            'next_steps': [
+                'Close ticket or move to Pending Upgrade status',
+                'Schedule Morpheus 8.1.2 upgrade',
+                'Re-enable sync only after upgrade',
+            ],
+            'formatted_reply': formatted_reply,
+            'categories': context.get('original_categories', []),
+            'matched_issues': [],
+            '_context_detected': detected,
+        }
+
+    def _respond_new_error(self, message: str, context: Dict, detected: str) -> Dict:
+        """New error reported - analyze and provide action plan."""
+        msg_lower = message.lower()
+        original_categories = context.get('original_categories', [])
+
+        # Try to identify the specific error
+        error_type = 'unknown'
+        if 'timeout' in msg_lower:
+            error_type = 'timeout'
+        elif 'denied' in msg_lower or 'permission' in msg_lower:
+            error_type = 'permission'
+        elif 'withdrawal' in msg_lower or 'withdraw' in msg_lower:
+            error_type = 'gfs2_withdrawal'
+        elif 'cannot' in msg_lower and 'connect' in msg_lower:
+            error_type = 'connection'
+        elif 'failed' in msg_lower and 'start' in msg_lower:
+            error_type = 'service_failure'
+
+        # Build error-specific response
+        if error_type == 'gfs2_withdrawal':
+            action_plan = [
+                {'step': 'Check GFS2 withdrawal status across all nodes',
+                 'command': "dmesg | grep -i 'withdraw\\|gfs2'\njournalctl -k | grep -i gfs2 | tail -20",
+                 'note': 'Look for withdrawal messages and the triggering error',
+                 'risk_level': 'safe', 'risk_reason': 'Read-only log inspection'},
+                {'step': 'Check DLM lockspace health',
+                 'command': 'dlm_tool ls\ndlm_tool status',
+                 'note': 'All lockspaces must show expected node count before recovery',
+                 'risk_level': 'safe', 'risk_reason': 'Read-only status check'},
+                {'step': 'Verify cluster communication',
+                 'command': 'pcs status\ncorosync-cfgtool -s',
+                 'note': 'All nodes must be online before attempting GFS2 recovery',
+                 'risk_level': 'safe', 'risk_reason': 'Read-only cluster status'},
+                {'step': 'Recover GFS2 filesystem (after confirming DLM healthy)',
+                 'command': 'umount /mnt/<affected_mount>\nmount /dev/mapper/<device> /mnt/<affected_mount>',
+                 'note': 'ONLY proceed if DLM shows all nodes healthy. Do NOT force-mount.',
+                 'risk_level': 'high', 'risk_reason': 'Unmounting active filesystem can disrupt services'},
+            ]
+            analysis = ("New GFS2 withdrawal detected. This is a critical event — the filesystem has gone "
+                        "read-only to protect data integrity. Must verify DLM and cluster health before recovery.")
+        elif error_type == 'timeout':
+            action_plan = [
+                {'step': 'Identify what is timing out',
+                 'command': "journalctl --since '30 min ago' | grep -i 'timeout\\|timed out'",
+                 'note': 'Determine if it is storage, network, or service timeout',
+                 'risk_level': 'safe', 'risk_reason': 'Read-only log inspection'},
+                {'step': 'Check system load and I/O wait',
+                 'command': 'uptime\niostat -x 1 5\nvmstat 1 5',
+                 'note': 'High iowait or load average indicates storage bottleneck',
+                 'risk_level': 'safe', 'risk_reason': 'Read-only performance check'},
+                {'step': 'Check storage path health',
+                 'command': 'multipath -ll | head -50\ndmesg | grep -i "scsi\\|error" | tail -20',
+                 'note': 'Look for failed paths or SCSI errors',
+                 'risk_level': 'safe', 'risk_reason': 'Read-only status check'},
+            ]
+            analysis = "Timeout error reported. Need to identify the source — storage I/O, network, or service-level."
+        elif error_type == 'permission':
+            action_plan = [
+                {'step': 'Check what permission is denied',
+                 'command': "journalctl --since '30 min ago' | grep -i 'denied\\|permission'\naudit2why < /var/log/audit/audit.log | tail -20",
+                 'note': 'Identify if this is SELinux, filesystem permissions, or auth issue',
+                 'risk_level': 'safe', 'risk_reason': 'Read-only log inspection'},
+                {'step': 'Check filesystem permissions on affected path',
+                 'command': 'ls -la /path/to/affected/resource\ngetfacl /path/to/affected/resource',
+                 'note': 'Compare with expected ownership and permissions',
+                 'risk_level': 'safe', 'risk_reason': 'Read-only file check'},
+            ]
+            analysis = "Permission denied error. Need to identify if it's SELinux, file permissions, or authentication."
+        else:
+            action_plan = [
+                {'step': 'Collect error details',
+                 'command': "journalctl --since '1 hour ago' --priority=err | tail -50\ndmesg | tail -30",
+                 'note': 'Capture the full error context',
+                 'risk_level': 'safe', 'risk_reason': 'Read-only log inspection'},
+                {'step': 'Check affected service status',
+                 'command': 'systemctl status <service-name>\npcs status',
+                 'note': 'Identify which component is reporting the error',
+                 'risk_level': 'safe', 'risk_reason': 'Read-only status check'},
+                {'step': 'Correlate with recent changes',
+                 'command': 'last reboot\nrpm -qa --last | head -20',
+                 'note': 'Check if any recent updates or reboots correlate with the error',
+                 'risk_level': 'safe', 'risk_reason': 'Read-only system info'},
+            ]
+            analysis = (f"New error reported (type: {error_type}). Collecting diagnostic information "
+                        f"to determine impact and remediation.")
+
+        formatted_reply = self._format_followup_reply(
+            title=f"NEW ERROR REPORTED — {error_type.upper().replace('_', ' ')} Analysis",
+            analysis=analysis,
+            action_plan=action_plan,
+            next_steps=[
+                "Run the diagnostic commands above and share output",
+                "Note the exact timestamp when the error occurred",
+                "Check if this correlates with any scheduled operations",
+                "If critical (GFS2 withdrawal, cluster split), escalate immediately",
+            ]
+        )
+
+        return {
+            'response_type': 'escalation',
+            'root_cause': analysis,
+            'action_plan': action_plan,
+            'safety_notes': [
+                'All initial diagnostic commands are read-only and safe',
+                'Do NOT attempt recovery steps until diagnostics are complete',
+                'If GFS2 withdrawal: verify DLM health before any remount attempt',
+            ],
+            'next_steps': [
+                'Run diagnostics and share full output',
+                'Assess severity and customer impact',
+                'Determine if this is related to the original issue or new',
+            ],
+            'formatted_reply': formatted_reply,
+            'categories': original_categories,
+            'matched_issues': [],
+            '_context_detected': detected,
+        }
+
+    def _respond_interpret_command(self, message: str, context: Dict, detected: str) -> Dict:
+        """User pasted command output - interpret results."""
+        msg_lower = message.lower()
+        original_categories = context.get('original_categories', [])
+
+        # Try to detect what type of command output this is
+        if 'gfs2' in msg_lower and ('rw' in msg_lower or 'ro' in msg_lower):
+            interpretation = "GFS2 mount status output detected."
+            if ' ro' in msg_lower or ',ro,' in msg_lower or 'ro,' in msg_lower:
+                interpretation += (" WARNING: One or more GFS2 filesystems are mounted read-only. "
+                                   "This indicates a withdrawn filesystem that needs recovery.")
+                severity = 'critical'
+            else:
+                interpretation += " All GFS2 mounts appear to be read-write (healthy)."
+                severity = 'normal'
+        elif 'multipath' in msg_lower or 'mpath' in msg_lower:
+            interpretation = "Multipath status output detected."
+            if 'failed' in msg_lower or 'faulty' in msg_lower:
+                interpretation += " WARNING: Failed paths detected. Check storage array connectivity."
+                severity = 'warning'
+            else:
+                interpretation += " Paths appear healthy."
+                severity = 'normal'
+        elif 'pcs' in msg_lower or 'cluster' in msg_lower:
+            interpretation = "Cluster status output detected."
+            if 'offline' in msg_lower or 'failed' in msg_lower or 'stopped' in msg_lower:
+                interpretation += " WARNING: Cluster issues detected - offline nodes or failed resources."
+                severity = 'warning'
+            else:
+                interpretation += " Cluster appears healthy."
+                severity = 'normal'
+        else:
+            interpretation = ("Command output received. Analyzing in context of the ongoing ticket. "
+                              "Please confirm which command this output is from for precise interpretation.")
+            severity = 'info'
+
+        action_plan = [
+            {'step': 'Review the command output interpretation above',
+             'command': '',
+             'note': interpretation,
+             'risk_level': 'safe', 'risk_reason': 'Analysis only - no system changes'},
+        ]
+
+        if severity == 'critical':
+            action_plan.append(
+                {'step': 'Immediate action: Check DLM and recover GFS2',
+                 'command': 'dlm_tool ls\npcs status\n# If DLM healthy: umount + remount the affected filesystem',
+                 'note': 'GFS2 read-only mount requires recovery. Verify DLM first.',
+                 'risk_level': 'high', 'risk_reason': 'Filesystem recovery operation'}
+            )
+        elif severity == 'warning':
+            action_plan.append(
+                {'step': 'Investigate the warning condition',
+                 'command': 'dmesg | tail -50\njournalctl --since "1 hour ago" --priority=warning',
+                 'note': 'Gather more context about the warning condition',
+                 'risk_level': 'safe', 'risk_reason': 'Read-only log inspection'}
+            )
+
+        formatted_reply = self._format_followup_reply(
+            title=f"COMMAND OUTPUT INTERPRETATION — Severity: {severity.upper()}",
+            analysis=interpretation,
+            action_plan=action_plan,
+            next_steps=[
+                "Confirm interpretation is correct",
+                "Run follow-up commands if severity is warning/critical",
+                "Provide additional command outputs if needed for full picture",
+            ]
+        )
+
+        return {
+            'response_type': 'followup_guidance' if severity != 'critical' else 'escalation',
+            'root_cause': interpretation,
+            'action_plan': action_plan,
+            'safety_notes': ['Interpretation based on pattern matching against the output content'],
+            'next_steps': [
+                'Confirm interpretation accuracy',
+                'Run suggested follow-up commands',
+                'Update ticket with findings',
+            ],
+            'formatted_reply': formatted_reply,
+            'categories': original_categories,
+            'matched_issues': [],
+            '_context_detected': detected,
+        }
+
+    def _respond_generic_followup(self, message: str, context: Dict, detected: str) -> Dict:
+        """Generic follow-up when no specific pattern matches."""
+        original_ticket = context.get('original_ticket', '')
+        original_categories = context.get('original_categories', [])
+        turn_number = context.get('turn_number', 1)
+
+        # Re-analyze with combined context
+        combined_text = f"{original_ticket}\n\nUpdate: {message}"
+        categories = self._detect_categories(combined_text.lower())
+        matched_issues = self._find_known_issues(combined_text.lower(), categories)
+
+        action_plan = [
+            {'step': 'Clarify the current status',
+             'command': '',
+             'note': 'Please provide: 1) What was attempted, 2) What happened, 3) Current state',
+             'risk_level': 'safe', 'risk_reason': 'Information gathering only'},
+            {'step': 'Collect current system state',
+             'command': 'pcs status 2>/dev/null || echo "not clustered"\nmount | grep -E "gfs2|nfs|cifs"\nsystemctl list-units --failed',
+             'note': 'Basic health check to understand current system state',
+             'risk_level': 'safe', 'risk_reason': 'Read-only status commands'},
+        ]
+
+        formatted_reply = self._format_followup_reply(
+            title=f"FOLLOW-UP (Turn {turn_number}) — Additional Context Needed",
+            analysis=f"Received your update. To provide the most accurate next steps, "
+                     f"please clarify:\n\n"
+                     f"1. What specific action was taken?\n"
+                     f"2. What was the result (include any error messages or command output)?\n"
+                     f"3. What is the current state of the system?\n\n"
+                     f"Based on the original ticket categories ({', '.join(categories)}), "
+                     f"here are general diagnostic steps:",
+            action_plan=action_plan,
+            next_steps=[
+                "Share specific command output or error messages",
+                "Confirm which steps from the action plan have been completed",
+                "Report any new symptoms observed",
+            ]
+        )
+
+        return {
+            'response_type': 'followup_guidance',
+            'root_cause': 'Follow-up received. Additional context needed for specific guidance.',
+            'action_plan': action_plan,
+            'safety_notes': ['All suggested commands are read-only diagnostics'],
+            'next_steps': [
+                'Provide specific details about what was attempted and the result',
+                'Share any command output or error messages',
+                'Clarify current system state',
+            ],
+            'formatted_reply': formatted_reply,
+            'categories': categories,
+            'matched_issues': [{
+                'title': i.get('title', ''),
+                'bug_id': i.get('bug_id', ''),
+                'solution': i.get('solution', ''),
+                'products': i.get('products', []),
+            } for i in matched_issues],
+            '_context_detected': detected,
+        }
+
+
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # FORMATTING HELPERS
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def _format_followup_reply(self, title: str, analysis: str, action_plan: List[Dict],
+                                next_steps: List[str]) -> str:
+        """Format a follow-up response as ready-to-paste text."""
+        lines = []
+        lines.append(f"Hi,\n")
+        lines.append(f"Follow-up analysis based on the latest update.\n")
+        lines.append("─" * 60)
+        lines.append(f"\n📋 {title}\n")
+        lines.append(analysis)
+        lines.append("")
+
+        if action_plan:
+            lines.append("─" * 60)
+            lines.append("\n🔧 RECOMMENDED ACTIONS\n")
+            for i, step in enumerate(action_plan, 1):
+                risk_indicator = ''
+                rl = step.get('risk_level', 'safe')
+                if rl == 'high':
+                    risk_indicator = ' 🔴 HIGH RISK'
+                elif rl == 'medium':
+                    risk_indicator = ' 🟡 MEDIUM'
+                else:
+                    risk_indicator = ' 🟢 SAFE'
+
+                lines.append(f"Step {i}: {step['step']}{risk_indicator}")
+                if step.get('command'):
+                    for cmd in step['command'].split('\n'):
+                        lines.append(f"    $ {cmd}")
+                if step.get('note'):
+                    lines.append(f"    ⚠️  {step['note']}")
+                if step.get('risk_reason'):
+                    lines.append(f"    Risk: {step['risk_reason']}")
+                lines.append("")
+
+        if next_steps:
+            lines.append("─" * 60)
+            lines.append("\n📌 NEXT STEPS\n")
+            for i, step in enumerate(next_steps, 1):
+                lines.append(f"{i}. {step}")
+            lines.append("")
+
+        lines.append("─" * 60)
+        lines.append("\nLet me know the results and I'll provide the next guidance.")
+        lines.append("\nThanks,")
+        lines.append("L4 Support Engineering")
+
+        return '\n'.join(lines)
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # ORIGINAL ANALYSIS METHODS (backward compatible)
+    # ─────────────────────────────────────────────────────────────────────────
 
     def _detect_categories(self, text: str) -> List[str]:
         """Detect which issue categories are present in the text."""
@@ -207,6 +1284,7 @@ class TicketAdvisor:
         details['versions'] = list(set(versions))
 
         return details
+
 
 
     def _generate_response(self, categories, matched_issues, runbook_steps,
@@ -316,6 +1394,8 @@ class TicketAdvisor:
 
         return ("Issue requires further log analysis to determine root cause. Upload the relevant log "
                 "bundle to LogSherlock for automated pattern detection across 455 patterns.")
+
+
 
     def _build_action_plan(self, categories, matched_issues, runbook_steps, description) -> List[Dict]:
         """Build step-by-step action plan with commands."""
@@ -460,6 +1540,7 @@ class TicketAdvisor:
         return steps
 
 
+
     def _build_safety_notes(self, categories, action_plan) -> List[str]:
         """Build production safety notes for the action plan."""
         notes = []
@@ -562,6 +1643,7 @@ class TicketAdvisor:
         return related
 
 
+
     def _format_reply(self, root_cause, action_plan, safety_notes, next_steps,
                       matched_issues, details, ticket_key) -> str:
         """Format the complete ready-to-paste Jira reply text."""
@@ -590,12 +1672,24 @@ class TicketAdvisor:
         lines.append("─" * 60)
         lines.append("\n🔧 ACTION PLAN\n")
         for i, step in enumerate(action_plan, 1):
-            lines.append(f"Step {i}: {step['step']}")
+            # Add risk indicator if available
+            risk_level = step.get('risk_level', '')
+            risk_indicator = ''
+            if risk_level == 'high':
+                risk_indicator = ' 🔴 HIGH RISK'
+            elif risk_level == 'medium':
+                risk_indicator = ' 🟡 MEDIUM'
+            elif risk_level == 'safe':
+                risk_indicator = ' 🟢 SAFE'
+
+            lines.append(f"Step {i}: {step['step']}{risk_indicator}")
             if step.get('command'):
                 for cmd in step['command'].split('\n'):
                     lines.append(f"    $ {cmd}")
             if step.get('note'):
                 lines.append(f"    ⚠️  {step['note']}")
+            if step.get('risk_reason'):
+                lines.append(f"    Risk: {step['risk_reason']}")
             lines.append("")
 
         # Safety Notes
@@ -632,6 +1726,10 @@ class TicketAdvisor:
 
         return '\n'.join(lines)
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SINGLETON INSTANCE
+# ─────────────────────────────────────────────────────────────────────────────
 
 # Singleton instance for reuse
 _advisor_instance = None

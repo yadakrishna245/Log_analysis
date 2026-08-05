@@ -1,36 +1,55 @@
 #!/bin/bash
-# LogSherlock Pro v2.0 - Single-click AWS Serverless Deployment
-# Features: 156 patterns, streaming engine (3GB+), multi-file scan, Jira integration
+# LogSherlock Pro v3.0 - Single-click AWS Serverless Deployment
+# Features: 455 patterns, streaming engine (3GB+), multi-file scan, Jira integration,
+#           Ticket Advisor (iterative L4 troubleshooting), License key system
 # Usage: ./deploy.sh [stack-name] [region] [api-key]
+# Example: ./deploy.sh logsherlock-pro us-east-1
 
 set -e
 
 STACK_NAME="${1:-logsherlock-pro}"
 REGION="${2:-us-east-1}"
-API_KEY="${3:-$(openssl rand -base64 24 | tr -d '/+=')}"
+API_KEY="${3:-logsherlock-hpe-2026}"
+CLOUDFRONT_DIST_ID="E3V2MZ00F7WXY9"
 
 echo ""
-echo "=== LogSherlock Pro - AWS Serverless Deployment ==="
+echo "╔══════════════════════════════════════════════════════════════════╗"
+echo "║        LogSherlock Pro v3.0 — AWS Serverless Deployment        ║"
+echo "║   455 Patterns | Ticket Advisor | Streaming 3GB+ | Local AI    ║"
+echo "╚══════════════════════════════════════════════════════════════════╝"
 echo ""
 
 # Check prerequisites
 echo "[1/6] Checking prerequisites..."
-command -v aws >/dev/null 2>&1 || { echo "ERROR: AWS CLI not found. Install: https://aws.amazon.com/cli/"; exit 1; }
-command -v sam >/dev/null 2>&1 || { echo "ERROR: SAM CLI not found. Install: https://docs.aws.amazon.com/serverless-application-model/"; exit 1; }
-echo "  ✓ All prerequisites met."
+command -v aws >/dev/null 2>&1 || { echo "❌ ERROR: AWS CLI not found. Install: https://aws.amazon.com/cli/"; exit 1; }
+command -v sam >/dev/null 2>&1 || { echo "❌ ERROR: SAM CLI not found. Install: https://docs.aws.amazon.com/serverless-application-model/"; exit 1; }
+command -v python3 >/dev/null 2>&1 || command -v python >/dev/null 2>&1 || { echo "❌ ERROR: Python not found."; exit 1; }
+echo "  ✅ AWS CLI, SAM CLI, Python — all present."
 
-# Generate/show API key
+# Validate AWS credentials
 echo ""
 echo "[2/6] Validating AWS credentials..."
-aws sts get-caller-identity --region "$REGION" > /dev/null 2>&1 || { echo "ERROR: AWS credentials not configured. Run: aws configure"; exit 1; }
-echo "  ✓ AWS credentials valid."
-echo "  API Key: $API_KEY"
-echo "  ⚠️  SAVE THIS KEY - you need it to access the API"
+AWS_ACCOUNT=$(aws sts get-caller-identity --region "$REGION" --query 'Account' --output text 2>/dev/null) || {
+    echo "❌ ERROR: AWS credentials not configured or expired."
+    echo "   Run: aws configure"
+    echo "   Or: export AWS_PROFILE=your-profile"
+    exit 1
+}
+echo "  ✅ AWS Account: $AWS_ACCOUNT | Region: $REGION"
 
 # Build
 echo ""
 echo "[3/6] Building SAM application..."
-sam build --template-file template.yaml --use-container 2>/dev/null || sam build --template-file template.yaml
+cd "$(dirname "$0")"
+
+# Try container build first (more reliable), fall back to native
+if sam build --template-file template.yaml --use-container 2>/dev/null; then
+    echo "  ✅ Built with Docker container."
+else
+    echo "  ⚠️  Container build unavailable, trying native..."
+    sam build --template-file template.yaml
+    echo "  ✅ Built natively."
+fi
 
 # Deploy
 echo ""
@@ -41,60 +60,73 @@ sam deploy \
     --capabilities CAPABILITY_IAM \
     --no-confirm-changeset \
     --no-fail-on-empty-changeset \
-    --parameter-overrides "ApiKey=$API_KEY" \
     --resolve-s3
+
+echo "  ✅ Stack deployed/updated successfully."
 
 # Get outputs
 echo ""
-echo "[5/7] Retrieving deployment info..."
-API_URL=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --region "$REGION" --query 'Stacks[0].Outputs[?OutputKey==`ApiUrl`].OutputValue' --output text)
-S3_BUCKET=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --region "$REGION" --query 'Stacks[0].Outputs[?OutputKey==`S3BucketName`].OutputValue' --output text)
-CF_DIST_ID=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --region "$REGION" --query 'Stacks[0].Outputs[?OutputKey==`CloudFrontDistributionId`].OutputValue' --output text 2>/dev/null)
+echo "[5/6] Retrieving deployment info..."
+API_URL=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --region "$REGION" \
+    --query 'Stacks[0].Outputs[?OutputKey==`ApiUrl`].OutputValue' --output text 2>/dev/null || echo "")
+CF_URL=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --region "$REGION" \
+    --query 'Stacks[0].Outputs[?OutputKey==`CloudFrontUrl`].OutputValue' --output text 2>/dev/null || echo "https://d3tv1czat55yad.cloudfront.net")
+S3_BUCKET=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --region "$REGION" \
+    --query 'Stacks[0].Outputs[?OutputKey==`S3BucketName`].OutputValue' --output text 2>/dev/null || echo "")
 
-# Invalidate CloudFront
+# Invalidate CloudFront cache
 echo ""
-echo "[6/7] Invalidating CloudFront cache..."
-if [ -n "$CF_DIST_ID" ] && [ "$CF_DIST_ID" != "None" ]; then
-    aws cloudfront create-invalidation --distribution-id "$CF_DIST_ID" --paths "/*" --region "$REGION" > /dev/null
-else
-    aws cloudfront create-invalidation --distribution-id "E3V2MZ00F7WXY9" --paths "/*" --region "$REGION" > /dev/null
-fi
-echo "  ✓ CloudFront cache invalidated."
+echo "[6/6] Invalidating CloudFront cache..."
+aws cloudfront create-invalidation --distribution-id "$CLOUDFRONT_DIST_ID" --paths "/*" --region "$REGION" > /dev/null 2>&1 && \
+    echo "  ✅ CloudFront cache invalidated (takes 30-60s to propagate)." || \
+    echo "  ⚠️  CloudFront invalidation failed (non-critical, cache expires on its own)."
 
 # Summary
 echo ""
-echo "[7/7] ✅ Deployment Complete!"
+echo "╔══════════════════════════════════════════════════════════════════╗"
+echo "║              ✅ DEPLOYMENT COMPLETE!                            ║"
+echo "╚══════════════════════════════════════════════════════════════════╝"
 echo ""
-echo "================================================="
-echo "  LogSherlock Pro v2.0 - Deployed Successfully!"
-echo "================================================="
+echo "  🌐 CloudFront:  ${CF_URL}"
+echo "  🔗 API URL:     ${API_URL}"
+echo "  🪣 S3 Bucket:   ${S3_BUCKET}"
+echo "  🔑 API Key:     ${API_KEY}"
+echo "  📍 Region:      ${REGION}"
+echo "  📦 Stack:       ${STACK_NAME}"
 echo ""
-echo "  CloudFront: https://d3tv1czat55yad.cloudfront.net"
-echo "  API URL:     $API_URL"
-echo "  S3 Bucket:   $S3_BUCKET"
-echo "  API Key:     $API_KEY"
-echo "  Region:      $REGION"
-echo "  Stack:       $STACK_NAME"
+echo "  ── Features Deployed ──"
+echo "  • 455 detection patterns across 14 categories"
+echo "  • 🎯 Ticket Advisor — iterative L4 troubleshooting (<10ms)"
+echo "  • Streaming engine — handles 3GB+ files"
+echo "  • Multi-file scan (30+ archives at once)"
+echo "  • Local AI (Ollama) — streaming responses"
+echo "  • Jira Integration — fetch/post with AI comment reply"
+echo "  • License key activation system"
+echo "  • Usage analytics dashboard"
 echo ""
-echo "  Features: 156 patterns | Streaming 3GB+ | Multi-file | Jira | Local AI"
+echo "  ── Quick Test ──"
+echo "  curl ${API_URL}api/health"
+echo "  curl -X POST ${API_URL}api/ticket/advisor/chat \\"
+echo "    -H 'Content-Type: application/json' \\"
+echo "    -d '{\"messages\":[{\"role\":\"user\",\"content\":\"GFS2 withdraw on node2\"}]}'"
 echo ""
-echo "  Test it:"
-echo "    curl -H 'X-API-Key: $API_KEY' $API_URL/api/health"
-echo ""
-echo "  Destroy it:"
-echo "    sam delete --stack-name $STACK_NAME --region $REGION --no-prompts"
+echo "  ── Destroy ──"
+echo "  sam delete --stack-name $STACK_NAME --region $REGION --no-prompts"
 echo ""
 
 # Save deployment info
 cat > .deployment-info.json << EOF
 {
-    "api_url": "$API_URL",
-    "s3_bucket": "$S3_BUCKET",
-    "api_key": "$API_KEY",
-    "region": "$REGION",
-    "stack_name": "$STACK_NAME",
-    "deployed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    "cloudfront_url": "${CF_URL}",
+    "api_url": "${API_URL}",
+    "s3_bucket": "${S3_BUCKET}",
+    "api_key": "${API_KEY}",
+    "region": "${REGION}",
+    "stack_name": "${STACK_NAME}",
+    "cloudfront_dist_id": "${CLOUDFRONT_DIST_ID}",
+    "deployed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+    "version": "3.0"
 }
 EOF
-
-echo "  Deployment info saved to .deployment-info.json"
+echo "  📄 Deployment info saved to .deployment-info.json"
+echo ""

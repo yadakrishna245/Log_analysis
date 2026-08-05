@@ -432,6 +432,11 @@
             <span id="jiraStatusDot" style="position:absolute;top:6px;right:6px;width:8px;height:8px;border-radius:50%;background:#71717a;border:2px solid var(--bg-1);"></span>
         </div>
 
+        <!-- Ticket Advisor -->
+        <div class="rail-item" onclick="showPage('advisor')" tabindex="0" title="Ticket Advisor">
+            <span style="font-size:16px;">🎯</span>
+        </div>
+
         <!-- Analytics Dashboard -->
         <div class="rail-item" id="analyticsNavItem" onclick="showPage('analytics')" tabindex="0" title="Usage Analytics" style="display:none;">
             <span style="font-size:16px;">📊</span>
@@ -966,6 +971,42 @@
                 <div style="background:var(--bg-2);border-radius:10px;padding:16px;border:1px solid var(--border-default);">
                     <h3 style="margin:0 0 12px 0;font-size:14px;color:var(--text-200);">🕐 Recent Activity</h3>
                     <div id="recentActivity" style="font-size:12px;color:var(--text-300);max-height:250px;overflow-y:auto;"></div>
+                </div>
+            </div>
+
+            <!-- TICKET ADVISOR PAGE -->
+            <div id="page-advisor" class="page">
+                <div class="pg-header">
+                    <div class="pg-title">🎯 Ticket Advisor</div>
+                    <div class="pg-desc">Paste a Jira ticket description or follow-up results for iterative root-cause analysis. Conversation-based — each response builds on prior context.</div>
+                </div>
+
+                <!-- Toolbar -->
+                <div style="display:flex;gap:8px;margin-bottom:16px;">
+                    <button class="btn-ghost" onclick="advisorNewTicket()" style="font-size:12px;">🆕 New Ticket</button>
+                    <button class="btn-ghost" onclick="advisorClearConversation()" style="font-size:12px;border-color:#ef4444;color:#ef4444;">🗑️ Clear Conversation</button>
+                    <div style="flex:1;"></div>
+                    <div id="advisorStatus" style="font-size:11px;color:var(--text-400);display:flex;align-items:center;gap:6px;"></div>
+                </div>
+
+                <!-- Input Area -->
+                <div style="background:var(--bg-2);border:1px solid var(--border-default);border-radius:12px;padding:16px;margin-bottom:20px;">
+                    <textarea id="advisorInput" placeholder="Paste Jira ticket description, error logs, or follow-up investigation results here...&#10;&#10;Ctrl+Enter to send" style="width:100%;min-height:120px;resize:vertical;padding:12px 14px;background:var(--bg-0);border:1px solid var(--border-default);border-radius:8px;font-size:13px;color:var(--text-200);font-family:var(--mono);line-height:1.6;outline:none;transition:border-color 0.2s;" onkeydown="if(event.ctrlKey&&event.key==='Enter'){event.preventDefault();advisorSend();}"></textarea>
+                    <div style="display:flex;align-items:center;gap:10px;margin-top:10px;">
+                        <button class="btn" onclick="advisorSend()" style="background:var(--hpe-green);font-size:13px;">▶ Send (Ctrl+Enter)</button>
+                        <div style="flex:1;"></div>
+                        <span id="advisorMsgCount" style="font-size:11px;color:var(--text-500);">0 messages</span>
+                    </div>
+                </div>
+
+                <!-- Conversation History -->
+                <div id="advisorConversation" style="display:flex;flex-direction:column;gap:16px;">
+                    <!-- Messages rendered here -->
+                    <div id="advisorEmpty" style="text-align:center;padding:40px 20px;color:var(--text-500);font-size:13px;">
+                        <div style="font-size:32px;margin-bottom:12px;">🎯</div>
+                        <div>Paste a Jira ticket description above to start analysis.</div>
+                        <div style="margin-top:8px;font-size:11px;">The advisor will identify root cause, provide an action plan with safety-rated commands, and guide you through resolution steps.</div>
+                    </div>
                 </div>
             </div>
 
@@ -4688,6 +4729,201 @@ Be concise, actionable, and use HPE VME terminology.`;
 
 // Load Jira settings on page init
 setTimeout(loadJiraSettings, 200);
+
+// ═══════════════════════════════════════════════════════════════════
+// TICKET ADVISOR - Conversation-based iterative analysis
+// ═══════════════════════════════════════════════════════════════════
+window._advisorMessages = [];
+
+function advisorSend() {
+    const input = document.getElementById('advisorInput');
+    const text = input.value.trim();
+    if (!text) return;
+
+    // Push user message
+    window._advisorMessages.push({ role: 'user', content: text });
+    input.value = '';
+    advisorRender();
+    advisorCallAPI();
+}
+
+async function advisorCallAPI() {
+    const statusEl = document.getElementById('advisorStatus');
+    statusEl.innerHTML = '<span class="dot" style="width:6px;height:6px;border-radius:50%;background:var(--accent);animation:pulse 1s infinite;"></span> Analyzing...';
+
+    try {
+        const resp = await fetch('/api/ticket/advisor/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ messages: window._advisorMessages })
+        });
+        if (!resp.ok) {
+            const err = await resp.json().catch(() => ({ error: resp.statusText }));
+            throw new Error(err.error || `HTTP ${resp.status}`);
+        }
+        const data = await resp.json();
+        // Push assistant response (store the full object for rendering)
+        window._advisorMessages.push({ role: 'assistant', content: data.formatted_reply || data.response || '', _meta: data });
+        statusEl.innerHTML = '<span style="color:var(--hpe-green);">✓</span> Ready';
+    } catch (err) {
+        window._advisorMessages.push({ role: 'assistant', content: `Error: ${err.message}`, _meta: { error: true } });
+        statusEl.innerHTML = '<span style="color:#ef4444;">✗</span> Error';
+    }
+    advisorRender();
+}
+
+function advisorRender() {
+    const container = document.getElementById('advisorConversation');
+    const countEl = document.getElementById('advisorMsgCount');
+
+    if (window._advisorMessages.length === 0) {
+        countEl.textContent = '0 messages';
+        container.innerHTML = '<div id="advisorEmpty" style="text-align:center;padding:40px 20px;color:var(--text-500);font-size:13px;">Paste a Jira ticket description above and click Send.<br>The advisor will analyze it instantly and provide a structured L4 response.</div>';
+        return;
+    }
+
+    countEl.textContent = `${window._advisorMessages.length} messages`;
+    let html = '';
+
+    window._advisorMessages.forEach((msg, idx) => {
+        if (msg.role === 'user') {
+            html += `<div style="background:var(--bg-2);border:1px solid var(--border-default);border-radius:12px;padding:16px;">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                    <span style="font-size:14px;">👤</span>
+                    <span style="font-size:11px;font-weight:600;color:var(--text-100);text-transform:uppercase;letter-spacing:0.05em;">You</span>
+                    <span style="font-size:10px;color:var(--text-500);margin-left:auto;">#${idx + 1}</span>
+                </div>
+                <div style="font-size:13px;color:var(--text-200);white-space:pre-wrap;font-family:var(--mono);line-height:1.6;max-height:200px;overflow-y:auto;">${escapeHtml(msg.content)}</div>
+            </div>`;
+        } else {
+            const meta = msg._meta || {};
+            html += advisorRenderAssistant(msg, meta, idx);
+        }
+    });
+
+    container.innerHTML = html;
+    // Scroll to bottom
+    container.scrollTop = container.scrollHeight;
+}
+
+function advisorRenderAssistant(msg, meta, idx) {
+    if (meta.error) {
+        return `<div style="background:var(--critical-bg);border:1px solid #ef444440;border-radius:12px;padding:16px;">
+            <div style="color:#ef4444;font-size:13px;">❌ ${escapeHtml(msg.content)}</div>
+        </div>`;
+    }
+
+    const responseType = meta.response_type || 'analysis';
+    const processingTime = (meta.metadata && meta.metadata.processing_time_ms) ? `${meta.metadata.processing_time_ms}ms` : (meta.processing_time_ms ? `${meta.processing_time_ms}ms` : '');
+    const categories = meta.categories || [];
+
+    // Badge color based on type
+    let badgeColor = 'var(--accent)';
+    let badgeLabel = 'Analysis';
+    if (responseType === 'initial_analysis' || responseType === 'initial') { badgeColor = 'var(--hpe-green)'; badgeLabel = 'Initial Analysis'; }
+    else if (responseType === 'follow_up' || responseType === 'followup' || responseType === 'followup_guidance') { badgeColor = '#3b82f6'; badgeLabel = 'Follow-up Guidance'; }
+    else if (responseType === 'verification') { badgeColor = '#f59e0b'; badgeLabel = 'Verification'; }
+    else if (responseType === 'escalation') { badgeColor = '#ef4444'; badgeLabel = 'Escalation'; }
+
+    // Format categories
+    let catHtml = '';
+    if (categories.length > 0) {
+        catHtml = `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;">${categories.map(c => `<span style="font-size:10px;padding:2px 8px;border-radius:4px;background:var(--bg-0);border:1px solid var(--border-subtle);color:var(--text-300);">${escapeHtml(c)}</span>`).join('')}</div>`;
+    }
+
+    // Format the response content with risk highlighting
+    let formattedContent = advisorFormatContent(meta.formatted_reply || msg.content, meta);
+
+    return `<div style="background:var(--bg-2);border:1px solid var(--border-default);border-radius:12px;padding:16px;border-left:3px solid ${badgeColor};">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
+            <span style="font-size:14px;">🎯</span>
+            <span style="font-size:10px;font-weight:600;padding:3px 8px;border-radius:4px;background:${badgeColor}20;color:${badgeColor};text-transform:uppercase;letter-spacing:0.05em;">${badgeLabel}</span>
+            ${processingTime ? `<span style="font-size:10px;color:var(--text-500);">⏱ ${processingTime}</span>` : ''}
+            <span style="font-size:10px;color:var(--text-500);margin-left:auto;">#${idx + 1}</span>
+        </div>
+        ${catHtml}
+        <div style="margin-top:12px;font-size:13px;color:var(--text-200);line-height:1.7;">${formattedContent}</div>
+        <div style="display:flex;gap:8px;margin-top:14px;border-top:1px solid var(--border-subtle);padding-top:12px;">
+            <button class="btn-ghost" style="font-size:11px;" onclick="advisorCopy(${idx})">📋 Copy</button>
+            <button class="btn-ghost" style="font-size:11px;" onclick="advisorUseAsJiraComment(${idx})">🎫 Use as Jira Comment</button>
+        </div>
+    </div>`;
+}
+
+function advisorFormatContent(text, meta) {
+    if (!text) return '<span style="color:var(--text-400);">No content</span>';
+
+    let html = escapeHtml(text);
+
+    // Highlight root cause sections
+    html = html.replace(/(?:^|\n)(Root Cause[:\s]*)(.*?)(?=\n|$)/gi, function(match, label, rest) {
+        return `\n<div style="background:#ef444415;border:1px solid #ef444440;border-radius:8px;padding:10px 12px;margin:8px 0;"><strong style="color:#ef4444;">${label}</strong><span style="color:var(--text-100);">${rest}</span></div>`;
+    });
+
+    // Highlight action plan items with risk levels
+    html = html.replace(/🟢\s*SAFE[:\s]*(.*?)(?=\n|$)/g, '<div style="border-left:3px solid #22c55e;padding:6px 12px;margin:4px 0;background:#22c55e08;border-radius:0 6px 6px 0;"><span style="color:#22c55e;font-weight:600;">🟢 SAFE:</span> <span style="color:var(--text-200);">$1</span></div>');
+    html = html.replace(/🟡\s*MEDIUM[:\s]*(.*?)(?=\n|$)/g, '<div style="border-left:3px solid #f59e0b;padding:6px 12px;margin:4px 0;background:#f59e0b08;border-radius:0 6px 6px 0;"><span style="color:#f59e0b;font-weight:600;">🟡 MEDIUM:</span> <span style="color:var(--text-200);">$1</span></div>');
+    html = html.replace(/🔴\s*HIGH[:\s]*(.*?)(?=\n|$)/g, '<div style="border-left:3px solid #ef4444;padding:6px 12px;margin:4px 0;background:#ef444408;border-radius:0 6px 6px 0;"><span style="color:#ef4444;font-weight:600;">🔴 HIGH:</span> <span style="color:var(--text-200);">$1</span></div>');
+
+    // Highlight safety notes
+    html = html.replace(/(?:^|\n)(⚠️\s*Safety[:\s]*)(.*?)(?=\n|$)/gi, function(match, label, rest) {
+        return `\n<div style="background:#f59e0b10;border:1px solid #f59e0b30;border-radius:6px;padding:8px 12px;margin:6px 0;font-size:12px;"><strong style="color:#f59e0b;">${label}</strong><span style="color:var(--text-300);">${rest}</span></div>`;
+    });
+
+    // Highlight next steps
+    html = html.replace(/(?:^|\n)(Next Steps?[:\s]*)/gi, '\n<div style="margin-top:10px;font-weight:600;color:var(--hpe-green);">$1</div>');
+
+    // Convert remaining newlines to br
+    html = html.replace(/\n/g, '<br>');
+
+    return html;
+}
+
+function advisorCopy(idx) {
+    const msg = window._advisorMessages[idx];
+    if (!msg) return;
+    const text = (msg._meta && msg._meta.formatted_reply) || msg.content || '';
+    navigator.clipboard.writeText(text).then(() => {
+        if (typeof flash === 'function') flash('Copied to clipboard');
+    });
+}
+
+function advisorUseAsJiraComment(idx) {
+    const msg = window._advisorMessages[idx];
+    if (!msg) return;
+    const text = (msg._meta && msg._meta.formatted_reply) || msg.content || '';
+    // Try to put in Jira comment box if it exists
+    const commentBox = document.getElementById('jiraCommentBody');
+    if (commentBox) {
+        commentBox.value = text;
+        showPage('jira-settings');
+        if (typeof flash === 'function') flash('Loaded into Jira comment box');
+    } else {
+        navigator.clipboard.writeText(text).then(() => {
+            if (typeof flash === 'function') flash('Copied — paste into Jira manually');
+        });
+    }
+}
+
+function advisorNewTicket() {
+    if (window._advisorMessages.length > 0 && !confirm('Start a new ticket? Current conversation will be cleared.')) return;
+    window._advisorMessages = [];
+    advisorRender();
+    document.getElementById('advisorInput').value = '';
+    document.getElementById('advisorInput').focus();
+    document.getElementById('advisorStatus').innerHTML = '';
+    if (typeof flash === 'function') flash('Ready for new ticket');
+}
+
+function advisorClearConversation() {
+    if (window._advisorMessages.length === 0) return;
+    if (!confirm('Clear all conversation messages?')) return;
+    window._advisorMessages = [];
+    advisorRender();
+    document.getElementById('advisorStatus').innerHTML = '';
+    if (typeof flash === 'function') flash('Conversation cleared');
+}
+
 </script>
 </body>
 </html>

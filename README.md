@@ -156,7 +156,7 @@ flowchart TD
 
 ---
 
-## ✨ Features (49+)
+## ✨ Features (55+)
 
 ### Core Analysis
 | # | Feature | Description |
@@ -167,7 +167,7 @@ flowchart TD
 | 4 | **Multi-Folder Scan** | Comma-separated folder paths — all scanned in parallel |
 | 5 | **8-Section RCA Report** | Problem Statement → Impact → Timeline → Root Cause → Cascade Chain → Fix → Remediation Plan → Prevention |
 | 6 | **Jira Wiki Markup** | One-click copy of full RCA in Jira-ready format |
-| 7 | **Ticket Advisor** | Paste a Jira description → get file/folder investigation suggestions |
+| 7 | **🎯 Ticket Advisor** | Iterative L4 troubleshooting — paste Jira description → get instant analysis with command safety levels (🟢 safe / 🟡 medium / 🔴 high) → paste follow-up results → get context-aware next steps. No AI needed, <10ms response. |
 | 8 | **VME Operations Guide** | 41 KB entries — quick reference for common VME operations |
 
 ### Visualizations
@@ -625,6 +625,9 @@ flowchart LR
 | `GET` | `/api/patterns/export` | Fetch all 455 patterns as JSON | No user data |
 | `POST` | `/api/knowledge/lookup` | Match pattern names → known issues | Pattern names only |
 | `POST` | `/api/advisor` | Jira description → investigation tips | Ticket text |
+| `POST` | `/api/ticket/advisor` | Single-shot L4 structured response | Ticket text |
+| `POST` | `/api/ticket/advisor/chat` | **Iterative conversation** — multi-turn troubleshooting | Ticket text |
+| `GET` | `/api/ticket/advisor/health` | Advisor engine health check | No user data |
 | `GET` | `/api/knowledge/issues` | List all 120 known issues | No user data |
 | `GET` | `/api/knowledge/runbooks` | List all 12 runbooks | No user data |
 | `POST` | `/api/analyze` | Server-side analysis (optional) | Full logs (server mode) |
@@ -646,12 +649,42 @@ curl -X POST https://d3tv1czat55yad.cloudfront.net/api/knowledge/lookup \
   -d '{"patterns": ["kernel_panic", "oom_kill", "gfs2_withdraw"]}'
 ```
 
-### Example: Ticket Advisor
+### Example: Ticket Advisor (Iterative L4 Troubleshooting)
+
+The Ticket Advisor provides instant, context-aware troubleshooting guidance through an iterative conversation flow — no AI needed, pure pattern matching in <10ms.
+
 ```bash
-curl -X POST https://d3tv1czat55yad.cloudfront.net/api/advisor \
+# Initial ticket analysis
+curl -X POST https://d3tv1czat55yad.cloudfront.net/api/ticket/advisor/chat \
   -H "Content-Type: application/json" \
-  -d '{"description": "Customer reports VM went down after storage timeout"}'
+  -d '{"messages":[{"role":"user","content":"GFS2 datastore changed to Directory Pool after adding hosts. MORPH-7774. SCSI reservation conflict."}]}'
+
+# Follow-up with results from L3 team
+curl -X POST https://d3tv1czat55yad.cloudfront.net/api/ticket/advisor/chat \
+  -H "Content-Type: application/json" \
+  -d '{"messages":[
+    {"role":"user","content":"GFS2 changed to Directory Pool. MORPH-7774."},
+    {"role":"assistant","content":"...previous response..."},
+    {"role":"user","content":"DB shows type_id=5 but GUI still shows Directory Pool after restart."}
+  ]}'
 ```
+
+**Response includes:**
+- 📋 Root Cause Analysis (auto-detected from keywords + knowledge base)
+- 🔧 Action Plan with command safety levels:
+  - 🟢 **SAFE** — read-only commands (grep, cat, SELECT, status checks)
+  - 🟡 **MEDIUM** — service restarts, DB updates, config changes
+  - 🔴 **HIGH** — destructive operations (fsck, force operations)
+- 🛡️ Safety Notes (production impact assessment)
+- 📚 Related Known Issues (matched from 120+ KB entries)
+- 📌 Next Steps (context-aware based on conversation history)
+- ⏱️ Response time: typically **3-10ms**
+
+**Iterative conversation flow:**
+1. Paste Jira ticket description → Get initial analysis
+2. L3 team executes steps, reports back → Paste their update
+3. Advisor detects context (success/failure/partial fix) → Provides next steps
+4. Repeat until resolved
 
 ---
 
