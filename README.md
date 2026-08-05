@@ -7,8 +7,8 @@
 [![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![Flask](https://img.shields.io/badge/Flask-3.0-000000?style=for-the-badge&logo=flask&logoColor=white)](https://flask.palletsprojects.com)
 [![AWS](https://img.shields.io/badge/AWS-Serverless-FF9900?style=for-the-badge&logo=amazonaws&logoColor=white)](https://aws.amazon.com)
-[![Patterns](https://img.shields.io/badge/Patterns-156-01A982?style=for-the-badge)](docs/USER_GUIDE.md)
-[![Known Issues](https://img.shields.io/badge/Known_Issues-73-01A982?style=for-the-badge)](docs/USER_GUIDE.md)
+[![Patterns](https://img.shields.io/badge/Patterns-455-01A982?style=for-the-badge)](docs/USER_GUIDE.md)
+[![Known Issues](https://img.shields.io/badge/Known_Issues-120-01A982?style=for-the-badge)](docs/USER_GUIDE.md)
 [![Runbooks](https://img.shields.io/badge/Runbooks-12-01A982?style=for-the-badge)](docs/USER_GUIDE.md)
 [![Privacy](https://img.shields.io/badge/Privacy-Zero_Upload-01A982?style=for-the-badge&logo=shieldsdotio&logoColor=white)](#-security--privacy)
 
@@ -41,8 +41,8 @@ Drop tar.gz files (up to 3GB+) → Get instant root cause analysis with actionab
 
 ### ✅ With LogSherlock Pro
 - **~14 seconds** for 73MB tar.gz analysis
-- **156 detection patterns** available to all engineers
-- **73 known issues** with ready-made solutions
+- **455 detection patterns** available to all engineers
+- **120 known issues** with ready-made solutions
 - **41 VME Guide entries** for quick ops reference
 - **Streaming engine** — handles files up to 3GB+
 - **Multi-file scan** — drop multiple archives at once
@@ -83,7 +83,7 @@ Drop tar.gz files (up to 3GB+) → Get instant root cause analysis with actionab
 flowchart LR
     A[📁 Drop tar.gz Files] --> B[💨 DecompressionStream<br/>Streaming Gzip]
     B --> C[📦 Streaming Tar Parser<br/>Process Entry-by-Entry]
-    C --> D[🔍 Regex Engine<br/>156 Pattern Signatures]
+    C --> D[🔍 Regex Engine<br/>455 Pattern Signatures]
     D --> E[📊 Results Dashboard<br/>Heatmap + RCA + KB]
 
     style A fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
@@ -105,15 +105,15 @@ flowchart TD
         A1[File dropped by user] --> A2[pako.js gunzip]
         A2 --> A3[Tar header parser]
         A3 --> A4[Line-by-line scan]
-        A4 --> A5{Match 156 regex patterns}
+        A4 --> A5{Match 455 regex patterns}
         A5 -->|Match| A6[Classify severity<br/>CRITICAL / HIGH / MEDIUM / LOW]
         A5 -->|No match| A4
-        A6 --> A7[Group by category<br/>12 categories]
+        A6 --> A7[Group by category<br/>14 categories]
     end
 
     subgraph API["☁️ API (Server-Side)"]
         A7 --> B1[Send pattern names only<br/>/api/knowledge/lookup]
-        B1 --> B2[Return KB matches<br/>73 known issues]
+        B1 --> B2[Return KB matches<br/>120 known issues]
         B2 --> B3[Return runbook links<br/>12 guides]
     end
 
@@ -141,7 +141,7 @@ flowchart TD
     subgraph NEW["✅ New Streaming Approach"]
         N1[Read file as stream<br/>chunk by chunk] --> N2[DecompressionStream<br/>decompress on-the-fly]
         N2 --> N3[Parse ONE tar entry<br/>at a time]
-        N3 --> N4[Scan this file's lines<br/>against 156 patterns]
+        N3 --> N4[Scan this file's lines<br/>against 455 patterns]
         N4 --> N5[Store findings<br/>DISCARD file content]
         N5 --> N6{More entries?}
         N6 -->|Yes| N3
@@ -162,7 +162,7 @@ flowchart TD
 | # | Feature | Description |
 |---|---------|-------------|
 | 1 | **Streaming Client-Side Scan** | Zero upload — DecompressionStream + streaming tar parser, handles 3GB+ files |
-| 2 | **156 Regex Patterns** | Across 12 categories: kernel, storage, cluster, network, memory, VME services, etc. |
+| 2 | **455 Regex Patterns** | Across 14 categories: storage, cluster, network, virtualization, application, service, security, hardware, kernel, backup, filesystem, system, performance, memory |
 | 3 | **Multi-File Scan** | Drop multiple .tar.gz / .log / .sh / .txt files at once — combined results |
 | 4 | **Multi-Folder Scan** | Comma-separated folder paths — all scanned in parallel |
 | 5 | **8-Section RCA Report** | Problem Statement → Impact → Timeline → Root Cause → Cascade Chain → Fix → Remediation Plan → Prevention |
@@ -200,7 +200,7 @@ flowchart TD
 ### Knowledge & Operations
 | # | Feature | Description |
 |---|---------|-------------|
-| 20 | **Knowledge Base** | 73 catalogued known issues with solutions |
+| 20 | **Knowledge Base** | 120 catalogued known issues with solutions |
 | 21 | **Runbooks** | 12 step-by-step investigation guides |
 | 22 | **VME Operations Guide** | 41 entries covering install, troubleshooting, networking, storage, DR |
 | 23 | **Quick Reference Panel** | 12-section ops command reference (Top 20, Hot-Add, Snapshots, etc.) |
@@ -469,8 +469,8 @@ graph TB
 
     subgraph FLASK["🐍 Flask Application"]
         ROUTES["/api/patterns/export<br/>/api/knowledge/lookup<br/>/api/advisor"]
-        ENGINE[Pattern Engine<br/>156 Compiled Regexes]
-        KB[Knowledge Base<br/>73 Issues + 12 Runbooks + 41 VME Guide]
+        ENGINE[Pattern Engine<br/>455 Compiled Regexes]
+        KB[Knowledge Base<br/>120 Issues + 12 Runbooks + 41 VME Guide]
     end
 
     subgraph BROWSER["🖥️ Browser (Client)"]
@@ -508,7 +508,7 @@ graph TB
 | Scan results / findings | Browser memory only | ❌ **Never** |
 | Pattern names (e.g., "oom_kill") | Sent to `/api/knowledge/lookup` | ✅ Anonymous identifiers only |
 | Jira description text | Sent to `/api/advisor` | ✅ For investigation suggestions |
-| 156 pattern definitions | Fetched from `/api/patterns/export` | N/A (server → client) |
+| 455 pattern definitions | Fetched from `/api/patterns/export` | N/A (server → client) |
 
 ---
 
@@ -517,9 +517,9 @@ graph TB
 | Capability | LogSherlock Pro | Splunk | Datadog | Manual grep |
 |-----------|:-:|:-:|:-:|:-:|
 | Zero data upload | ✅ | ❌ | ❌ | ✅ |
-| Auto pattern detection | ✅ 156 patterns | ✅ Custom | ✅ Custom | ❌ Manual |
+| Auto pattern detection | ✅ 455 patterns | ✅ Custom | ✅ Custom | ❌ Manual |
 | RCA report generation | ✅ 8-section | ❌ | ❌ | ❌ |
-| Knowledge Base | ✅ 73 issues | ❌ | ❌ | ❌ |
+| Knowledge Base | ✅ 120 issues | ❌ | ❌ | ❌ |
 | Setup time | 0 min (browser) | Days | Days | 0 min |
 | Cost | Free | $$$$$ | $$$$ | Free |
 | Works offline | ✅ (after load) | ❌ | ❌ | ✅ |
@@ -546,22 +546,29 @@ No setup required:
 https://d3tv1czat55yad.cloudfront.net
 ```
 
-### Option 2: Local Development
+### Option 2: Docker (One Command)
+
+```bash
+cd docker
+docker-compose up -d
+# → http://localhost:5000
+```
+
+### Option 3: Local Development
 
 ```bash
 git clone https://github.com/yadakrishna245/Log_analysis.git
 cd Log_analysis
 pip install -r requirements.txt
-python app.py
+python run_server.py
 # → http://localhost:5000
 ```
 
-### Option 3: AWS Serverless Deployment
+### Option 4: AWS Serverless (One Command)
 
 ```bash
-cd deploy/
-sam build
-sam deploy --guided
+cd deploy
+.\deploy.ps1
 # → CloudFront URL in outputs
 ```
 
@@ -583,7 +590,7 @@ See [docs/OLLAMA_SETUP.md](docs/OLLAMA_SETUP.md) for full guide.
 ```mermaid
 flowchart LR
     subgraph BROWSER["🖥️ Your Browser"]
-        A[Log Scanner] --> B[Pattern Detection<br/>156 regex patterns]
+        A[Log Scanner] --> B[Pattern Detection<br/>455 regex patterns]
         B --> C[Findings:<br/>pattern names + severity]
     end
 
@@ -615,10 +622,10 @@ flowchart LR
 
 | Method | Endpoint | Description | Privacy |
 |--------|----------|-------------|---------|
-| `GET` | `/api/patterns/export` | Fetch all 156 patterns as JSON | No user data |
+| `GET` | `/api/patterns/export` | Fetch all 455 patterns as JSON | No user data |
 | `POST` | `/api/knowledge/lookup` | Match pattern names → known issues | Pattern names only |
 | `POST` | `/api/advisor` | Jira description → investigation tips | Ticket text |
-| `GET` | `/api/knowledge/issues` | List all 73 known issues | No user data |
+| `GET` | `/api/knowledge/issues` | List all 120 known issues | No user data |
 | `GET` | `/api/knowledge/runbooks` | List all 12 runbooks | No user data |
 | `POST` | `/api/analyze` | Server-side analysis (optional) | Full logs (server mode) |
 | `POST` | `/api/jira/ticket/{id}` | Fetch Jira ticket details (proxy) | Creds per-request, not stored |
@@ -629,7 +636,7 @@ flowchart LR
 ### Example: Fetch Patterns
 ```bash
 curl https://d3tv1czat55yad.cloudfront.net/api/patterns/export | jq '.count'
-# → 156
+# → 455
 ```
 
 ### Example: Knowledge Lookup
@@ -773,23 +780,23 @@ LogSherlock-Pro/
 ├── 📄 storage.py                   ← Storage abstraction (SQLite local / DynamoDB lambda)
 ├── 📄 db_dynamo.py                 ← DynamoDB adapter for serverless mode
 ├── 📄 requirements.txt             ← Python dependencies
-├── 📄 Dockerfile                   ← Container build (optional)
+├── 📄 run_server.py                ← Local dev server launcher
 ├── 📄 LogSherlock.bat              ← One-click local launcher (Windows)
 ├── 📄 setup_ollama.ps1             ← AI setup (Windows)
 ├── 📄 setup_ollama.sh              ← AI setup (Linux/Mac)
 │
 ├── 🖥️ templates/
-│   └── index.html                  ← THE FRONTEND (275KB single-page app)
+│   └── index.html                  ← THE FRONTEND (282KB single-page app)
 │                                      All JS/CSS/HTML in one file — zero build step
 │
 ├── 🔍 engine/                      ← Pattern detection engine
-│   ├── patterns.py                 ← ⭐ 156 regex patterns (core intelligence)
+│   ├── patterns.py                 ← ⭐ 455 regex patterns across 14 categories
 │   ├── analyzer.py                 ← Server-side analysis orchestrator
 │   ├── ingestion.py                ← File parsing, tar extraction, classification
 │   └── correlator.py               ← Cross-node timeline correlation
 │
 ├── 📚 knowledge/                   ← Knowledge base (solutions & guides)
-│   ├── known_issues.py             ← 73 known issues with solutions
+│   ├── known_issues.py             ← 120 known issues with solutions
 │   ├── runbooks.py                 ← 12 step-by-step investigation guides
 │   ├── vme_guide.py                ← 41 VME operations guide entries
 │   ├── advanced_troubleshooting.py ← Extended troubleshooting procedures
@@ -797,21 +804,28 @@ LogSherlock-Pro/
 │   └── kb_manager.py               ← KB CRUD operations
 │
 ├── 🌐 routes/                      ← API endpoint definitions
-│   ├── analysis.py                 ← /api/patterns/export, /api/advisor
-│   ├── knowledge.py                ← /api/knowledge/lookup, /issues, /vme-guide
-│   ├── analytics.py                ← /api/analytics (admin-only)
+│   ├── analysis.py                 ← /api/analyze/quick, /api/patterns/export
+│   ├── knowledge.py                ← /api/knowledge/search, /issues, /runbooks
+│   ├── analytics.py                ← /api/analytics (usage tracking)
 │   ├── tickets.py                  ← Ticket CRUD (local mode)
 │   ├── reports.py                  ← Report generation
 │   └── feedback.py                 ← User feedback
 │
-├── 🚀 deploy/                      ← AWS serverless deployment
+├── 🐳 docker/                      ← Docker deployment (one command)
+│   ├── Dockerfile                  ← Multi-stage production build (~200MB)
+│   ├── docker-compose.yml          ← App + optional Ollama AI
+│   ├── .dockerignore               ← Clean build exclusions
+│   └── README.md                   ← Docker deployment guide
+│
+├── 🚀 deploy/                      ← AWS serverless deployment (one command)
 │   ├── template.yaml               ← SAM/CloudFormation infrastructure
 │   ├── lambda_handler.py           ← WSGI adapter for Lambda
-│   ├── deploy.ps1 / deploy.sh      ← Deploy scripts (build → deploy → invalidate)
+│   ├── deploy.ps1 / deploy.sh      ← One-command deploy scripts
 │   └── samconfig.toml              ← SAM CLI config
 │
-├── 🧪 tests/                       ← Test suite (pytest)
+├── 🧪 tests/                       ← Test suite
 │   ├── test_basic.py               ← Core unit tests
+│   ├── test_analyze.py             ← Analysis endpoint tests
 │   ├── sanity_check.py             ← Quick health check for live API
 │   ├── perf_test.py                ← Performance benchmarks
 │   └── sample_logs/                ← Test log samples
@@ -849,7 +863,7 @@ LogSherlock-Pro/
 flowchart LR
     subgraph FRONTEND["templates/index.html"]
         A[User drops file] --> B[streamTarEntries]
-        B --> C[Pattern matching<br/>156 regex]
+        B --> C[Pattern matching<br/>455 regex]
         C --> D[renderFindingsList]
     end
 
@@ -895,7 +909,7 @@ flowchart LR
 | Pattern compilation | Once at page load |
 | Cold start (Lambda) | ~2s (CloudFront cached) |
 | Demo file (9.4KB) | < 1 second |
-| Patterns matched (demo) | 110 / 156 |
+| Patterns matched (demo) | 110 / 455 |
 
 ---
 
