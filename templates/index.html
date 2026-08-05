@@ -94,7 +94,9 @@
         .terminal-status.scanning .dot{background:var(--accent);animation:pulse 1s infinite;}
         .terminal-status.done .dot{background:var(--low);}
         .terminal-status.error .dot{background:var(--critical);}
+        .terminal-status.staged .dot{background:#f5a623;animation:pulse 1.5s infinite;}
         @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.3;}}
+        @keyframes slideIn{from{transform:translateX(100px);opacity:0;}to{transform:translateX(0);opacity:1;}}
 
         /* Input group */
         .input-group{display:flex;gap:8px;margin-bottom:16px;}
@@ -498,7 +500,7 @@
                     </div>
                     <div class="terminal-body" id="dropZone">
                         <div class="terminal-prompt">$ drop files or click to browse</div>
-                        <div class="terminal-hint">.tar.gz · .sh · .log · .txt · .conf · .yaml · any text file — <span style="color:var(--hpe-green);">drop multiple files for combined scan</span></div>
+                        <div class="terminal-hint">.tar.gz · .zip · .sh · .log · .txt · .conf · .yaml · any text file — <span style="color:var(--hpe-green);">drop multiple files for combined scan</span></div>
                     </div>
                     <div class="terminal-status" id="termStatus">
                         <span class="dot"></span>
@@ -638,6 +640,19 @@
                     <div id="rcaSummary" class="rca-summary" style="display:none;">
                         <div class="rca-summary-title">Root Cause Summary</div>
                         <div class="rca-summary-text" id="rcaSummaryText"></div>
+                    </div>
+
+                    <!-- 🎯 Ticket-Relevant Findings (shown when ticket context + scan results) -->
+                    <div id="ticketRelevantPanel" style="display:none;background:var(--bg-2);border:1px solid #01a982;border-left:4px solid #01a982;border-radius:10px;padding:16px 20px;margin-bottom:16px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                            <div style="font-size:12px;font-weight:600;color:#01a982;text-transform:uppercase;letter-spacing:0.04em;display:flex;align-items:center;gap:8px;">
+                                <span>🎯</span> Ticket-Relevant Findings <span style="font-size:9px;font-weight:400;color:var(--text-400);text-transform:none;">(matched from ticket context — 100% from actual logs, zero hallucination)</span>
+                            </div>
+                            <span id="ticketRelevantCount" style="font-size:10px;color:var(--text-400);"></span>
+                        </div>
+                        <div id="ticketRelevantSuggestion" style="font-size:12px;color:var(--text-200);line-height:1.6;margin-bottom:12px;padding:10px;background:var(--bg-0);border-radius:8px;border:1px solid var(--border-subtle);"></div>
+                        <div id="ticketRelevantFiles" style="margin-bottom:12px;"></div>
+                        <div id="ticketRelevantFindings" style="max-height:400px;overflow-y:auto;"></div>
                     </div>
 
                     <!-- AI Summary (Ollama Local LLM) -->
@@ -1334,13 +1349,214 @@ loadPatterns();
 function showPage(p){$$('.page').forEach(x=>{x.classList.remove('active');x.style.display='';});$$('.rail-item').forEach(x=>x.classList.remove('active'));$('#page-'+p).classList.add('active');document.getElementById('pg-chat').style.display='none';document.getElementById('quickRefPanel').style.display='none';event.currentTarget.classList.add('active');if(p==='knowledge')loadKB();if(p==='runbooks')loadRunbooks();if(p==='history')loadHistory();if(p==='analytics')loadAnalyticsDashboard();}
 function switchTab(t){$$('.tab-item').forEach(x=>x.classList.remove('active'));$$('.tab-pane').forEach(x=>x.classList.remove('active'));event.currentTarget.classList.add('active');$('#tab-'+t).classList.add('active');}
 
-// Drop
+// Drop — stage files first, scan on button click
 const dz=$('#dropZone'),fi=$('#fileInput');
+let _stagedFiles = []; // Files waiting to be scanned
 dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('dragover');});
 dz.addEventListener('dragleave',()=>dz.classList.remove('dragover'));
-dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('dragover');handleFiles(e.dataTransfer.files);});
+dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('dragover');stageFiles(e.dataTransfer.files);});
 dz.addEventListener('click',()=>fi.click());
-fi.addEventListener('change',e=>handleFiles(e.target.files));
+fi.addEventListener('change',e=>stageFiles(e.target.files));
+
+function stageFiles(files) {
+    if (!files || !files.length) return;
+    for (const f of files) _stagedFiles.push(f);
+    const totalMB = (_stagedFiles.reduce((s,f) => s + f.size, 0) / 1024 / 1024).toFixed(0);
+    const names = _stagedFiles.map(f => f.name);
+    const display = names.length <= 3 ? names.join(', ') : names.slice(0,3).join(', ') + ` +${names.length-3} more`;
+    setStatus('staged', `📁 ${_stagedFiles.length} file(s) staged (${totalMB}MB): ${display}`);
+    updateRunScanBtn();
+    showUploadNotification(_stagedFiles.length, totalMB);
+}
+
+function showUploadNotification(count, sizeMB) {
+    let notif = document.getElementById('uploadNotif');
+    if (!notif) {
+        notif = document.createElement('div');
+        notif.id = 'uploadNotif';
+        notif.style.cssText = 'position:fixed;top:20px;right:20px;background:#1a7a3a;color:white;padding:14px 24px;border-radius:10px;font-size:14px;font-weight:600;z-index:9999;box-shadow:0 4px 20px rgba(0,200,100,0.4);display:flex;align-items:center;gap:10px;animation:slideIn 0.3s ease;';
+        document.body.appendChild(notif);
+    }
+    notif.innerHTML = '✅ ' + count + ' file(s) ready (' + sizeMB + 'MB) — Click <b>▶ Run Scan</b> to analyze';
+    notif.style.display = 'flex';
+    clearTimeout(notif._timer);
+    notif._timer = setTimeout(() => { notif.style.display = 'none'; }, 4000);
+}
+
+// ── RUN SCAN BUTTON (always visible) ────────────────────────────────
+function initRunScanBtn() {
+    let btn = document.getElementById('runScanBtn');
+    if (!btn) {
+        btn = document.createElement('button');
+        btn.id = 'runScanBtn';
+        btn.style.cssText = 'display:block;margin:12px auto 0;padding:12px 36px;font-size:1.1rem;font-weight:700;border:none;border-radius:8px;cursor:pointer;background:var(--hpe-green);color:#000;transition:all .2s;letter-spacing:0.5px;';
+        btn.onmouseenter = () => btn.style.transform = 'scale(1.05)';
+        btn.onmouseleave = () => btn.style.transform = 'scale(1)';
+        btn.onclick = runStagedScan;
+        const termDiv = document.querySelector('.terminal');
+        termDiv.parentNode.insertBefore(btn, termDiv.nextSibling);
+    }
+    updateRunScanBtn();
+}
+
+function updateRunScanBtn() {
+    const btn = document.getElementById('runScanBtn');
+    if (!btn) return;
+    const ticketCtx = document.getElementById('ticketContext');
+    const hasTicket = ticketCtx && ticketCtx.value.trim().length > 10;
+    const hasFiles = _stagedFiles.length > 0;
+    if (hasTicket && hasFiles) {
+        btn.innerHTML = '▶ Run Scan + Ticket Analysis';
+    } else if (hasFiles) {
+        btn.innerHTML = '▶ Run Scan';
+    } else if (hasTicket) {
+        btn.innerHTML = '▶ Analyze Ticket';
+    } else {
+        btn.innerHTML = '▶ Run Scan';
+    }
+    btn.style.display = 'block';
+}
+
+async function runStagedScan() {
+    const ticketCtx = document.getElementById('ticketContext');
+    const hasTicket = ticketCtx && ticketCtx.value.trim().length > 10;
+    const hasFiles = _stagedFiles.length > 0;
+
+    // If ticket context present, do pre-analysis first
+    if (hasTicket) {
+        showTicketPreAnalysis(ticketCtx.value.trim());
+    }
+
+    if (!hasFiles) {
+        if (!hasTicket) {
+            setStatus('error', 'Drop log files or paste a ticket description first.');
+        }
+        return;
+    }
+
+    const filesToScan = [..._stagedFiles];
+    _stagedFiles = [];
+    updateRunScanBtn();
+    await handleFiles(filesToScan);
+}
+
+// ── TICKET PRE-ANALYSIS (SFTP folder detection + download guidance) ──
+function showTicketPreAnalysis(ticketText) {
+    const lower = ticketText.toLowerCase();
+
+    // Detect SFTP folder mentions
+    const sftpFolders = new Set();
+    // Match patterns like "check folder_name" or "uploaded to /path/folder"
+    const folderMatches = ticketText.match(/(?:folder|path|location|bundle|directory)[:\s]+([a-zA-Z0-9_\-\.\/\\]+)/gi) || [];
+    for (const m of folderMatches) {
+        const parts = m.split(/[:\s]+/);
+        if (parts.length > 1) {
+            const folder = parts.slice(1).join(' ').replace(/[.,;:!?]+$/, '').trim();
+            if (folder.length > 3) sftpFolders.add(folder);
+        }
+    }
+    // Match esis account paths
+    const esisMatches = ticketText.match(/esis\d+[\/\\]([a-zA-Z0-9_\-\.\/]+)/gi) || [];
+    for (const m of esisMatches) sftpFolders.add(m);
+    // Match date-based folder names (common in HPRC)
+    const dateFolders = ticketText.match(/\d{8}[a-zA-Z0-9_\-]*/g) || [];
+    for (const m of dateFolders) {
+        if (m.length > 8) sftpFolders.add(m);
+    }
+
+    // Detect issue type to suggest which bundles to check
+    const issueKeywords = {
+        manager: ['hvm manager','morpheus ui','morpheus web','appliance down','appliance error','login fail','portal','dashboard','api error','backup fail','restore fail','upgrade','migration','license','morpheus_ctl','rabbitmq','elasticsearch','mysql','nginx'],
+        nodes: ['hvm node','cluster node','node down','node fail','corosync','pacemaker','fence','stonith','quorum','dlm','gfs2','split brain','resource fail','ha fail','failover','crm','cib'],
+        storage: ['datastore','storage','iscsi','scsi','lun','multipath','disk','volume','nfs','gfs2','withdraw','mount','filesystem','sg_persist','reservation'],
+        network: ['network','nic','bond','vlan','bridge','ovs','vswitch','connectivity','unreachable','timeout','dns','dhcp','ip conflict','ethtool','mtu'],
+        vm: ['virtual machine','vm migration','live migrat','snapshot','clone','provision','deploy','template','libvirt','virsh','kvm','qemu'],
+    };
+
+    const detectedIssues = [];
+    for (const [type, keywords] of Object.entries(issueKeywords)) {
+        for (const kw of keywords) {
+            if (lower.includes(kw)) { detectedIssues.push(type); break; }
+        }
+    }
+
+    // Build guidance HTML
+    let html = '<div id="ticketPreAnalysis" style="background:var(--bg-2);border:1px solid var(--hpe-green);border-left:4px solid var(--hpe-green);border-radius:10px;padding:16px 20px;margin:12px 0 16px;">';
+    html += '<div style="font-weight:700;color:var(--hpe-green);margin-bottom:10px;font-size:15px;">📋 Ticket Pre-Analysis</div>';
+
+    // SFTP folder detection
+    if (sftpFolders.size > 0) {
+        html += '<div style="margin-bottom:12px;"><span style="color:var(--text-200);font-weight:600;">📂 SFTP Folder(s) Mentioned:</span><br>';
+        for (const f of sftpFolders) {
+            html += '<code style="background:var(--bg-0);padding:3px 10px;border-radius:4px;margin:3px 4px;display:inline-block;font-size:13px;">' + f + '</code>';
+        }
+        html += '</div>';
+    }
+
+    // Download guidance based on issue type
+    html += '<div style="margin-bottom:8px;"><span style="color:var(--text-200);font-weight:600;">📥 Which Bundles to Download from HPRC/SFTP:</span></div>';
+    html += '<table style="width:100%;font-size:13px;border-collapse:collapse;margin-bottom:12px;">';
+    html += '<tr style="border-bottom:1px solid var(--border-subtle);background:var(--bg-0);"><th style="text-align:left;padding:8px;color:var(--text-300);">Bundle Type</th><th style="text-align:left;padding:8px;color:var(--text-300);">File Pattern</th><th style="text-align:left;padding:8px;color:var(--text-300);">Required?</th></tr>';
+
+    const bundles = [
+        { type: 'HVM Manager (Appliance)', pattern: 'collect_isca-vme_*.tgz', issues: ['manager', 'storage', 'network', 'vm'], desc: 'Morpheus services, UI, API, backups' },
+        { type: 'HVM Node 1 (Cluster)', pattern: 'collect_hvm1_*.tgz', issues: ['nodes', 'storage', 'network'], desc: 'Corosync, Pacemaker, DLM, GFS2' },
+        { type: 'HVM Node 2 (Cluster)', pattern: 'collect_hvm2_*.tgz', issues: ['nodes', 'storage', 'network'], desc: 'Corosync, Pacemaker, DLM, GFS2' },
+        { type: 'HVM Node 3 (Cluster)', pattern: 'collect_hvm3_*.tgz', issues: ['nodes', 'storage', 'network'], desc: 'Corosync, Pacemaker, DLM, GFS2' },
+        { type: 'Network Capture', pattern: 'Capture-192.168.x.x*.tgz', issues: ['network'], desc: 'tcpdump, packet analysis' },
+    ];
+
+    for (const b of bundles) {
+        const relevant = detectedIssues.some(i => b.issues.includes(i));
+        const badge = relevant ? '<span style="color:#00e676;font-weight:700;">✅ Download this</span>' : '<span style="color:var(--text-500);">⬜ Not needed</span>';
+        const rowBg = relevant ? 'background:rgba(0,230,118,0.05);' : '';
+        html += '<tr style="border-bottom:1px solid var(--border-subtle);' + rowBg + '">';
+        html += '<td style="padding:8px;font-weight:500;">' + b.type + '<br><span style="font-size:11px;color:var(--text-400);">' + b.desc + '</span></td>';
+        html += '<td style="padding:8px;"><code style="font-size:12px;">' + b.pattern + '</code></td>';
+        html += '<td style="padding:8px;">' + badge + '</td></tr>';
+    }
+    html += '</table>';
+
+    // Specific guidance
+    if (detectedIssues.length > 0) {
+        html += '<div style="padding:12px;background:var(--bg-0);border-radius:8px;font-size:13px;line-height:1.6;">';
+        html += '<span style="font-weight:700;color:var(--accent);">💡 Recommendation:</span><br>';
+        if (detectedIssues.includes('nodes') || detectedIssues.includes('storage')) {
+            html += '• This is a <b>Cluster/Storage issue</b>. Download <b>ALL node bundles</b> (hvm1, hvm2, hvm3) + Manager bundle.<br>';
+            html += '• Key logs to check: <code>var/log/messages</code>, <code>corosync/</code>, <code>pacemaker/</code>, <code>dlm_controld/</code><br>';
+            html += '• Compare timestamps across ALL nodes to find which node triggered the issue first.';
+        } else if (detectedIssues.includes('manager')) {
+            html += '• This is a <b>Manager/Appliance issue</b>. Download <code>collect_isca-vme_*.tgz</code>.<br>';
+            html += '• Key logs: <code>morpheus_service_status</code>, <code>morpheus_ctl</code>, <code>morpheus_logs/</code>, <code>nginx/</code>';
+        } else if (detectedIssues.includes('network')) {
+            html += '• This is a <b>Network issue</b>. Download Manager bundle + Network Captures.<br>';
+            html += '• Key logs: <code>ovs/</code>, <code>ethtool</code>, <code>bond/bridge config</code>, <code>Capture-*.tgz</code>';
+        } else if (detectedIssues.includes('vm')) {
+            html += '• This is a <b>VM/Workload issue</b>. Download Manager + the specific node hosting the VM.<br>';
+            html += '• Key logs: <code>virsh_output</code>, <code>libvirt/</code>, <code>qemu/</code>';
+        }
+        html += '</div>';
+    } else {
+        html += '<div style="padding:10px;background:var(--bg-0);border-radius:8px;font-size:13px;color:var(--text-300);">💡 Paste a more detailed ticket description to get specific bundle recommendations.</div>';
+    }
+
+    html += '</div>';
+
+    // Insert or replace the panel
+    let panel = document.getElementById('ticketPreAnalysis');
+    if (panel) panel.remove();
+
+    const ctxArea = document.querySelector('.context-area');
+    if (ctxArea) ctxArea.insertAdjacentHTML('afterend', html);
+}
+
+// Update button text when ticket context changes
+document.getElementById('ticketContext').addEventListener('input', function() {
+    updateRunScanBtn();
+});
+
+// Initialize the Run Scan button on page load
+setTimeout(initRunScanBtn, 100);
 
 // ── TAR PARSER (minimal, handles tar.gz in browser) ─────────────────
 function parseTar(buffer) {
@@ -1570,6 +1786,7 @@ async function scanLocally(file) {
                 setStatus('done', `${findings.length} findings · ${msg.filesAnalyzed} files · ${elapsed}s${dateRangeStr} · 🔒 Zero data uploaded`);
                 trackEvent('scan_completed', { findings: findings.length, files: msg.filesAnalyzed, seconds: elapsed });
                 render(result);
+                showTicketRelevantFindings();
                 resolve();
             }
         };
@@ -1827,6 +2044,7 @@ async function handleFiles(files) {
     setStatus('done', `${allFindings.length} findings · ${totalFilesAnalyzed} files from ${scannable.length} archives · ${elapsed}s${dateRangeStr} · 🔒 Zero data uploaded`);
     trackEvent('multi_scan_completed', { findings: allFindings.length, files: totalFilesAnalyzed, archives: scannable.length, seconds: elapsed });
     render(result);
+    showTicketRelevantFindings();
 }
 
 function analyzeFolder(){
@@ -1873,7 +2091,8 @@ function render(data){
     const h=f.filter(x=>x.severity==='HIGH').length;
     const m=f.filter(x=>x.severity==='MEDIUM').length;
     const l=f.filter(x=>x.severity==='LOW').length;
-    setStatus('done',`${f.length} findings · ${data.files_analyzed||0} files scanned`);
+    // Only set status if not already 'done' (caller already set status with elapsed time)
+    if(!$('#termStatus').classList.contains('done')){setStatus('done',`${f.length} findings · ${data.files_analyzed||0} files scanned`);}
     $('#results').classList.add('active');
 
     // Root Cause Summary
@@ -2277,6 +2496,102 @@ function copyFindings(){navigator.clipboard.writeText($('#findingsList').innerTe
 function copyJira(){navigator.clipboard.writeText($('#jiraReportRaw').value).then(()=>flash('Copied — paste into Jira'));}
 function flash(msg){const t=$('#statusText');const prev=t.textContent;t.textContent=msg;setTimeout(()=>t.textContent=prev,2000);}
 
+// ── TICKET-RELEVANT FINDINGS (context-aware scan) ───────────────────
+function showTicketRelevantFindings() {
+    const panel = document.getElementById('ticketRelevantPanel');
+    const ticketCtx = ($('#ticketContext').value || '').trim();
+
+    // Only show if ticket context is filled AND we have findings
+    if (!ticketCtx || !_allFindings || _allFindings.length === 0) {
+        panel.style.display = 'none';
+        return;
+    }
+
+    // Extract keywords from ticket context (significant words > 3 chars)
+    const stopWords = new Set(['that','this','with','from','have','been','after','when','which','their','they','them','also','into','than','then','each','other','some','what','about','could','would','should','will','just','more','were','being','those']);
+    const words = ticketCtx.toLowerCase().replace(/[^a-z0-9_\-\.\/]/g, ' ').split(/\s+/).filter(w => w.length > 3 && !stopWords.has(w));
+    const keywords = [...new Set(words)];
+
+    if (keywords.length === 0) {
+        panel.style.display = 'none';
+        return;
+    }
+
+    // Score each finding by how many ticket keywords it matches
+    const scored = _allFindings.map((f, idx) => {
+        const text = `${f.pattern_name} ${f.description} ${f.line_content} ${f.file} ${f.category}`.toLowerCase();
+        let score = 0;
+        const matched = [];
+        for (const kw of keywords) {
+            if (text.includes(kw)) {
+                score++;
+                matched.push(kw);
+            }
+        }
+        // Boost critical/high severity
+        if (f.severity === 'CRITICAL') score += 3;
+        if (f.severity === 'HIGH') score += 1;
+        return { ...f, _score: score, _matched: matched, _idx: idx };
+    }).filter(f => f._score > 0).sort((a, b) => b._score - a._score);
+
+    if (scored.length === 0) {
+        panel.style.display = 'none';
+        return;
+    }
+
+    // Show the panel
+    panel.style.display = 'block';
+
+    // Count and badge
+    const topFindings = scored.slice(0, 20);
+    document.getElementById('ticketRelevantCount').textContent = `${scored.length} of ${_allFindings.length} findings match ticket context`;
+
+    // Suggestion text
+    const topFiles = [...new Set(scored.slice(0, 10).map(f => f.file))].slice(0, 5);
+    const topPatterns = [...new Set(scored.slice(0, 10).map(f => f.pattern_name))].slice(0, 5);
+    const matchedKws = [...new Set(scored.flatMap(f => f._matched))].slice(0, 10);
+
+    document.getElementById('ticketRelevantSuggestion').innerHTML =
+        `<strong style="color:#01a982;">Based on your ticket context</strong>, the most relevant findings are in:<br>` +
+        `<strong>Files:</strong> ${topFiles.map(f => `<code style="color:var(--text-100);background:var(--bg-2);padding:1px 6px;border-radius:3px;font-size:11px;">${esc(f.split('/').pop())}</code>`).join(' ')}<br>` +
+        `<strong>Patterns:</strong> ${topPatterns.map(p => `<span style="color:var(--accent);font-size:11px;">${esc(p)}</span>`).join(', ')}<br>` +
+        `<strong>Matched keywords:</strong> <span style="color:var(--text-300);font-size:11px;">${matchedKws.join(', ')}</span>`;
+
+    // File suggestions with line numbers
+    const fileLines = {};
+    scored.slice(0, 30).forEach(f => {
+        const fname = f.file || 'unknown';
+        if (!fileLines[fname]) fileLines[fname] = [];
+        fileLines[fname].push({ line: f.line_number, pattern: f.pattern_name, severity: f.severity, content: f.line_content });
+    });
+
+    let filesHtml = '<div style="font-size:11px;color:var(--text-400);text-transform:uppercase;margin-bottom:6px;font-weight:500;">📍 Suggested Files & Lines to Check</div>';
+    Object.entries(fileLines).slice(0, 5).forEach(([fname, lines]) => {
+        const sevBadge = (s) => s === 'CRITICAL' ? '<span style="color:#ef4444;font-weight:600;">C</span>' : s === 'HIGH' ? '<span style="color:#f59e0b;font-weight:600;">H</span>' : '<span style="color:var(--text-400);">M</span>';
+        filesHtml += `<div style="background:var(--bg-0);border:1px solid var(--border-subtle);border-radius:6px;padding:8px 12px;margin-bottom:6px;">`;
+        filesHtml += `<div style="font-family:var(--mono);font-size:12px;color:var(--text-100);margin-bottom:4px;">${esc(fname)}</div>`;
+        lines.slice(0, 5).forEach(l => {
+            filesHtml += `<div style="font-size:11px;color:var(--text-300);padding-left:12px;border-left:2px solid var(--accent);margin:3px 0;">`;
+            filesHtml += `${sevBadge(l.severity)} <strong style="color:#01a982;">Line ${l.line}</strong> — ${esc(l.pattern)} — <span style="color:var(--text-400);font-family:var(--mono);font-size:10px;">${esc((l.content||'').substring(0, 80))}</span>`;
+            filesHtml += `</div>`;
+        });
+        if (lines.length > 5) filesHtml += `<div style="font-size:10px;color:var(--text-500);padding-left:12px;">+ ${lines.length - 5} more lines</div>`;
+        filesHtml += `</div>`;
+    });
+    document.getElementById('ticketRelevantFiles').innerHTML = filesHtml;
+
+    // Top findings list
+    let findingsHtml = '<div style="font-size:11px;color:var(--text-400);text-transform:uppercase;margin-bottom:6px;font-weight:500;">Top Matched Findings</div>';
+    topFindings.slice(0, 10).forEach(f => {
+        const sevColor = f.severity === 'CRITICAL' ? '#ef4444' : f.severity === 'HIGH' ? '#f59e0b' : '#3b82f6';
+        findingsHtml += `<div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:6px;padding:6px 8px;border-radius:6px;background:var(--bg-0);">`;
+        findingsHtml += `<span style="font-size:9px;padding:2px 6px;border-radius:3px;background:${sevColor}20;color:${sevColor};font-weight:600;white-space:nowrap;">${f.severity}</span>`;
+        findingsHtml += `<div style="flex:1;font-size:11px;"><span style="color:var(--text-100);">${esc(f.pattern_name)}</span> <span style="color:var(--text-500);">in ${esc((f.file||'').split('/').pop())}:${f.line_number}</span><br><span style="color:var(--text-400);font-family:var(--mono);font-size:10px;">${esc((f.line_content||'').substring(0, 120))}</span></div>`;
+        findingsHtml += `</div>`;
+    });
+    document.getElementById('ticketRelevantFindings').innerHTML = findingsHtml;
+}
+
 // ── FILTERING (clickable cards) ─────────────────────────────────────
 function filterFindings(severity) {
     const filtered = severity ? _allFindings.filter(x => x.severity === severity) : _allFindings;
@@ -2480,8 +2795,11 @@ function loadKB(){fetch('/api/knowledge/issues').then(r=>r.json()).then(d=>{
 });}
 function searchKB(){const q=$('#kbSearch').value.trim();if(!q){loadKB();return;}
 fetch('/api/knowledge/search?q='+encodeURIComponent(q)).then(r=>r.json()).then(d=>{
-    const items=d.results||d.issues||d||[];
-    $('#kbResults').innerHTML=items.map(i=>`<div class="card"><div class="card-title">${esc(i.title)}</div><div class="card-body">${esc(i.symptoms||i.root_cause||'')}</div>${i.solution?`<div class="card-solution">${esc(i.solution)}</div>`:''}</div>`).join('')||`<p style="color:var(--text-500)">No results for "${esc(q)}"</p>`;
+    let items=[];
+    if(d.results&&Array.isArray(d.results)){items=d.results;}
+    else if(d.results&&typeof d.results==='object'){items=[...(d.results.known_issues||[]),...(d.results.knowledge_entries||[]),...(d.results.vme_guide||[]),...(d.results.runbooks||[])];}
+    else{items=d.issues||d||[];}
+    $('#kbResults').innerHTML=items.map(i=>`<div class="card"><div class="card-title">${esc(i.title||i.key||'')}</div><div class="card-meta">${esc((i.products||[]).join?.(', ')||i.product||i.category||'')}</div><div class="card-body">${esc(i.symptoms||i.root_cause||i.description||'')}</div>${i.solution?`<div class="card-solution">${esc(i.solution)}</div>`:''}</div>`).join('')||`<p style="color:var(--text-500)">No results for "${esc(q)}"</p>`;
 });}
 
 // Runbooks
