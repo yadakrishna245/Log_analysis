@@ -1,0 +1,74 @@
+PROPRIETARY SOFTWARE LICENSE AGREEMENT
+======================================
+
+LogSherlock Pro — HPE VME L4 Support Engineering Tool
+Version 2.0 (Local Edition)
+
+Copyright (c) 2026 Krishna Yada. All Rights Reserved.
+
+IMPORTANT — READ CAREFULLY:
+
+This software is the proprietary and confidential property of Krishna Yada.
+By using this software, you agree to the following terms:
+
+1. GRANT OF LICENSE
+   This software is licensed, not sold. You are granted a non-exclusive,
+   non-transferable license to use this software solely for internal
+   HPE VM Essentials (VME) support engineering purposes within your
+   authorized organization.
+
+2. RESTRICTIONS
+   You may NOT:
+   a) Copy, modify, or distribute this software without written permission
+   b) Reverse engineer, decompile, or disassemble any part of this software
+   c) Remove or modify any copyright notices or license information
+   d) Use this software for commercial purposes outside of authorized use
+   e) Share this software with individuals outside your organization
+   f) Upload this software to public repositories without authorization
+   g) Use this software to process data in violation of any data protection laws
+
+3. INTELLECTUAL PROPERTY
+   All intellectual property rights in this software, including but not
+   limited to the scanning patterns, algorithms, UI design, and architecture,
+   remain the exclusive property of the copyright holder.
+
+4. DATA PRIVACY
+   This software is designed to process all data locally on your machine.
+   No customer data is transmitted to any external server. The scanning
+   engine runs entirely in your web browser. AI features (when configured)
+   only send pattern metadata — never raw log content.
+
+5. NO WARRANTY
+   THIS SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EXPRESS
+   OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL
+   THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY.
+
+6. TERMINATION
+   This license is effective until terminated. It will terminate automatically
+   if you fail to comply with any term of this agreement. Upon termination,
+   you must destroy all copies of this software.
+
+7. GOVERNING LAW
+   This agreement shall be governed by and construed in accordance with
+   applicable laws.
+
+8. CONTACT
+   For licensing inquiries, contact:
+   Krishna Yada | Senior Tech Lead | Wipro
+   Email: yadakrishna245@gmail.com
+
+---
+
+THIRD-PARTY NOTICES:
+
+This software uses the following open-source libraries:
+- pako.js (MIT License) — zlib decompression for legacy browser fallback
+- Inter & JetBrains Mono fonts (SIL Open Font License)
+
+---
+
+By using this software, you acknowledge that you have read, understood,
+and agree to be bound by the terms of this license agreement.
+
+Last Updated: August 2026
