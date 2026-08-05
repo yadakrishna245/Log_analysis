@@ -1,17 +1,59 @@
+# Git
 .git
+.gitignore
+
+# Python cache
 __pycache__
 *.pyc
 *.pyo
-.env
-.secret_key
+*.pyd
+.Python
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+
+# Local data (not needed in container)
 uploads/
 data/
 logs/
 reports/
 extracted/
-*.db
-.pytest_cache/
 test_uploads/
-venv/
-.venv/
+instance/
+*.db
+.secret_key
+
+# Testing
+.pytest_cache/
+tests/
+htmlcov/
+.coverage
+
+# Deploy (SAM specific - not needed in container)
+deploy/.aws-sam/
+deploy/samconfig.toml
+
+# Documentation (optional in container)
+docs/
+CHECKPOINT.md
+CONTRIBUTING.md
+LICENSE
+README.md
+
+# Windows scripts
+*.bat
+*.ps1
+setup_ollama.*
+
+# Misc
+*.log
+*.tar.gz
+*.zip
 node_modules/
+demo/
