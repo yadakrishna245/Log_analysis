@@ -1444,8 +1444,15 @@ async function runStagedScan() {
 function showTicketPreAnalysis(ticketText) {
     const lower = ticketText.toLowerCase();
 
-    // Detect SFTP folder mentions
+    // Detect SFTP folder mentions AND HTTPS access links
     const sftpFolders = new Set();
+    const accessLinks = new Set();
+    // Match HTTPS links (hprc-h2.it.hpe.com or similar)
+    const httpsMatches = ticketText.match(/https?:\/\/[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,}[\/a-zA-Z0-9_\-\.%~?&=]*/gi) || [];
+    for (const url of httpsMatches) accessLinks.add(url);
+    // Match sftp:// links
+    const sftpUrlMatches = ticketText.match(/sftp:\/\/[a-zA-Z0-9\-\.]+[\/a-zA-Z0-9_\-\.]*/gi) || [];
+    for (const url of sftpUrlMatches) accessLinks.add(url);
     // Match patterns like "check folder_name" or "uploaded to /path/folder"
     const folderMatches = ticketText.match(/(?:folder|path|location|bundle|directory)[:\s]+([a-zA-Z0-9_\-\.\/\\]+)/gi) || [];
     for (const m of folderMatches) {
@@ -1456,13 +1463,16 @@ function showTicketPreAnalysis(ticketText) {
         }
     }
     // Match esis account paths
-    const esisMatches = ticketText.match(/esis\d+[\/\\]([a-zA-Z0-9_\-\.\/]+)/gi) || [];
+    const esisMatches = ticketText.match(/esis\d+[\/\\]?[a-zA-Z0-9_\-\.\/]*/gi) || [];
     for (const m of esisMatches) sftpFolders.add(m);
-    // Match date-based folder names (common in HPRC)
-    const dateFolders = ticketText.match(/\d{8}[a-zA-Z0-9_\-]*/g) || [];
+    // Match date-based folder names (common in HPRC like 20260730)
+    const dateFolders = ticketText.match(/\b\d{8}[a-zA-Z0-9_\-]*/g) || [];
     for (const m of dateFolders) {
-        if (m.length > 8) sftpFolders.add(m);
+        if (m.length >= 8) sftpFolders.add(m);
     }
+    // Match collect_* file references
+    const collectMatches = ticketText.match(/collect_[a-zA-Z0-9_\-\.]+/gi) || [];
+    for (const m of collectMatches) sftpFolders.add(m);
 
     // Detect issue type to suggest which bundles to check
     const issueKeywords = {
@@ -1485,8 +1495,15 @@ function showTicketPreAnalysis(ticketText) {
     html += '<div style="font-weight:700;color:var(--hpe-green);margin-bottom:10px;font-size:15px;">📋 Ticket Pre-Analysis</div>';
 
     // SFTP folder detection
+    if (accessLinks.size > 0) {
+        html += '<div style="margin-bottom:12px;"><span style="color:var(--text-200);font-weight:600;">🔗 Access Link(s):</span><br>';
+        for (const link of accessLinks) {
+            html += '<a href="' + link + '" target="_blank" style="color:var(--hpe-green);text-decoration:underline;font-size:13px;display:inline-block;margin:3px 4px;word-break:break-all;">' + link + '</a><br>';
+        }
+        html += '</div>';
+    }
     if (sftpFolders.size > 0) {
-        html += '<div style="margin-bottom:12px;"><span style="color:var(--text-200);font-weight:600;">📂 SFTP Folder(s) Mentioned:</span><br>';
+        html += '<div style="margin-bottom:12px;"><span style="color:var(--text-200);font-weight:600;">📂 SFTP Folder(s) / Bundle(s) Mentioned:</span><br>';
         for (const f of sftpFolders) {
             html += '<code style="background:var(--bg-0);padding:3px 10px;border-radius:4px;margin:3px 4px;display:inline-block;font-size:13px;">' + f + '</code>';
         }
