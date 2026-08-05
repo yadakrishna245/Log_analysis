@@ -47,12 +47,14 @@ def create_app(config_class=Config):
     from routes.analysis import analysis_bp
     from routes.feedback import feedback_bp
     from routes.analytics import analytics_bp
+    from routes.ticket_advisor import ticket_advisor_bp
 
     app.register_blueprint(tickets_bp)
     app.register_blueprint(knowledge_bp)
     app.register_blueprint(analysis_bp)
     app.register_blueprint(feedback_bp)
     app.register_blueprint(analytics_bp)
+    app.register_blueprint(ticket_advisor_bp)
 
     # Create database tables
     with app.app_context():
@@ -88,6 +90,9 @@ def create_app(config_class=Config):
         # Patterns export and knowledge lookup are used by the client-side scanner
         # They don't expose any customer data (patterns are public, KB lookup uses only pattern names)
         if request.path in ('/api/patterns/export', '/api/knowledge/lookup', '/api/advisor'):
+            return None
+        # Ticket advisor — no customer data, just pattern matching on description text
+        if request.path.startswith('/api/ticket/'):
             return None
         # Knowledge base and runbooks are reference data (no customer data)
         if request.path.startswith('/api/knowledge/'):

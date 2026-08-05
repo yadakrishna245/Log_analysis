@@ -870,8 +870,22 @@
                     </div>
                     <div id="jiraTicketResult" style="display:none;margin-top:16px;"></div>
                     <div id="jiraTicketActions" style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;">
+                        <button class="btn" style="background:#01a982;font-weight:600;" onclick="jiraGenerateL4()">⚡ Generate L4 Response</button>
                         <button class="btn-ghost" onclick="jiraGetAdvice()">🧭 Suggest where to look</button>
                         <button class="btn-ghost" style="border-color:#8b5cf6;color:#8b5cf6;" onclick="jiraAskAI()">🤖 Ask AI for Solution</button>
+                    </div>
+                    <div id="jiraL4Panel" style="display:none;background:var(--bg-0);border:1px solid #01a982;border-left:4px solid #01a982;border-radius:10px;padding:20px;margin-top:16px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                            <div style="font-size:13px;font-weight:600;color:#01a982;text-transform:uppercase;letter-spacing:0.04em;display:flex;align-items:center;gap:8px;">⚡ L4 Structured Response <span style="font-size:10px;font-weight:400;color:var(--text-400);text-transform:none;">(No AI needed — instant)</span></div>
+                            <div id="jiraL4Time" style="font-size:10px;color:var(--text-400);"></div>
+                        </div>
+                        <div id="jiraL4Meta" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;"></div>
+                        <div id="jiraL4Content" style="font-size:12px;color:var(--text-200);line-height:1.8;white-space:pre-wrap;font-family:var(--sans);max-height:600px;overflow-y:auto;padding:12px;background:var(--bg-1);border-radius:8px;"></div>
+                        <div style="margin-top:12px;display:flex;gap:8px;">
+                            <button class="btn-ghost" style="font-size:11px" onclick="copyL4Response()">📋 Copy Response</button>
+                            <button class="btn-ghost" style="font-size:11px" onclick="useL4AsComment()">📤 Use as Jira Comment</button>
+                            <button class="btn-ghost" style="font-size:11px" onclick="jiraGenerateL4()">🔄 Regenerate</button>
+                        </div>
                     </div>
                     <div id="jiraAdvisorPanel" style="display:none;background:var(--bg-0);border:1px solid var(--border-default);border-radius:10px;padding:20px;margin-top:16px;">
                         <div style="font-size:13px;font-weight:500;color:var(--text-100);margin-bottom:12px;">🧭 Investigation Guide</div>
@@ -4473,6 +4487,76 @@ function showJiraStatus(elementId, message, color) {
     el.style.display = 'block';
     el.style.color = color;
     el.textContent = message;
+}
+
+async function jiraGenerateL4() {
+    let desc = '';
+    let ticketKey = '';
+    let summary = '';
+    if (window._lastJiraTicket) {
+        const t = window._lastJiraTicket;
+        desc = `${t.summary || ''}\n\n${t.description || ''}`;
+        if (t.comments && t.comments.length) {
+            desc += '\n\nLatest comments:\n' + t.comments.slice(-5).map(c => `[${c.author}]: ${c.body}`).join('\n\n');
+        }
+        ticketKey = t.key || '';
+        summary = t.summary || '';
+    } else {
+        desc = document.getElementById('ticketContext')?.value?.trim() || document.getElementById('jiraCommentBody')?.value?.trim() || '';
+    }
+    if (!desc) { alert('Fetch a ticket first, or paste the ticket description in the Ticket Context on the Scan page'); return; }
+
+    const panel = document.getElementById('jiraL4Panel');
+    const content = document.getElementById('jiraL4Content');
+    const meta = document.getElementById('jiraL4Meta');
+    const timeEl = document.getElementById('jiraL4Time');
+    panel.style.display = 'block';
+    content.innerHTML = '<span style="color:var(--text-400);">⚡ Generating L4 response...</span>';
+    meta.innerHTML = '';
+    timeEl.textContent = '';
+
+    try {
+        const startTime = performance.now();
+        const r = await fetch('/api/ticket/advisor', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({description: desc, ticket_key: ticketKey, summary: summary})
+        });
+        const data = await r.json();
+        const elapsed = Math.round(performance.now() - startTime);
+
+        if (r.ok) {
+            // Show metadata badges
+            const cats = data.categories || [];
+            const issues = data.metadata?.known_issues_matched || 0;
+            meta.innerHTML = cats.map(c => `<span style="background:var(--bg-2);border:1px solid var(--border-default);border-radius:4px;padding:2px 8px;font-size:10px;color:var(--text-300);">${c}</span>`).join('') +
+                `<span style="background:#01a982;color:#000;border-radius:4px;padding:2px 8px;font-size:10px;font-weight:600;">${issues} KB matches</span>`;
+            timeEl.textContent = `${elapsed}ms · ${data.metadata?.processing_time_ms || 0}ms server`;
+
+            // Show the formatted reply
+            content.textContent = data.formatted_reply || 'No response generated.';
+
+            // Store for use in comment box
+            window._lastL4Response = data.formatted_reply || '';
+        } else {
+            content.innerHTML = `<span style="color:#ef4444;">❌ ${escapeHtml(data.error || 'Failed')}</span>`;
+        }
+    } catch (err) {
+        content.innerHTML = `<span style="color:#ef4444;">❌ ${escapeHtml(err.message)}</span>`;
+    }
+}
+
+function copyL4Response() {
+    const text = window._lastL4Response || document.getElementById('jiraL4Content')?.innerText || '';
+    if (!text) { alert('No response to copy'); return; }
+    navigator.clipboard.writeText(text).then(() => flash('L4 response copied to clipboard'));
+}
+
+function useL4AsComment() {
+    const text = window._lastL4Response || document.getElementById('jiraL4Content')?.innerText || '';
+    if (!text) { alert('No response to load'); return; }
+    document.getElementById('jiraCommentBody').value = text;
+    flash('L4 response loaded into comment box');
 }
 
 async function jiraGetAdvice() {
