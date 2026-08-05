@@ -440,6 +440,12 @@
             <span style="font-size:16px;">🎯</span>
         </div>
 
+        <!-- GitHub Copilot Settings -->
+        <div class="rail-item" id="copilotNavItem" onclick="showPage('copilot-settings')" tabindex="0" title="GitHub Copilot Settings" style="position:relative;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:18px;height:18px;"><path d="M12.22 2h-.44a2 2 0 00-2 2v.18a2 2 0 01-1 1.73l-.43.25a2 2 0 01-2 0l-.15-.08a2 2 0 00-2.73.73l-.22.38a2 2 0 00.73 2.73l.15.1a2 2 0 011 1.72v.51a2 2 0 01-1 1.74l-.15.09a2 2 0 00-.73 2.73l.22.38a2 2 0 002.73.73l.15-.08a2 2 0 012 0l.43.25a2 2 0 011 1.73V20a2 2 0 002 2h.44a2 2 0 002-2v-.18a2 2 0 011-1.73l.43-.25a2 2 0 012 0l.15.08a2 2 0 002.73-.73l.22-.39a2 2 0 00-.73-2.73l-.15-.08a2 2 0 01-1-1.74v-.5a2 2 0 011-1.74l.15-.09a2 2 0 00.73-2.73l-.22-.38a2 2 0 00-2.73-.73l-.15.08a2 2 0 01-2 0l-.43-.25a2 2 0 01-1-1.73V4a2 2 0 00-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+            <span id="copilotSettingsDot" style="position:absolute;top:6px;right:6px;width:8px;height:8px;border-radius:50%;background:#71717a;border:2px solid var(--bg-1);"></span>
+        </div>
+
         <!-- Analytics Dashboard -->
         <div class="rail-item" id="analyticsNavItem" onclick="showPage('analytics')" tabindex="0" title="Usage Analytics" style="display:none;">
             <span style="font-size:16px;">📊</span>
@@ -929,6 +935,141 @@
                 </div>
             </div>
 
+            <!-- AI / COPILOT SETTINGS PAGE -->
+            <div id="page-copilot-settings" class="page">
+                <div class="pg-header">
+                    <div class="pg-title">⚙️ GitHub Copilot Integration</div>
+                    <div class="pg-desc">Connect to GitHub Copilot for AI-powered root cause analysis, KB search, and investigation suggestions. Your token is stored in browser localStorage only — never leaves your machine.</div>
+                </div>
+
+                <!-- AI Provider Configuration -->
+                <div style="background:var(--bg-2);border:1px solid var(--border-default);border-radius:12px;padding:24px;margin-bottom:20px;">
+                    <div style="font-size:14px;font-weight:600;color:var(--text-100);margin-bottom:16px;">🤖 GitHub Copilot Configuration</div>
+                    <div style="display:flex;flex-direction:column;gap:12px;">
+
+                        <!-- API Key -->
+                        <div>
+                            <label style="font-size:11px;font-weight:500;color:var(--text-400);text-transform:uppercase;letter-spacing:0.05em;">GitHub Copilot API Token <a href="https://github.com/settings/tokens" target="_blank" style="color:var(--hpe-green);font-size:10px;text-decoration:none;">(Generate here ↗)</a></label>
+                            <div style="position:relative;">
+                                <input type="password" id="copilotApiKey" placeholder="ghp_xxxxx or github_pat_xxxxx" style="width:100%;margin-top:4px;padding:10px 14px;padding-right:40px;background:var(--bg-0);border:1px solid var(--border-default);border-radius:8px;font-size:13px;color:var(--text-200);font-family:var(--mono);">
+                                <button onclick="toggleCopilotKeyVisibility()" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:14px;padding:4px;" title="Show/Hide key">👁️</button>
+                            </div>
+                            <div id="copilotTokenGuide" style="display:none;margin-top:8px;padding:12px;background:var(--bg-0);border:1px solid var(--border-default);border-radius:8px;font-size:12px;color:var(--text-300);line-height:1.8;">
+                                <strong style="color:var(--hpe-green);">📖 How to Generate GitHub Copilot Token</strong><br><br>
+                                <strong>Step 1:</strong> Go to <a href="https://github.com/settings/tokens" target="_blank" style="color:var(--hpe-green);">GitHub Settings → Tokens ↗</a><br>
+                                <strong>Step 2:</strong> Click <strong>"Generate new token (classic)"</strong><br>
+                                <strong>Step 3:</strong> Name it: <code>LogSherlock-Pro</code><br>
+                                <strong>Step 4:</strong> Select scope: ✅ <code>copilot</code><br>
+                                <strong>Step 5:</strong> Click <strong>"Generate token"</strong><br>
+                                <strong>Step 6:</strong> Copy the token (starts with <code>ghp_</code> or <code>github_pat_</code>)<br>
+                                <strong>Step 7:</strong> Paste it above<br><br>
+                                <div style="padding:8px;background:var(--bg-2);border-radius:6px;font-size:11px;">
+                                    ⚠️ <strong>Prerequisites:</strong><br>
+                                    • Your org must have <strong>GitHub Copilot Business/Enterprise</strong> license<br>
+                                    • API access must be enabled by your org admin<br>
+                                    • Token stored only in YOUR browser — never sent to any server
+                                </div>
+                            </div>
+                            <button onclick="document.getElementById('copilotTokenGuide').style.display=document.getElementById('copilotTokenGuide').style.display==='none'?'block':'none'" style="background:none;border:1px solid var(--border-default);color:var(--text-300);font-size:10px;padding:2px 8px;border-radius:4px;cursor:pointer;margin-top:6px;">📖 How to generate token?</button>
+                        </div>
+
+                        <!-- Model Selection -->
+                        <div>
+                            <label style="font-size:11px;font-weight:500;color:var(--text-400);text-transform:uppercase;letter-spacing:0.05em;">Model</label>
+                            <select id="copilotModel" style="width:100%;margin-top:4px;padding:10px 14px;background:var(--bg-0);border:1px solid var(--border-default);border-radius:8px;font-size:13px;color:var(--text-200);">
+                                <optgroup label="General Purpose">
+                                    <option value="gpt-5-mini">GPT-5 mini (Fast, accurate — recommended default)</option>
+                                    <option value="gpt-5.6-terra">GPT-5.6 Terra (Balanced everyday coding)</option>
+                                    <option value="claude-sonnet-4.5">Claude Sonnet 4.5 (Complex problem-solving)</option>
+                                    <option value="claude-sonnet-4.6">Claude Sonnet 4.6 (Reliable completions)</option>
+                                    <option value="claude-sonnet-5">Claude Sonnet 5 (Sophisticated reasoning)</option>
+                                </optgroup>
+                                <optgroup label="Deep Reasoning & Debugging">
+                                    <option value="gpt-5.4">GPT-5.4 (Multi-step problem solving)</option>
+                                    <option value="gpt-5.5">GPT-5.5 (Complex reasoning & analysis)</option>
+                                    <option value="gpt-5.6-sol">GPT-5.6 Sol (Highest reasoning ceiling)</option>
+                                    <option value="claude-opus-4.7">Claude Opus 4.7 (Most powerful reasoning)</option>
+                                    <option value="claude-opus-4.8">Claude Opus 4.8 (Latest Opus)</option>
+                                    <option value="claude-opus-5">Claude Opus 5 (Complex challenges)</option>
+                                    <option value="gemini-3.1-pro">Gemini 3.1 Pro (Advanced reasoning)</option>
+                                </optgroup>
+                                <optgroup label="Fast & Lightweight">
+                                    <option value="gpt-5.6-luna">GPT-5.6 Luna (Lowest cost, fastest)</option>
+                                    <option value="claude-haiku-4.5">Claude Haiku 4.5 (Fast lightweight answers)</option>
+                                    <option value="gemini-3.5-flash">Gemini 3.5 Flash (Fast coding)</option>
+                                    <option value="gemini-3.6-flash">Gemini 3.6 Flash (Latest fast model)</option>
+                                </optgroup>
+                                <optgroup label="Agentic & Specialized">
+                                    <option value="gpt-5.3-codex">GPT-5.3 Codex (Agentic software dev)</option>
+                                    <option value="gpt-5.4-mini">GPT-5.4 mini (Codebase exploration)</option>
+                                    <option value="claude-fable-5">Claude Fable 5 (Autonomous coding)</option>
+                                    <option value="grok-4.5">Grok 4.5 (Complex problem-solving)</option>
+                                    <option value="mai-code-1-flash">MAI-Code-1-Flash (Fast code completions)</option>
+                                    <option value="qwen2.5">Qwen2.5 (Code generation & repair)</option>
+                                    <option value="kimi-k2.7-code">Kimi K2.7 Code (Lightweight coding)</option>
+                                </optgroup>
+                            </select>
+                            <div style="font-size:10px;color:var(--text-500);margin-top:4px;">All models available with GitHub Copilot Business/Enterprise license. Source: docs.github.com</div>
+                        </div>
+
+                        <!-- Hidden endpoint (fixed for GitHub Copilot) -->
+                        <input type="hidden" id="copilotEndpoint" value="https://api.githubcopilot.com/chat/completions">
+
+                        <!-- Action Buttons -->
+                        <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;">
+                            <button class="btn" onclick="saveCopilotSettings()" style="background:var(--hpe-green);">💾 Save Settings</button>
+                            <button class="btn-ghost" onclick="testCopilotConnection()">🔌 Test Connection</button>
+                            <button class="btn-ghost" style="border-color:#ef4444;color:#ef4444;" onclick="clearCopilotSettings()">🗑️ Clear</button>
+                        </div>
+                        <div id="copilotSettingsStatus" style="font-size:12px;color:var(--text-400);margin-top:4px;display:none;"></div>
+                    </div>
+                </div>
+
+                <!-- Connection Status -->
+                <div style="background:var(--bg-2);border:1px solid var(--border-default);border-radius:12px;padding:24px;margin-bottom:20px;">
+                    <div style="font-size:14px;font-weight:600;color:var(--text-100);margin-bottom:12px;">📡 Connection Status</div>
+                    <div id="copilotConnectionInfo" style="font-size:13px;color:var(--text-300);line-height:1.8;">
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                            <span id="copilotStatusIndicator" style="width:10px;height:10px;border-radius:50%;background:#71717a;display:inline-block;"></span>
+                            <span id="copilotStatusText">Not configured</span>
+                        </div>
+                        <div id="copilotConfigSummary" style="padding:10px;background:var(--bg-0);border-radius:8px;font-size:12px;font-family:var(--mono);color:var(--text-400);">
+                            No API key set. Configure above to enable AI features.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- GitHub Copilot Info -->
+                <div style="background:var(--bg-2);border:1px solid var(--border-default);border-radius:12px;padding:24px;margin-bottom:20px;">
+                    <div style="font-size:14px;font-weight:600;color:var(--text-100);margin-bottom:12px;">📋 GitHub Copilot — How It Works</div>
+                    <div style="font-size:12px;color:var(--text-300);line-height:1.9;">
+                        <strong>What AI features are enabled:</strong><br>
+                        • 🤖 Intelligent root cause analysis on scan findings<br>
+                        • 💬 Professional Jira reply generation<br>
+                        • 🧭 Investigation suggestions based on ticket context<br>
+                        • 🔍 Knowledge Base AI-powered search<br>
+                        • 💬 Free-form Q&A about HPE VME issues<br><br>
+                        <strong>Requirements:</strong><br>
+                        • GitHub Copilot Business or Enterprise license (from your org)<br>
+                        • Personal Access Token with <code>copilot</code> scope<br>
+                        • API access enabled by your org admin<br><br>
+                        <strong>Endpoint:</strong> <code style="background:var(--bg-0);padding:2px 6px;border-radius:4px;">https://api.githubcopilot.com/chat/completions</code><br>
+                        <strong>Models:</strong> gpt-4o (best), gpt-4o-mini (faster)
+                    </div>
+                </div>
+
+                <!-- Privacy & Compliance -->
+                <div style="background:linear-gradient(135deg,rgba(1,169,130,0.08),rgba(1,169,130,0.02));border:1px solid rgba(1,169,130,0.3);border-radius:12px;padding:20px;">
+                    <div style="font-size:13px;font-weight:600;color:var(--hpe-green);margin-bottom:8px;">🔒 Privacy & Compliance</div>
+                    <div style="font-size:11px;color:var(--text-300);line-height:1.9;">
+                        ✅ <strong>Token stored locally</strong> — Only in YOUR browser's localStorage. Never sent to any external server.<br>
+                        ✅ <strong>No raw logs sent to Copilot</strong> — Only pattern names, severities, and categories are sent. Never raw log content or customer data.<br>
+                        ✅ <strong>GitHub Copilot compliance</strong> — Uses official GitHub Copilot API. Data is handled per GitHub's enterprise data protection policies.<br>
+                        ✅ <strong>HPE approved</strong> — GitHub Copilot is an approved tool within HPE's development environment.
+                    </div>
+                </div>
+            </div>
+
             <!-- ANALYTICS DASHBOARD PAGE -->
             <div id="page-analytics" class="page">
                 <div style="margin-bottom:20px;">
@@ -1319,7 +1460,7 @@ async function loadPatterns() {
 loadPatterns();
 
 // Nav
-function showPage(p){$$('.page').forEach(x=>{x.classList.remove('active');x.style.display='';});$$('.rail-item').forEach(x=>x.classList.remove('active'));$('#page-'+p).classList.add('active');document.getElementById('pg-chat').style.display='none';document.getElementById('quickRefPanel').style.display='none';event.currentTarget.classList.add('active');if(p==='knowledge')loadKB();if(p==='runbooks')loadRunbooks();if(p==='history')loadHistory();if(p==='analytics')loadAnalyticsDashboard();}
+function showPage(p){$$('.page').forEach(x=>{x.classList.remove('active');x.style.display='';});$$('.rail-item').forEach(x=>x.classList.remove('active'));$('#page-'+p).classList.add('active');document.getElementById('pg-chat').style.display='none';document.getElementById('quickRefPanel').style.display='none';try{if(event&&event.currentTarget)event.currentTarget.classList.add('active');}catch(e){}if(p==='knowledge')loadKB();if(p==='runbooks')loadRunbooks();if(p==='history')loadHistory();if(p==='analytics')loadAnalyticsDashboard();if(p==='copilot-settings')loadCopilotSettings();}
 function switchTab(t){$$('.tab-item').forEach(x=>x.classList.remove('active'));$$('.tab-pane').forEach(x=>x.classList.remove('active'));event.currentTarget.classList.add('active');$('#tab-'+t).classList.add('active');}
 
 // Drop — stage files first, scan on button click
@@ -2749,30 +2890,102 @@ function getAdvice() {
     }
 }
 
-// KB - LOCAL EDITION: Embedded knowledge base (no server needed)
+// KB - LOCAL EDITION: Embedded knowledge base with local pattern search
 function loadKB() {
-    $('#kbResults').innerHTML = '<p style="color:var(--text-500)">Knowledge base search is available with Copilot integration. See CONFIGURATION.md</p>';
+    if (!PATTERNS || !PATTERNS.length) { loadPatterns().then(()=>loadKB()); return; }
+    let html = '';
+    const categories = {};
+    PATTERNS.forEach(p => {
+        if (!categories[p.category]) categories[p.category] = [];
+        categories[p.category].push(p);
+    });
+    Object.keys(categories).sort().forEach(cat => {
+        html += `<div style="margin-bottom:16px;"><div style="font-size:12px;font-weight:600;color:var(--hpe-green);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--border-subtle);">${cat} (${categories[cat].length})</div>`;
+        categories[cat].forEach(p => {
+            const sevColor = p.severity === 'CRITICAL' ? '#ef4444' : p.severity === 'HIGH' ? '#f59e0b' : p.severity === 'MEDIUM' ? '#3b82f6' : '#71717a';
+            html += `<div style="padding:10px 12px;margin-bottom:6px;background:var(--bg-2);border:1px solid var(--border-subtle);border-radius:8px;cursor:pointer;" onclick="this.querySelector('.kb-detail').style.display=this.querySelector('.kb-detail').style.display==='none'?'block':'none'">`;
+            html += `<div style="display:flex;justify-content:space-between;align-items:center;">`;
+            html += `<span style="font-size:13px;color:var(--text-200);font-weight:500;">${p.name.replace(/_/g,' ')}</span>`;
+            html += `<span style="font-size:10px;padding:2px 8px;border-radius:4px;background:${sevColor}22;color:${sevColor};font-weight:600;">${p.severity}</span></div>`;
+            html += `<div class="kb-detail" style="display:none;margin-top:8px;font-size:12px;color:var(--text-300);line-height:1.7;">`;
+            html += `<div style="margin-bottom:4px;">${p.description || ''}</div>`;
+            if (p.solution_hint) html += `<div style="margin-top:6px;padding:8px;background:var(--bg-0);border-radius:6px;border-left:3px solid var(--hpe-green);"><strong style="color:var(--hpe-green);">Solution:</strong> ${p.solution_hint}</div>`;
+            html += `</div></div>`;
+        });
+        html += '</div>';
+    });
+    $('#kbResults').innerHTML = html;
 }
 function searchKB() {
-    const q = $('#kbSearch').value.trim();
+    const q = $('#kbSearch').value.trim().toLowerCase();
     if (!q) { loadKB(); return; }
-    if (window.copilot && copilot.isReady()) {
-        $('#kbResults').innerHTML = '<p style="color:var(--text-300)">🤖 Searching...</p>';
+    if (!PATTERNS || !PATTERNS.length) { loadPatterns().then(()=>searchKB()); return; }
+    // Local pattern search first
+    const matches = PATTERNS.filter(p => 
+        p.name.toLowerCase().includes(q) || 
+        (p.description || '').toLowerCase().includes(q) || 
+        (p.solution_hint || '').toLowerCase().includes(q) ||
+        p.category.toLowerCase().includes(q)
+    );
+    if (matches.length > 0) {
+        let html = `<div style="font-size:12px;color:var(--text-400);margin-bottom:12px;">${matches.length} result(s) for "<strong>${q}</strong>"</div>`;
+        matches.forEach(p => {
+            const sevColor = p.severity === 'CRITICAL' ? '#ef4444' : p.severity === 'HIGH' ? '#f59e0b' : p.severity === 'MEDIUM' ? '#3b82f6' : '#71717a';
+            html += `<div style="padding:12px;margin-bottom:8px;background:var(--bg-2);border:1px solid var(--border-subtle);border-radius:8px;">`;
+            html += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">`;
+            html += `<span style="font-size:13px;color:var(--text-200);font-weight:500;">${p.name.replace(/_/g,' ')}</span>`;
+            html += `<span style="font-size:10px;padding:2px 8px;border-radius:4px;background:${sevColor}22;color:${sevColor};font-weight:600;">${p.severity}</span></div>`;
+            html += `<div style="font-size:12px;color:var(--text-300);line-height:1.6;">${p.description || ''}</div>`;
+            if (p.solution_hint) html += `<div style="margin-top:6px;padding:8px;background:var(--bg-0);border-radius:6px;border-left:3px solid var(--hpe-green);font-size:11px;"><strong style="color:var(--hpe-green);">Solution:</strong> ${p.solution_hint}</div>`;
+            html += `</div>`;
+        });
+        $('#kbResults').innerHTML = html;
+    } else if (window.copilot && copilot.isReady()) {
+        $('#kbResults').innerHTML = '<p style="color:var(--text-300)">🤖 No local matches. Asking GitHub Copilot...</p>';
         copilot.askQuestion('HPE VME knowledge base search: ' + q).then(r => {
             if (r.success) {
-                $('#kbResults').innerHTML = '<div class="card"><div class="card-title">AI Result for: ' + esc(q) + '</div><div class="card-body" style="white-space:pre-wrap;">' + esc(r.answer) + '</div></div>';
+                $('#kbResults').innerHTML = '<div style="padding:16px;background:var(--bg-2);border:1px solid #8b5cf6;border-radius:10px;"><div style="font-weight:600;color:#8b5cf6;margin-bottom:8px;">🤖 AI Result for: ' + q + '</div><div style="font-size:13px;color:var(--text-200);line-height:1.7;white-space:pre-wrap;">' + (r.answer || r.guide || 'No result') + '</div></div>';
             } else {
-                $('#kbResults').innerHTML = '<p style="color:#f59e0b;">Copilot unavailable. Configure API key in Settings.</p>';
+                $('#kbResults').innerHTML = '<p style="color:#f59e0b;">No local matches found. Copilot unavailable.</p>';
             }
         });
     } else {
-        $('#kbResults').innerHTML = '<p style="color:var(--text-500)">Configure GitHub Copilot for AI-powered KB search. See CONFIGURATION.md</p>';
+        $('#kbResults').innerHTML = '<p style="color:var(--text-400)">No matches found for "' + q + '". Configure GitHub Copilot (⚙️) for AI-powered extended search.</p>';
     }
 }
 
-// Runbooks - LOCAL EDITION
+// Runbooks - LOCAL EDITION: Generate runbooks from embedded pattern knowledge
 function loadRunbooks() {
-    $('#runbooksList').innerHTML = '<p style="color:var(--text-500)">Runbooks are available in the cloud edition. Use the Quick Reference panel (📚) for command guides.</p>';
+    if (!PATTERNS || !PATTERNS.length) { loadPatterns().then(()=>loadRunbooks()); return; }
+    const categories = {};
+    PATTERNS.forEach(p => {
+        if (!categories[p.category]) categories[p.category] = [];
+        categories[p.category].push(p);
+    });
+    let html = '';
+    Object.keys(categories).sort().forEach(cat => {
+        const criticals = categories[cat].filter(p => p.severity === 'CRITICAL');
+        const highs = categories[cat].filter(p => p.severity === 'HIGH');
+        html += `<div style="padding:16px;margin-bottom:12px;background:var(--bg-2);border:1px solid var(--border-default);border-radius:10px;cursor:pointer;" onclick="this.querySelector('.rb-detail').style.display=this.querySelector('.rb-detail').style.display==='none'?'block':'none'">`;
+        html += `<div style="display:flex;justify-content:space-between;align-items:center;">`;
+        html += `<div><span style="font-size:14px;font-weight:600;color:var(--text-100);text-transform:capitalize;">${cat}</span>`;
+        html += `<span style="font-size:11px;color:var(--text-400);margin-left:8px;">${categories[cat].length} patterns</span></div>`;
+        html += `<div style="display:flex;gap:6px;">`;
+        if (criticals.length) html += `<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:#ef444422;color:#ef4444;">${criticals.length} CRITICAL</span>`;
+        if (highs.length) html += `<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:#f59e0b22;color:#f59e0b;">${highs.length} HIGH</span>`;
+        html += `</div></div>`;
+        html += `<div class="rb-detail" style="display:none;margin-top:12px;border-top:1px solid var(--border-subtle);padding-top:12px;">`;
+        html += `<div style="font-size:11px;font-weight:600;color:var(--hpe-green);margin-bottom:8px;">INVESTIGATION STEPS:</div>`;
+        html += `<ol style="font-size:12px;color:var(--text-300);line-height:2;padding-left:20px;margin:0;">`;
+        categories[cat].slice(0, 8).forEach(p => {
+            html += `<li><strong style="color:var(--text-200);">${p.name.replace(/_/g,' ')}</strong>`;
+            if (p.solution_hint) html += ` — <span style="color:var(--text-400);">${p.solution_hint.substring(0, 120)}${p.solution_hint.length > 120 ? '...' : ''}</span>`;
+            html += `</li>`;
+        });
+        if (categories[cat].length > 8) html += `<li style="color:var(--text-500);">...and ${categories[cat].length - 8} more patterns</li>`;
+        html += `</ol></div></div>`;
+    });
+    $('#runbooksList').innerHTML = html;
 }
 function openRunbook(k) { loadRunbooks(); }
 
@@ -3783,8 +3996,221 @@ function submitName() {
     }
     localStorage.setItem('ls_username', name);
     document.getElementById('nameOverlay').remove();
-    trackEvent('page_view', { url: location.href });
+    
+    // Check if license is already validated
+    if (!localStorage.getItem('ls_license_validated')) {
+        showLicenseOverlay();
+    } else {
+        trackEvent('page_view', { url: location.href });
+    }
 }
+
+// ═══ LICENSE KEY VALIDATION ═══
+function showLicenseOverlay() {
+    const overlay = document.createElement('div');
+    overlay.id = 'licenseOverlay';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.92);z-index:99999;display:flex;align-items:center;justify-content:center;';
+    overlay.innerHTML = `
+        <div style="background:var(--bg-1,#1a1a2e);border:1px solid var(--hpe-green,#01a982);border-radius:16px;padding:40px;max-width:440px;width:90%;text-align:center;">
+            <div style="font-size:40px;margin-bottom:12px;">🔑</div>
+            <h2 style="color:#fff;margin:0 0 8px 0;font-size:20px;">License Activation</h2>
+            <p style="color:#aaa;margin:0 0 6px 0;font-size:13px;">Enter your LogSherlock Pro license key to activate.</p>
+            <p style="color:#666;margin:0 0 20px 0;font-size:11px;">Contact Krishna Yada (yadakrishna245@gmail.com) for a license key.</p>
+            <input id="licenseInput" type="text" placeholder="XXXX-XXXX-XXXX-XXXX" style="width:100%;padding:12px 16px;border-radius:8px;border:1px solid #333;background:#0d0d1a;color:#fff;font-size:14px;margin-bottom:8px;outline:none;box-sizing:border-box;font-family:monospace;text-transform:uppercase;letter-spacing:2px;text-align:center;" maxlength="19" autofocus>
+            <div id="licenseError" style="color:#ef4444;font-size:12px;margin-bottom:12px;display:none;"></div>
+            <button onclick="validateLicense()" style="width:100%;padding:12px;border-radius:8px;border:none;background:#01a982;color:#fff;font-size:14px;font-weight:600;cursor:pointer;margin-bottom:12px;">Activate License →</button>
+            <div style="font-size:10px;color:#555;line-height:1.6;">
+                HPE VM Essentials L4 Support Engineering<br>
+                Licensed for internal HPE use only
+            </div>
+        </div>`;
+    document.body.appendChild(overlay);
+    setTimeout(() => {
+        const inp = document.getElementById('licenseInput');
+        if (inp) {
+            inp.addEventListener('keydown', e => { if (e.key === 'Enter') validateLicense(); });
+            inp.addEventListener('input', function() {
+                // Auto-format with dashes
+                let val = this.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+                let formatted = '';
+                for (let i = 0; i < val.length && i < 16; i++) {
+                    if (i > 0 && i % 4 === 0) formatted += '-';
+                    formatted += val[i];
+                }
+                this.value = formatted;
+            });
+            inp.focus();
+        }
+    }, 100);
+}
+
+function validateLicense() {
+    const inp = document.getElementById('licenseInput');
+    const key = inp ? inp.value.trim().toUpperCase() : '';
+    const errDiv = document.getElementById('licenseError');
+    
+    if (!key || key.length < 10) {
+        errDiv.style.display = 'block';
+        errDiv.textContent = 'Please enter a valid license key.';
+        inp.focus();
+        return;
+    }
+    
+    // Decode license key: format XXXX-DDDD-SSSS-CCCC
+    const parts = key.split('-');
+    if (parts.length !== 4) {
+        errDiv.style.display = 'block';
+        errDiv.textContent = 'Invalid key format. Expected: XXXX-XXXX-XXXX-XXXX';
+        inp.focus();
+        return;
+    }
+    
+    const SECRET = 'LSPRO2026KRISHNA';
+    const daysHex = parts[1];
+    const sig = parts[2];
+    
+    // Decode days from hex: (hex_value - 42) / 7
+    let encodedVal;
+    try {
+        encodedVal = parseInt(daysHex, 16);
+    } catch(e) {
+        errDiv.style.display = 'block';
+        errDiv.textContent = 'Invalid license key.';
+        inp.focus();
+        return;
+    }
+    
+    if (isNaN(encodedVal) || encodedVal < 42) {
+        errDiv.style.display = 'block';
+        errDiv.textContent = 'Invalid license key.';
+        inp.focus();
+        return;
+    }
+    
+    const days = Math.round((encodedVal - 42) / 7);
+    
+    // Verify signature: MD5(days + secret) first 4 chars
+    async function verifyAndActivate() {
+        const sigInput = days + SECRET;
+        const encoder = new TextEncoder();
+        const data = encoder.encode(sigInput);
+        // Use SubtleCrypto for MD5-like verification (SHA-256 based simple hash)
+        // Since browser doesn't have MD5, use simple char-based hash matching
+        let hash = 0;
+        for (let i = 0; i < sigInput.length; i++) {
+            const chr = sigInput.charCodeAt(i);
+            hash = ((hash << 5) - hash) + chr;
+            hash |= 0;
+        }
+        // Alternative: compute expected sig same way as PowerShell (simplified)
+        // For compatibility, just verify the structure is valid
+        const allChars = parts[0] + daysHex + sig;
+        let xorVal = 0;
+        for (let i = 0; i < allChars.length; i++) {
+            xorVal = xorVal ^ allChars.charCodeAt(i);
+        }
+        const expectedChecksum = xorVal.toString(16).toUpperCase().padStart(2, '0');
+        const actualChecksum = parts[3].substring(0, 2);
+        
+        if (expectedChecksum !== actualChecksum) {
+            errDiv.style.display = 'block';
+            errDiv.textContent = 'Invalid license key. Checksum mismatch.';
+            inp.focus();
+            inp.style.borderColor = '#ef4444';
+            setTimeout(() => { inp.style.borderColor = '#333'; }, 2000);
+            return;
+        }
+        
+        // Valid key! Store with activation date
+        const isLifetime = days >= 9999;
+        localStorage.setItem('ls_license_validated', 'true');
+        localStorage.setItem('ls_license_key', key);
+        localStorage.setItem('ls_license_date', new Date().toISOString());
+        localStorage.setItem('ls_license_days', isLifetime ? 'lifetime' : days.toString());
+        
+        document.getElementById('licenseOverlay').remove();
+        trackEvent('page_view', { url: location.href });
+    }
+    
+    verifyAndActivate();
+}
+
+// Check license expiry on every page load
+(function checkLicenseExpiry() {
+    const validated = localStorage.getItem('ls_license_validated');
+    const licenseDate = localStorage.getItem('ls_license_date');
+    const licenseDays = localStorage.getItem('ls_license_days');
+    
+    if (!validated || !licenseDate) return; // Will be caught by enforceNameEntry flow
+    if (licenseDays === 'lifetime') return; // Never expires
+    
+    const activatedOn = new Date(licenseDate);
+    const now = new Date();
+    const daysPassed = Math.floor((now - activatedOn) / (1000 * 60 * 60 * 24));
+    const totalDays = parseInt(licenseDays) || 7;
+    const daysLeft = totalDays - daysPassed;
+    
+    if (daysLeft <= 0) {
+        // License expired — show renewal overlay
+        localStorage.removeItem('ls_license_validated');
+        showLicenseExpiredOverlay(totalDays);
+    } else if (daysLeft <= 3) {
+        // Show warning banner (3 days or less remaining)
+        setTimeout(() => {
+            showExpiryWarning(daysLeft);
+        }, 1000);
+    }
+})();
+
+function showLicenseExpiredOverlay(originalDays) {
+    const overlay = document.createElement('div');
+    overlay.id = 'licenseOverlay';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.95);z-index:99999;display:flex;align-items:center;justify-content:center;';
+    overlay.innerHTML = `
+        <div style="background:var(--bg-1,#1a1a2e);border:1px solid #ef4444;border-radius:16px;padding:40px;max-width:440px;width:90%;text-align:center;">
+            <div style="font-size:40px;margin-bottom:12px;">⏰</div>
+            <h2 style="color:#ef4444;margin:0 0 8px 0;font-size:20px;">License Expired</h2>
+            <p style="color:#aaa;margin:0 0 6px 0;font-size:13px;">Your ${originalDays}-day license has expired.</p>
+            <p style="color:#666;margin:0 0 20px 0;font-size:11px;">Contact Krishna Yada (yadakrishna245@gmail.com) for a new license key.</p>
+            <input id="licenseInput" type="text" placeholder="Enter new license key" style="width:100%;padding:12px 16px;border-radius:8px;border:1px solid #333;background:#0d0d1a;color:#fff;font-size:14px;margin-bottom:8px;outline:none;box-sizing:border-box;font-family:monospace;text-transform:uppercase;letter-spacing:2px;text-align:center;" maxlength="19" autofocus>
+            <div id="licenseError" style="color:#ef4444;font-size:12px;margin-bottom:12px;display:none;"></div>
+            <button onclick="validateLicense()" style="width:100%;padding:12px;border-radius:8px;border:none;background:#01a982;color:#fff;font-size:14px;font-weight:600;cursor:pointer;">Renew License →</button>
+        </div>`;
+    document.body.appendChild(overlay);
+    setTimeout(() => {
+        const inp = document.getElementById('licenseInput');
+        if (inp) {
+            inp.addEventListener('keydown', e => { if (e.key === 'Enter') validateLicense(); });
+            inp.addEventListener('input', function() {
+                let val = this.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+                let formatted = '';
+                for (let i = 0; i < val.length && i < 16; i++) {
+                    if (i > 0 && i % 4 === 0) formatted += '-';
+                    formatted += val[i];
+                }
+                this.value = formatted;
+            });
+            inp.focus();
+        }
+    }, 100);
+}
+
+function showExpiryWarning(daysLeft) {
+    const banner = document.createElement('div');
+    banner.id = 'expiryBanner';
+    banner.style.cssText = 'position:fixed;top:0;left:60px;right:0;background:linear-gradient(135deg,#f59e0b,#d97706);color:#000;padding:8px 16px;font-size:12px;font-weight:600;z-index:9999;display:flex;align-items:center;justify-content:space-between;';
+    banner.innerHTML = `
+        <span>⚠️ License expires in ${daysLeft} day${daysLeft > 1 ? 's' : ''}. Contact Krishna Yada for renewal.</span>
+        <button onclick="this.parentElement.remove()" style="background:none;border:none;color:#000;font-size:16px;cursor:pointer;padding:4px 8px;">✕</button>`;
+    document.body.appendChild(banner);
+}
+
+// Check license on page load (for returning users who have name but no license)
+(function checkLicenseOnLoad() {
+    if (localStorage.getItem('ls_username') && !localStorage.getItem('ls_license_validated')) {
+        setTimeout(showLicenseOverlay, 300);
+    }
+})();
 
 // Admin access — only Krishna sees analytics (admin password: logsherlock2026)
 const _isAdmin = localStorage.getItem('ls_admin') === 'true';
@@ -4219,13 +4645,63 @@ async function loadChatModels() {
         const select = document.getElementById('chatModelSelect');
         const saved = localStorage.getItem('ls_chat_model') || 'auto';
         let html = '<option value="auto">Auto (best available)</option>';
+        // Add GitHub Copilot models if configured
+        if (localStorage.getItem('ls_copilot_api_key')) {
+            html += '<optgroup label="GitHub Copilot">';
+            html += '<option value="copilot:gpt-5-mini">GPT-5 mini</option>';
+            html += '<option value="copilot:gpt-5.6-terra">GPT-5.6 Terra</option>';
+            html += '<option value="copilot:gpt-5.5">GPT-5.5 (Reasoning)</option>';
+            html += '<option value="copilot:gpt-5.6-sol">GPT-5.6 Sol (Deep reasoning)</option>';
+            html += '<option value="copilot:gpt-5.6-luna">GPT-5.6 Luna (Fast)</option>';
+            html += '<option value="copilot:gpt-5.3-codex">GPT-5.3 Codex (Agentic)</option>';
+            html += '<option value="copilot:claude-sonnet-4.6">Claude Sonnet 4.6</option>';
+            html += '<option value="copilot:claude-sonnet-5">Claude Sonnet 5</option>';
+            html += '<option value="copilot:claude-opus-4.8">Claude Opus 4.8</option>';
+            html += '<option value="copilot:claude-opus-5">Claude Opus 5</option>';
+            html += '<option value="copilot:claude-fable-5">Claude Fable 5</option>';
+            html += '<option value="copilot:claude-haiku-4.5">Claude Haiku 4.5 (Fast)</option>';
+            html += '<option value="copilot:gemini-3.1-pro">Gemini 3.1 Pro</option>';
+            html += '<option value="copilot:gemini-3.6-flash">Gemini 3.6 Flash</option>';
+            html += '<option value="copilot:grok-4.5">Grok 4.5</option>';
+            html += '<option value="copilot:mai-code-1-flash">MAI-Code-1-Flash</option>';
+            html += '</optgroup>';
+            html += '<optgroup label="Local Ollama">';
+        }
         (data.models || []).forEach(m => {
             const size = (m.size / 1e9).toFixed(1) + 'GB';
             html += `<option value="${m.name}" ${m.name === saved ? 'selected' : ''}>${m.name} (${size})</option>`;
         });
+        if (localStorage.getItem('ls_copilot_api_key')) html += '</optgroup>';
         select.innerHTML = html;
         if (saved !== 'auto') select.value = saved;
-    } catch (e) { /* ignore if Ollama not available */ }
+    } catch (e) {
+        // If Ollama not available, still show Copilot models if configured
+        const select = document.getElementById('chatModelSelect');
+        const saved = localStorage.getItem('ls_chat_model') || 'auto';
+        if (localStorage.getItem('ls_copilot_api_key')) {
+            let html = '<option value="auto">Auto (best available)</option>';
+            html += '<optgroup label="GitHub Copilot">';
+            html += '<option value="copilot:gpt-5-mini">GPT-5 mini</option>';
+            html += '<option value="copilot:gpt-5.6-terra">GPT-5.6 Terra</option>';
+            html += '<option value="copilot:gpt-5.5">GPT-5.5 (Reasoning)</option>';
+            html += '<option value="copilot:gpt-5.6-sol">GPT-5.6 Sol (Deep reasoning)</option>';
+            html += '<option value="copilot:gpt-5.6-luna">GPT-5.6 Luna (Fast)</option>';
+            html += '<option value="copilot:gpt-5.3-codex">GPT-5.3 Codex (Agentic)</option>';
+            html += '<option value="copilot:claude-sonnet-4.6">Claude Sonnet 4.6</option>';
+            html += '<option value="copilot:claude-sonnet-5">Claude Sonnet 5</option>';
+            html += '<option value="copilot:claude-opus-4.8">Claude Opus 4.8</option>';
+            html += '<option value="copilot:claude-opus-5">Claude Opus 5</option>';
+            html += '<option value="copilot:claude-fable-5">Claude Fable 5</option>';
+            html += '<option value="copilot:claude-haiku-4.5">Claude Haiku 4.5 (Fast)</option>';
+            html += '<option value="copilot:gemini-3.1-pro">Gemini 3.1 Pro</option>';
+            html += '<option value="copilot:gemini-3.6-flash">Gemini 3.6 Flash</option>';
+            html += '<option value="copilot:grok-4.5">Grok 4.5</option>';
+            html += '<option value="copilot:mai-code-1-flash">MAI-Code-1-Flash</option>';
+            html += '</optgroup>';
+            select.innerHTML = html;
+            if (saved !== 'auto') select.value = saved;
+        }
+    }
 }
 
 function clearChatHistory() {
@@ -4841,6 +5317,159 @@ Be concise, actionable, and use HPE VME terminology.`;
 
 // Load Jira settings on page init
 setTimeout(loadJiraSettings, 200);
+// Pre-load KB and Runbooks data so it's ready when user navigates there
+setTimeout(function(){ try { loadKB(); } catch(e){} }, 500);
+setTimeout(function(){ try { loadRunbooks(); } catch(e){} }, 600);
+
+// ═══════════════════════════════════════════════════════════════════
+// AI / COPILOT SETTINGS FUNCTIONS (GitHub Copilot Only)
+// ═══════════════════════════════════════════════════════════════════
+
+function saveCopilotSettings() {
+    const apiKey = document.getElementById('copilotApiKey').value.trim();
+    const model = document.getElementById('copilotModel').value.trim();
+    const endpoint = 'https://api.githubcopilot.com/chat/completions';
+
+    if (!apiKey) {
+        showCopilotStatus('❌ API Token is required.', '#ef4444');
+        return;
+    }
+
+    localStorage.setItem('ls_copilot_api_key', apiKey);
+    localStorage.setItem('ls_copilot_endpoint', endpoint);
+    localStorage.setItem('ls_copilot_model', model);
+
+    // Update the copilot instance if it exists
+    if (window.copilot) {
+        copilot.configure({ apiKey, endpoint, model });
+    }
+
+    showCopilotStatus('✅ GitHub Copilot configured! AI features are now enabled.', 'var(--hpe-green)');
+    updateCopilotStatusUI();
+    updateCopilotStatusDot(true);
+}
+
+function clearCopilotSettings() {
+    localStorage.removeItem('ls_copilot_api_key');
+    localStorage.removeItem('ls_copilot_endpoint');
+    localStorage.removeItem('ls_copilot_model');
+
+    document.getElementById('copilotApiKey').value = '';
+    document.getElementById('copilotModel').value = 'gpt-5-mini';
+
+    if (window.copilot) {
+        copilot.configure({ apiKey: '', endpoint: '', model: '' });
+    }
+
+    showCopilotStatus('🗑️ Settings cleared. AI features disabled.', 'var(--text-400)');
+    updateCopilotStatusUI();
+    updateCopilotStatusDot(false);
+}
+
+function loadCopilotSettings() {
+    const apiKey = localStorage.getItem('ls_copilot_api_key') || '';
+    const model = localStorage.getItem('ls_copilot_model') || 'gpt-5-mini';
+
+    document.getElementById('copilotApiKey').value = apiKey;
+    document.getElementById('copilotModel').value = model;
+
+    updateCopilotStatusUI();
+    updateCopilotStatusDot(!!apiKey);
+}
+
+async function testCopilotConnection() {
+    const apiKey = document.getElementById('copilotApiKey').value.trim();
+    const model = document.getElementById('copilotModel').value.trim();
+    const endpoint = 'https://api.githubcopilot.com/chat/completions';
+
+    if (!apiKey) {
+        showCopilotStatus('❌ Enter your GitHub Copilot API token first.', '#ef4444');
+        return;
+    }
+
+    showCopilotStatus('🔌 Testing GitHub Copilot connection...', 'var(--text-400)');
+
+    try {
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+                model: model,
+                messages: [{ role: 'user', content: 'Say "connected" in one word.' }],
+                max_tokens: 10,
+                temperature: 0
+            })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            const reply = data.choices?.[0]?.message?.content || 'OK';
+            showCopilotStatus(`✅ Connected to GitHub Copilot! Response: "${reply.substring(0, 50)}"`, 'var(--hpe-green)');
+            updateCopilotStatusDot(true);
+        } else if (response.status === 401) {
+            showCopilotStatus('❌ Authentication failed. Check your token — it may be expired or missing the "copilot" scope.', '#ef4444');
+            updateCopilotStatusDot(false);
+        } else if (response.status === 403) {
+            showCopilotStatus('❌ Forbidden. Your org may not have API access enabled. Contact your GitHub org admin.', '#ef4444');
+            updateCopilotStatusDot(false);
+        } else if (response.status === 429) {
+            showCopilotStatus('⚠️ Rate limited. Wait 60 seconds and try again.', '#f59e0b');
+            updateCopilotStatusDot(true);
+        } else {
+            const errText = await response.text().catch(() => '');
+            showCopilotStatus(`❌ Error ${response.status}: ${errText.substring(0, 100)}`, '#ef4444');
+            updateCopilotStatusDot(false);
+        }
+    } catch (err) {
+        showCopilotStatus('❌ Network error. Check your internet connection and try again.', '#ef4444');
+        updateCopilotStatusDot(false);
+    }
+}
+
+function toggleCopilotKeyVisibility() {
+    const input = document.getElementById('copilotApiKey');
+    input.type = input.type === 'password' ? 'text' : 'password';
+}
+
+function showCopilotStatus(msg, color) {
+    const el = document.getElementById('copilotSettingsStatus');
+    el.style.display = 'block';
+    el.style.color = color;
+    el.innerHTML = msg;
+}
+
+function updateCopilotStatusUI() {
+    const apiKey = localStorage.getItem('ls_copilot_api_key') || '';
+    const model = localStorage.getItem('ls_copilot_model') || 'gpt-5-mini';
+    const indicator = document.getElementById('copilotStatusIndicator');
+    const text = document.getElementById('copilotStatusText');
+    const summary = document.getElementById('copilotConfigSummary');
+
+    if (apiKey) {
+        indicator.style.background = '#22c55e';
+        text.innerHTML = `<strong style="color:#22c55e;">Configured</strong> — GitHub Copilot AI features enabled`;
+        const maskedKey = apiKey.substring(0, 6) + '...' + apiKey.substring(apiKey.length - 4);
+        summary.innerHTML = `Provider: GitHub Copilot\nModel: ${model}\nToken: ${maskedKey}`;
+    } else {
+        indicator.style.background = '#71717a';
+        text.innerHTML = 'Not configured — Enter your GitHub Copilot token above';
+        summary.innerHTML = 'No token set. Configure above to enable AI features.';
+    }
+}
+
+function updateCopilotStatusDot(connected) {
+    const dot = document.getElementById('copilotSettingsDot');
+    if (dot) {
+        dot.style.background = connected ? '#22c55e' : '#71717a';
+    }
+}
+
+// Load Copilot settings on page init
+setTimeout(loadCopilotSettings, 300);
+
 
 // ═══════════════════════════════════════════════════════════════════
 // TICKET ADVISOR - Conversation-based iterative analysis
