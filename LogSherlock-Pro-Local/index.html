@@ -4725,15 +4725,15 @@ async function jiraGetAdvice() {
     content.innerHTML = '<span style="color:var(--text-400);">🧭 Analyzing ticket...</span>';
 
     try {
-        // LOCAL EDITION: Use Copilot for advisor
+        // LOCAL EDITION: Use Copilot if available, otherwise local heuristic
         let data = {};
         if (window.copilot && copilot.isReady()) {
             const result = await copilot.getInvestigationGuide(desc);
-            data = result.success ? {summary: result.guide} : {error: result.error};
+            data = result.success ? {summary: result.guide} : {summary: generateLocalAdvisorResponse(desc)};
         } else {
-            data = {error: 'Configure Copilot API for AI advisor. See CONFIGURATION.md'};
+            data = {summary: generateLocalAdvisorResponse(desc)};
         }
-        const r = {ok: !data.error};
+        const r = {ok: true};
         if (r.ok) {
             let html = '';
             if (data.summary) html += `<div style="color:var(--hpe-green);font-weight:500;margin-bottom:12px;">${escapeHtml(data.summary)}</div>`;
@@ -4864,20 +4864,22 @@ async function advisorCallAPI() {
     statusEl.innerHTML = '<span class="dot" style="width:6px;height:6px;border-radius:50%;background:var(--accent);animation:pulse 1s infinite;"></span> Analyzing...';
 
     try {
-        // LOCAL EDITION: Use Copilot for advisor chat
-        let resp_ok = false;
+        // LOCAL EDITION: Use Copilot if available, otherwise local heuristic
+        let resp_ok = true;
         let respData = {};
+        const lastMsg = window._advisorMessages[window._advisorMessages.length - 1];
+        const userText = lastMsg ? lastMsg.content : '';
+        
         if (window.copilot && copilot.isReady()) {
-            const lastMsg = window._advisorMessages[window._advisorMessages.length - 1];
-            const result = await copilot.askQuestion(lastMsg.content, _allFindings || []);
+            const result = await copilot.askQuestion(userText, _allFindings || []);
             if (result.success) {
-                resp_ok = true;
-                respData = { response: result.answer, turn: window._advisorMessages.length };
+                respData = { response: result.answer, turn: window._advisorMessages.length, formatted_reply: result.answer };
             } else {
-                throw new Error(result.error);
+                respData = { response: generateLocalAdvisorResponse(userText), turn: window._advisorMessages.length, formatted_reply: generateLocalAdvisorResponse(userText) };
             }
         } else {
-            throw new Error('Configure Copilot API for AI advisor chat. See CONFIGURATION.md');
+            // Local heuristic analysis - no AI needed
+            respData = { response: generateLocalAdvisorResponse(userText), turn: window._advisorMessages.length, formatted_reply: generateLocalAdvisorResponse(userText) };
         }
         const resp = {ok: resp_ok};
         if (!resp.ok) {
@@ -5306,6 +5308,145 @@ function saveCopilotSettings() {
     
     alert('Copilot configured! AI features are now ' + (key ? 'enabled ✅' : 'disabled'));
 }
+
+// LOCAL EDITION: Generate advisor response using local pattern knowledge
+function generateLocalAdvisorResponse(text) {
+    const lower = text.toLowerCase();
+    let response = '';
+    
+    // Detect issue patterns and provide structured analysis
+    response += '🎯 ANALYSIS SUMMARY\n';
+    response += '═══════════════════\n\n';
+    
+    // Issue detection
+    const issues = [];
+    if (/gfs2|withdraw|filesystem.*read.?only|mount.*fail/i.test(text)) {
+        issues.push({type: 'GFS2/Filesystem', severity: 'CRITICAL'});
+        response += '⚠️ DETECTED: GFS2 Filesystem Issue (CRITICAL)\n\n';
+        response += '📋 ROOT CAUSE ANALYSIS:\n';
+        response += '• GFS2 withdraw typically indicates DLM lock manager failure\n';
+        response += '• Common trigger: Storage path interruption causing I/O errors\n';
+        response += '• Can cascade from: SCSI reservation conflict, multipath failover, or fence event\n\n';
+        response += '🔍 INVESTIGATION STEPS:\n';
+        response += '1. Check DLM status: dlm_tool ls\n';
+        response += '2. Check GFS2 journals: gfs2_tool freeze check /dev/vg_shared/lv_data\n';
+        response += '3. Review /var/log/messages for withdraw timestamp\n';
+        response += '4. Check multipath status: multipath -ll (look for failed paths)\n';
+        response += '5. Verify SCSI reservations: sg_persist -i -k /dev/mapper/mpath*\n\n';
+        response += '🔧 RECOMMENDED FIX:\n';
+        response += '• If DLM error -107: Restart DLM on affected node\n';
+        response += '• If multipath issue: Restore storage paths first, then remount GFS2\n';
+        response += '• If SCSI conflict: Check for stale reservations from crashed node\n';
+        response += '• Recovery command: mount -o remount /shared_storage\n\n';
+    }
+    if (/corosync|pacemaker|quorum|fence|stonith|split.?brain|cluster.*down/i.test(text)) {
+        issues.push({type: 'Cluster', severity: 'CRITICAL'});
+        response += '⚠️ DETECTED: Cluster/HA Issue (CRITICAL)\n\n';
+        response += '📋 ROOT CAUSE ANALYSIS:\n';
+        response += '• Cluster issues often start with network interruption between nodes\n';
+        response += '• Corosync token timeout → quorum loss → fencing → service relocation\n';
+        response += '• Split-brain risk if fencing fails\n\n';
+        response += '🔍 INVESTIGATION STEPS:\n';
+        response += '1. Check cluster status: pcs status\n';
+        response += '2. Verify quorum: corosync-quorumtool -s\n';
+        response += '3. Review fencing history: pcs stonith history\n';
+        response += '4. Check corosync logs: journalctl -u corosync --since "1 hour ago"\n';
+        response += '5. Verify network between nodes: corosync-cfgtool -s\n\n';
+        response += '🔧 RECOMMENDED FIX:\n';
+        response += '• If quorum lost: Check which node was fenced and why\n';
+        response += '• If token timeout: Increase token value in corosync.conf (default 1000ms may be too low)\n';
+        response += '• If fencing loop: Check IPMI/iLO connectivity for stonith agent\n\n';
+    }
+    if (/multipath|iscsi|scsi|lun|storage.*path|disk.*error|sg_persist/i.test(text)) {
+        issues.push({type: 'Storage', severity: 'HIGH'});
+        response += '⚠️ DETECTED: Storage/Multipath Issue (HIGH)\n\n';
+        response += '📋 ROOT CAUSE ANALYSIS:\n';
+        response += '• Path failures usually indicate SAN switch, HBA, or cable issues\n';
+        response += '• SCSI reservation conflicts can occur during node fencing\n';
+        response += '• iSCSI timeout may indicate network congestion or target overload\n\n';
+        response += '🔍 INVESTIGATION STEPS:\n';
+        response += '1. Check multipath: multipath -ll\n';
+        response += '2. Check iSCSI sessions: iscsiadm -m session -P 3\n';
+        response += '3. Review SCSI errors: dmesg -T | grep -i "scsi\|sd\|error"\n';
+        response += '4. Check path checker: multipathd show paths\n';
+        response += '5. Verify reservations: sg_persist -i -k /dev/sdX\n\n';
+        response += '🔧 RECOMMENDED FIX:\n';
+        response += '• Restore failed paths: multipathd reconfigure\n';
+        response += '• Clear stale reservations: sg_persist --out --clear --param-rk=<key> /dev/sdX\n';
+        response += '• Restart iSCSI: systemctl restart iscsid; iscsiadm -m session --rescan\n\n';
+    }
+    if (/morpheus|appliance|502|bad gateway|login.*fail|ui.*down|api.*error/i.test(text)) {
+        issues.push({type: 'Manager/Appliance', severity: 'HIGH'});
+        response += '⚠️ DETECTED: Morpheus Manager Issue (HIGH)\n\n';
+        response += '🔍 INVESTIGATION STEPS:\n';
+        response += '1. Check all services: sudo morpheus-ctl status\n';
+        response += '2. Check UI logs: tail -100 /var/log/morpheus/morpheus-ui/current\n';
+        response += '3. Check nginx: tail -50 /var/log/morpheus/nginx/current\n';
+        response += '4. Check disk space: df -h (Morpheus needs >20% free)\n';
+        response += '5. Check DB: sudo morpheus-ctl db-repair\n\n';
+        response += '🔧 RECOMMENDED FIX:\n';
+        response += '• Quick fix: sudo morpheus-ctl restart morpheus-ui\n';
+        response += '• If DB issue: sudo morpheus-ctl restart mysql\n';
+        response += '• Full reset: sudo morpheus-ctl stop; sleep 10; sudo morpheus-ctl start\n\n';
+    }
+    if (/network|bond|nic|vlan|bridge|connectivity|unreachable|timeout/i.test(text)) {
+        issues.push({type: 'Network', severity: 'HIGH'});
+        response += '⚠️ DETECTED: Network Issue (HIGH)\n\n';
+        response += '🔍 INVESTIGATION STEPS:\n';
+        response += '1. Check bonds: cat /proc/net/bonding/bond0\n';
+        response += '2. Check routes: ip route; ip addr show\n';
+        response += '3. Test connectivity: ping <other_node>; nc -zv <ip> 443\n';
+        response += '4. Check firewall: iptables -L -n -v\n';
+        response += '5. Check OVS: ovs-vsctl show (if using OVS)\n\n';
+    }
+    if (/vm |virtual machine|migration|libvirt|virsh|snapshot|provision/i.test(text)) {
+        issues.push({type: 'VM/KVM', severity: 'MEDIUM'});
+        response += '⚠️ DETECTED: VM/Virtualization Issue\n\n';
+        response += '🔍 INVESTIGATION STEPS:\n';
+        response += '1. Check VMs: virsh list --all\n';
+        response += '2. Check libvirt: systemctl status libvirtd\n';
+        response += '3. VM logs: /var/log/libvirt/qemu/<vm>.log\n';
+        response += '4. Check host resources: free -h; df -h; virsh nodememstats\n\n';
+    }
+    if (/kernel|panic|oom|watchdog|hung_task|crash|call.?trace/i.test(text)) {
+        issues.push({type: 'Kernel', severity: 'CRITICAL'});
+        response += '⚠️ DETECTED: Kernel Issue (CRITICAL)\n\n';
+        response += '🔍 INVESTIGATION STEPS:\n';
+        response += '1. Check dmesg: dmesg -T | grep -i "error\|panic\|oom\|call trace"\n';
+        response += '2. Check kdump: ls /var/crash/\n';
+        response += '3. OOM events: grep -i oom /var/log/messages\n';
+        response += '4. Hung tasks: grep "hung_task" /var/log/messages\n\n';
+    }
+    
+    if (issues.length === 0) {
+        response += '📝 Issue type not auto-detected from description.\n\n';
+        response += '🔍 GENERAL INVESTIGATION STEPS:\n';
+        response += '1. Check cluster: pcs status\n';
+        response += '2. Check services: sudo morpheus-ctl status\n';
+        response += '3. Check system logs: journalctl -p err --since "1 hour ago"\n';
+        response += '4. Check disk/memory: df -h; free -h\n';
+        response += '5. Check recent changes: last reboot; rpm -qa --last | head\n\n';
+    }
+    
+    response += '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n';
+    response += '📥 BUNDLES TO DOWNLOAD FROM HPRC:\n';
+    if (issues.some(i => i.type.includes('Cluster') || i.type.includes('Storage') || i.type.includes('GFS2'))) {
+        response += '  ✅ collect_hvm1_*.tgz (Node 1)\n';
+        response += '  ✅ collect_hvm2_*.tgz (Node 2)\n';
+        response += '  ✅ collect_hvm3_*.tgz (Node 3)\n';
+        response += '  ✅ collect_isca-vme_*.tgz (Manager)\n';
+    } else if (issues.some(i => i.type.includes('Manager'))) {
+        response += '  ✅ collect_isca-vme_*.tgz (Manager)\n';
+    } else {
+        response += '  ✅ collect_isca-vme_*.tgz (Manager)\n';
+        response += '  ✅ At least one node bundle\n';
+    }
+    response += '\n💡 Drop the downloaded bundles into LogSherlock scan page for detailed pattern analysis.\n';
+    response += '\n🤖 For AI-powered deeper analysis, configure GitHub Copilot (see CONFIGURATION.md)';
+    
+    return response;
+}
+
 </script>
 
 </body>
