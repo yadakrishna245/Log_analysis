@@ -4044,6 +4044,40 @@ function showLicenseOverlay() {
     }, 100);
 }
 
+// ═══ MACHINE FINGERPRINT (Unique per device) ═══
+function getMachineFingerprint() {
+    // Generate a unique fingerprint based on device characteristics
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    ctx.textBaseline = 'top';
+    ctx.font = '14px Arial';
+    ctx.fillText('LogSherlock-FP-2026', 2, 2);
+    const canvasData = canvas.toDataURL();
+    
+    const components = [
+        navigator.userAgent,
+        navigator.language,
+        screen.width + 'x' + screen.height,
+        screen.colorDepth,
+        new Date().getTimezoneOffset(),
+        navigator.hardwareConcurrency || 'unknown',
+        navigator.platform,
+        canvasData.substring(canvasData.length - 50)
+    ];
+    
+    // Hash the components into a short fingerprint
+    const raw = components.join('|||');
+    let hash = 0;
+    for (let i = 0; i < raw.length; i++) {
+        const chr = raw.charCodeAt(i);
+        hash = ((hash << 5) - hash) + chr;
+        hash = hash & hash; // Convert to 32-bit int
+    }
+    // Make it positive and convert to hex string
+    const fp = (hash >>> 0).toString(16).toUpperCase().padStart(8, '0');
+    return 'M-' + fp;
+}
+
 function validateLicense() {
     const inp = document.getElementById('licenseInput');
     const key = inp ? inp.value.trim().toUpperCase() : '';
@@ -4089,50 +4123,65 @@ function validateLicense() {
     
     const days = Math.round((encodedVal - 42) / 7);
     
-    // Verify signature: MD5(days + secret) first 4 chars
-    async function verifyAndActivate() {
-        const sigInput = days + SECRET;
-        const encoder = new TextEncoder();
-        const data = encoder.encode(sigInput);
-        // Use SubtleCrypto for MD5-like verification (SHA-256 based simple hash)
-        // Since browser doesn't have MD5, use simple char-based hash matching
-        let hash = 0;
-        for (let i = 0; i < sigInput.length; i++) {
-            const chr = sigInput.charCodeAt(i);
-            hash = ((hash << 5) - hash) + chr;
-            hash |= 0;
-        }
-        // Alternative: compute expected sig same way as PowerShell (simplified)
-        // For compatibility, just verify the structure is valid
-        const allChars = parts[0] + daysHex + sig;
-        let xorVal = 0;
-        for (let i = 0; i < allChars.length; i++) {
-            xorVal = xorVal ^ allChars.charCodeAt(i);
-        }
-        const expectedChecksum = xorVal.toString(16).toUpperCase().padStart(2, '0');
-        const actualChecksum = parts[3].substring(0, 2);
-        
-        if (expectedChecksum !== actualChecksum) {
-            errDiv.style.display = 'block';
-            errDiv.textContent = 'Invalid license key. Checksum mismatch.';
-            inp.focus();
-            inp.style.borderColor = '#ef4444';
-            setTimeout(() => { inp.style.borderColor = '#333'; }, 2000);
-            return;
-        }
-        
-        // Valid key! Store with activation date
-        const isLifetime = days >= 9999;
-        localStorage.setItem('ls_license_validated', 'true');
-        localStorage.setItem('ls_license_key', key);
-        localStorage.setItem('ls_license_date', new Date().toISOString());
-        localStorage.setItem('ls_license_days', isLifetime ? 'lifetime' : days.toString());
-        
-        document.getElementById('licenseOverlay').remove();
-        trackEvent('page_view', { url: location.href });
+    // Verify checksum
+    const allChars = parts[0] + daysHex + sig;
+    let xorVal = 0;
+    for (let i = 0; i < allChars.length; i++) {
+        xorVal = xorVal ^ allChars.charCodeAt(i);
+    }
+    const expectedChecksum = xorVal.toString(16).toUpperCase().padStart(2, '0');
+    const actualChecksum = parts[3].substring(0, 2);
+    
+    if (expectedChecksum !== actualChecksum) {
+        errDiv.style.display = 'block';
+        errDiv.textContent = 'Invalid license key. Verification failed.';
+        inp.focus();
+        inp.style.borderColor = '#ef4444';
+        setTimeout(() => { inp.style.borderColor = '#333'; }, 2000);
+        return;
     }
     
-    verifyAndActivate();
+    // ═══ MACHINE-LOCK CHECK ═══
+    const machineId = getMachineFingerprint();
+    const storedMachine = localStorage.getItem('ls_license_machine_' + key);
+    
+    if (storedMachine && storedMachine !== machineId) {
+        // Key was already activated on a DIFFERENT machine
+        errDiv.style.display = 'block';
+        errDiv.innerHTML = '❌ This key is already activated on another device.<br><span style="font-size:11px;color:#888;">Contact Krishna Yada (yadakrishna245@gmail.com) for a new key.</span>';
+        inp.focus();
+        inp.style.borderColor = '#ef4444';
+        return;
+    }
+    
+    // ═══ ACTIVATE: Bind key to this machine ═══
+    const isLifetime = days >= 9999;
+    const userName = localStorage.getItem('ls_username') || 'Unknown';
+    
+    // Store license + machine binding
+    localStorage.setItem('ls_license_validated', 'true');
+    localStorage.setItem('ls_license_key', key);
+    localStorage.setItem('ls_license_date', new Date().toISOString());
+    localStorage.setItem('ls_license_days', isLifetime ? 'lifetime' : days.toString());
+    localStorage.setItem('ls_license_machine', machineId);
+    localStorage.setItem('ls_license_machine_' + key, machineId); // Bind key to machine
+    
+    // ═══ SEND ACTIVATION DATA TO GOOGLE FORM (for tracking) ═══
+    try {
+        const formUrl = 'https://docs.google.com/forms/d/e/1FAIpQLSe_FORM_ID_HERE/formResponse';
+        // Silent tracking — doesn't block activation
+        const trackData = new FormData();
+        trackData.append('entry.0', key);
+        trackData.append('entry.1', userName);
+        trackData.append('entry.2', machineId);
+        trackData.append('entry.3', isLifetime ? 'Lifetime' : days + ' days');
+        trackData.append('entry.4', navigator.userAgent.substring(0, 50));
+        trackData.append('entry.5', navigator.platform);
+        fetch(formUrl, { method: 'POST', body: trackData, mode: 'no-cors' }).catch(() => {});
+    } catch(e) {} // Tracking is optional — don't block if it fails
+    
+    document.getElementById('licenseOverlay').remove();
+    trackEvent('page_view', { url: location.href });
 }
 
 // Check license expiry on every page load
@@ -4140,8 +4189,22 @@ function validateLicense() {
     const validated = localStorage.getItem('ls_license_validated');
     const licenseDate = localStorage.getItem('ls_license_date');
     const licenseDays = localStorage.getItem('ls_license_days');
+    const licenseKey = localStorage.getItem('ls_license_key');
     
     if (!validated || !licenseDate) return; // Will be caught by enforceNameEntry flow
+    
+    // ═══ MACHINE FINGERPRINT VERIFICATION ═══
+    if (typeof getMachineFingerprint === 'function' && licenseKey) {
+        const currentMachine = getMachineFingerprint();
+        const storedMachine = localStorage.getItem('ls_license_machine');
+        if (storedMachine && storedMachine !== currentMachine) {
+            // Machine changed! Invalidate license
+            localStorage.removeItem('ls_license_validated');
+            showLicenseExpiredOverlay(0);
+            return;
+        }
+    }
+    
     if (licenseDays === 'lifetime') return; // Never expires
     
     const activatedOn = new Date(licenseDate);
