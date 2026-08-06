@@ -427,8 +427,6 @@ flowchart LR
     style F fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
 ```
 
-> **How to explain this to your manager:** "The cascade chain is like a domino effect visualization. The leftmost box is what failed first (root cause). Each arrow shows what it broke next. So we fix the leftmost issue to prevent the entire chain from happening again."
-
 ---
 
 ## 💬 AI Comment Reply — How It Works
