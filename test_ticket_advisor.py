@@ -74,19 +74,19 @@ print("=" * 70)
 ticket = """After adding hosts to the existing cluster, the datastore type of the existing datastore changed from GFS2 to Directory Pool.
 For VMs created on the Directory Pool datastore, host migration cannot be performed unless the VM is powered off.
 "Server must be powered off to move hosts because it is on local storage."
-VM Name: PNJPVSYSV01, testvm01-inet, testvm02-inet
-Hosts added: pnjpneosv11, pnjpneosv12, pnjpneosv13, pnjpneosv14, pnjpneosv15
+VM Name: LABVMSRV01, testvm01-inet, testvm02-inet
+Hosts added: labnode11, labnode12, labnode13, labnode14, labnode15
 Already referred: MORPH-7774
-pnjpneosv12 has SCSI-3 persistent-reservation conflict:
+labnode12 has SCSI-3 persistent-reservation conflict:
 kernel: sd 7:0:2:244: reservation conflict
 kernel: gfs2: Error 6 writing to journal - about to withdraw this file system
 The libvirt storage pools are <pool type='dir'> pointing at /mnt/<uuid>
 VM XML: <morpheus:local-storage>true</morpheus:local-storage>
 mysql> select id,name,datastore_type_id from datastore;
-| 20 | NEOSTPURES1-01 | 1 |
-| 22 | NEOSTPURES1-02 | 1 |
-| 23 | NEOSTPURES1-mgmt01 | 1 |
-| 24 | NEOSTPURES1-NFS01 | 1 |"""
+| 20 | LABSTORE-01 | 1 |
+| 22 | LABSTORE-02 | 1 |
+| 23 | LABSTORE-mgmt01 | 1 |
+| 24 | LABSTORE-NFS01 | 1 |"""
 
 messages = [{"role": "user", "content": ticket}]
 start = time.time()
@@ -114,15 +114,15 @@ print("TEST 2: Follow-up — DB Fixed, GUI Still Wrong")
 print("=" * 70)
 
 messages = [
-    {"role": "user", "content": "GFS2 changed to Directory Pool after adding hosts. MORPH-7774. SCSI reservation on pnjpneosv12."},
+    {"role": "user", "content": "GFS2 changed to Directory Pool after adding hosts. MORPH-7774. SCSI reservation on labnode12."},
     {"role": "assistant", "content": "DB fix provided..."},
     {"role": "user", "content": """The Customer restarted the service and accessed it again using an incognito window,
 but the "Directory Pool" display was not corrected.
 mysql> SELECT id, name, datastore_type_id FROM datastore WHERE id IN (20, 22, 23, 24);
-| 20 | NEOSTPURES1-01 | 5 |
-| 22 | NEOSTPURES1-02 | 5 |
-| 23 | NEOSTPURES1-mgmt01 | 5 |
-| 24 | NEOSTPURES1-NFS01 | 5 |
+| 20 | LABSTORE-01 | 5 |
+| 22 | LABSTORE-02 | 5 |
+| 23 | LABSTORE-mgmt01 | 5 |
+| 24 | LABSTORE-NFS01 | 5 |
 Customer has below questions -
 What kind of operation might trigger this?
 Is there any way to resolve this other than upgrade to 8.1.2 now?"""},

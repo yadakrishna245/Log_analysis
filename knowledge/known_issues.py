@@ -432,7 +432,7 @@ KNOWN_ISSUES = [
         'bug_id': 'MORPHL4-31 (kernel bug, fixed in 6.8.0-117)',
         'affected_versions': 'All GFS2 on kernels before 6.8.0-117-generic with rgrplvb mount option',
         'prevention': 'Upgrade kernel to 6.8.0-117+. Monitor df vs du gap weekly. Alert if gap exceeds 10% of filesystem size. Schedule periodic fsck during maintenance windows if kernel upgrade is not immediately possible.',
-        'related_issues': 'MORPHL4-28 (Danfoss GFS2 corruption). Similar symptom but different root cause — this is a space leak, not metadata corruption from power loss.',
+        'related_issues': 'MORPHL4-28 (GFS2 corruption case). Similar symptom but different root cause — this is a space leak, not metadata corruption from power loss.',
         'category': 'filesystem',
         'resolution_type': 'Kernel bug (fixed in 6.8.0-117)',
     },

@@ -541,7 +541,7 @@ def get_report(ticket_id):
             'product': sections['product'],
             'component': sections['component'],
             'severity': sections['severity'],
-            'assigned_to': 'yada-krishna.chaithanya-ext',
+            'assigned_to': 'engineer-l4-support',
             'date': sections['date'],
             'total_findings': len(findings),
             'files_analyzed': len(log_files),
