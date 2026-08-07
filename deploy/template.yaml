@@ -203,7 +203,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: LogSherlockLicense
-      CodeUri: ./
+      CodeUri: ./license/
       Handler: license_handler.handler
       Runtime: python3.11
       MemorySize: 256
