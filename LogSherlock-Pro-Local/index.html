@@ -547,8 +547,8 @@
                         <span class="terminal-title">logsherlock — scan</span>
                     </div>
                     <div class="terminal-body" id="dropZone">
-                        <div class="terminal-prompt">$ drop files or click to browse</div>
-                        <div class="terminal-hint">.tar.gz · .zip · .sh · .log · .txt · .conf · .yaml · any text file — <span style="color:var(--hpe-green);">drop multiple files for combined scan</span></div>
+                        <div class="terminal-prompt">$ drop files or folders here</div>
+                        <div class="terminal-hint">.tar.gz · .zip · .log · .txt · .conf · .yaml · any file or folder — <span style="color:var(--hpe-green);">drop multiple items for combined scan</span></div>
                     </div>
                     <div class="terminal-status" id="termStatus">
                         <span class="dot"></span>
@@ -1509,19 +1509,103 @@ const dz=$('#dropZone'),fi=$('#fileInput');
 let _stagedFiles = []; // Files waiting to be scanned
 dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('dragover');});
 dz.addEventListener('dragleave',()=>dz.classList.remove('dragover'));
-dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('dragover');stageFiles(e.dataTransfer.files);});
-dz.addEventListener('click',()=>fi.click());
-fi.addEventListener('change',e=>stageFiles(e.target.files));
+dz.addEventListener('drop', async e => {
+    e.preventDefault();
+    dz.classList.remove('dragover');
+    showUploadingIndicator();
+    const files = await getAllFilesFromDrop(e.dataTransfer);
+    stageFiles(files);
+});
+dz.addEventListener('click',()=>{fi.setAttribute('webkitdirectory','');fi.removeAttribute('webkitdirectory');fi.click();});
+fi.addEventListener('change',e=>{showUploadingIndicator();stageFiles(e.target.files);});
+
+// ═══ FOLDER & FILE EXTRACTION — supports drag & drop of folders ═══
+async function getAllFilesFromDrop(dataTransfer) {
+    const items = dataTransfer.items;
+    const files = [];
+    
+    if (items && items.length > 0 && items[0].webkitGetAsEntry) {
+        // Use File System API for folder support
+        const entries = [];
+        for (let i = 0; i < items.length; i++) {
+            const entry = items[i].webkitGetAsEntry();
+            if (entry) entries.push(entry);
+        }
+        
+        async function readEntry(entry, path) {
+            if (entry.isFile) {
+                return new Promise((resolve) => {
+                    entry.file(f => {
+                        // Create a new file with the full path
+                        const fullPath = path + f.name;
+                        Object.defineProperty(f, 'relativePath', { value: fullPath });
+                        files.push(f);
+                        resolve();
+                    }, () => resolve());
+                });
+            } else if (entry.isDirectory) {
+                const dirReader = entry.createReader();
+                const readAll = () => new Promise((resolve) => {
+                    dirReader.readEntries(async (entries) => {
+                        if (entries.length === 0) { resolve(); return; }
+                        for (const e of entries) {
+                            await readEntry(e, path + entry.name + '/');
+                        }
+                        await readAll(); // Keep reading (Chrome returns max 100 entries per call)
+                        resolve();
+                    }, () => resolve());
+                });
+                await readAll();
+            }
+        }
+        
+        for (const entry of entries) {
+            await readEntry(entry, '');
+        }
+    } else {
+        // Fallback — just use files
+        for (let i = 0; i < dataTransfer.files.length; i++) {
+            files.push(dataTransfer.files[i]);
+        }
+    }
+    return files;
+}
+
+function showUploadingIndicator() {
+    let ind = document.getElementById('uploadingInd');
+    if (!ind) {
+        ind = document.createElement('div');
+        ind.id = 'uploadingInd';
+        ind.style.cssText = 'position:fixed;top:20px;right:20px;background:#1a1a2e;border:1px solid #8b5cf6;color:#fff;padding:14px 24px;border-radius:10px;font-size:14px;font-weight:600;z-index:99999;box-shadow:0 4px 20px rgba(139,92,246,0.4);display:flex;align-items:center;gap:10px;';
+        document.body.appendChild(ind);
+    }
+    ind.innerHTML = '<div style="width:16px;height:16px;border:2px solid #8b5cf6;border-top-color:transparent;border-radius:50%;animation:spin 0.6s linear infinite;"></div> Loading files...';
+    ind.style.display = 'flex';
+}
 
 function stageFiles(files) {
-    if (!files || !files.length) return;
-    for (const f of files) _stagedFiles.push(f);
+    if (!files || !files.length) { hideUploadingIndicator(); return; }
+    for (const f of files) {
+        // Accept ALL files — no extension filter. Skip only obvious non-text above 50MB
+        if (f.size > 50 * 1024 * 1024) {
+            const ext = f.name.split('.').pop().toLowerCase();
+            // Only skip very large binary files
+            if (['vmdk','qcow2','iso','img','rpm','deb'].includes(ext)) continue;
+        }
+        _stagedFiles.push(f);
+    }
     const totalMB = (_stagedFiles.reduce((s,f) => s + f.size, 0) / 1024 / 1024).toFixed(0);
-    const names = _stagedFiles.map(f => f.name);
+    const names = _stagedFiles.map(f => f.relativePath || f.name);
     const display = names.length <= 3 ? names.join(', ') : names.slice(0,3).join(', ') + ` +${names.length-3} more`;
     setStatus('staged', `📁 ${_stagedFiles.length} file(s) staged (${totalMB}MB): ${display}`);
     updateRunScanBtn();
+    hideUploadingIndicator();
     showUploadNotification(_stagedFiles.length, totalMB);
+}
+
+function hideUploadingIndicator() {
+    const ind = document.getElementById('uploadingInd');
+    if (ind) ind.style.display = 'none';
 }
 
 function showUploadNotification(count, sizeMB) {

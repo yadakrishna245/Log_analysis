@@ -30,13 +30,15 @@ self.onmessage = async function(e) {
         if (!name || size === 0) return 'skip';
         const n = name.toLowerCase();
         if (n.endsWith('/')) return 'skip';
-        const binExts = ['.png','.jpg','.gif','.pdf','.rpm','.deb','.bin','.exe','.so','.ko','.pyc','.class','.sqlite','.db','.vmdk','.qcow2'];
+        const binExts = ['.png','.jpg','.gif','.pdf','.rpm','.deb','.bin','.exe','.so','.ko','.pyc','.class','.sqlite','.db','.vmdk','.qcow2','.iso','.img','.jar','.war'];
         for (const ext of binExts) { if (n.endsWith(ext)) return 'skip'; }
-        if (size > 30 * 1024 * 1024) return 'skip';
+        if (size > 50 * 1024 * 1024) return 'skip'; // Skip files > 50MB
         if (HIGH_PRI_RE.test(n)) return 'high';
-        const textExts = ['.log','.err','.out','.txt'];
+        const textExts = ['.log','.err','.out','.txt','.conf','.cfg','.yaml','.yml','.xml','.json','.sh','.py','.pl'];
         for (const ext of textExts) { if (n.endsWith(ext)) return 'medium'; }
-        if (n.includes('/') && !n.includes('.')) return 'medium';
+        // Files without extension or unknown extension — treat as medium (could be log files like 'messages', 'syslog')
+        const lastPart = n.split('/').pop();
+        if (!lastPart.includes('.') || lastPart.startsWith('.')) return 'medium';
         return 'low';
     }
     
