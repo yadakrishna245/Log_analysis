@@ -176,6 +176,73 @@ Resources:
           Value: LogSherlockPro
 
   # ============================================================
+  # DynamoDB - License Activation Table (per-machine locking)
+  # ============================================================
+  LicensesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${TablePrefix}-Licenses'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: license_key
+          AttributeType: S
+      KeySchema:
+        - AttributeName: license_key
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      Tags:
+        - Key: Application
+          Value: LogSherlockPro
+
+  # ============================================================
+  # Lambda - License Activation Service
+  # ============================================================
+  LicenseFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: LogSherlockLicense
+      CodeUri: ./
+      Handler: license_handler.handler
+      Runtime: python3.11
+      MemorySize: 256
+      Timeout: 10
+      Description: LogSherlock Pro - License activation and validation
+      Environment:
+        Variables:
+          LICENSES_TABLE: !Ref LicensesTable
+          ADMIN_SECRET: 'LSPRO2026KRISHNA'
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref LicensesTable
+      Events:
+        Activate:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref LogSherlockApi
+            Path: /api/license/activate
+            Method: POST
+        Validate:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref LogSherlockApi
+            Path: /api/license/validate
+            Method: POST
+        Reset:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref LogSherlockApi
+            Path: /api/license/reset
+            Method: POST
+        Status:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref LogSherlockApi
+            Path: /api/license/status
+            Method: POST
+
+  # ============================================================
   # S3 Bucket - Log File Storage
   # ============================================================
   LogSherlockUploads:

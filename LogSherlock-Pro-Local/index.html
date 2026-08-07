@@ -4392,6 +4392,88 @@ function showLicenseOverlayInGate(container) {
     }, 100);
 }
 
+// ═══ MACHINE FINGERPRINT (persists across sessions) ═══
+function generateMachineFingerprint() {
+    // Combine multiple signals for a stable fingerprint
+    var components = [];
+    
+    // Screen resolution + color depth
+    components.push(screen.width + 'x' + screen.height + 'x' + screen.colorDepth);
+    
+    // Timezone
+    components.push(Intl.DateTimeFormat().resolvedOptions().timeZone || '');
+    
+    // Hardware concurrency (CPU cores)
+    components.push('cores:' + (navigator.hardwareConcurrency || 0));
+    
+    // Device memory
+    components.push('mem:' + (navigator.deviceMemory || 0));
+    
+    // Platform
+    components.push(navigator.platform || '');
+    
+    // Language
+    components.push(navigator.language || '');
+    
+    // Canvas fingerprint (unique per GPU/driver combination)
+    try {
+        var canvas = document.createElement('canvas');
+        canvas.width = 200; canvas.height = 50;
+        var ctx = canvas.getContext('2d');
+        ctx.textBaseline = 'alphabetic';
+        ctx.fillStyle = '#f60';
+        ctx.fillRect(125, 1, 62, 20);
+        ctx.fillStyle = '#069';
+        ctx.font = '14px Arial';
+        ctx.fillText('LogSherlock-FP', 2, 15);
+        ctx.fillStyle = 'rgba(102, 204, 0, 0.7)';
+        ctx.font = '18px Times';
+        ctx.fillText('$#@!', 4, 45);
+        components.push('canvas:' + canvas.toDataURL().slice(-50));
+    } catch(e) { components.push('canvas:err'); }
+    
+    // WebGL renderer
+    try {
+        var gl = document.createElement('canvas').getContext('webgl');
+        if (gl) {
+            var ext = gl.getExtension('WEBGL_debug_renderer_info');
+            if (ext) {
+                components.push('gpu:' + gl.getParameter(ext.UNMASKED_RENDERER_WEBGL));
+            }
+        }
+    } catch(e) { components.push('gpu:err'); }
+    
+    // Combine and hash
+    var raw = components.join('|');
+    
+    // Simple hash (FNV-1a 32-bit)
+    var hash = 2166136261;
+    for (var i = 0; i < raw.length; i++) {
+        hash ^= raw.charCodeAt(i);
+        hash = Math.imul(hash, 16777619);
+    }
+    hash = (hash >>> 0).toString(16);
+    
+    // Add a second hash pass for longer fingerprint
+    var hash2 = 2166136261;
+    for (var i = raw.length - 1; i >= 0; i--) {
+        hash2 ^= raw.charCodeAt(i);
+        hash2 = Math.imul(hash2, 16777619);
+    }
+    hash2 = (hash2 >>> 0).toString(16);
+    
+    var fingerprint = hash.padStart(8, '0') + hash2.padStart(8, '0') + '-' + components[0].replace(/[^0-9x]/g, '');
+    
+    // Cache in localStorage for consistency
+    var cached = localStorage.getItem('ls_machine_fp');
+    if (cached) return cached;
+    localStorage.setItem('ls_machine_fp', fingerprint);
+    return fingerprint;
+}
+
+// License activation API URL
+var LICENSE_API_URL = 'https://5bruz4e6hj.execute-api.us-east-1.amazonaws.com/prod';
+
 function validateLicenseGate() {
     var inp = document.getElementById('licenseInputGate');
     var errDiv = document.getElementById('licenseErrorGate');
@@ -4446,26 +4528,68 @@ function validateLicenseGate() {
     var isLifetime = days >= 9999;
     var userName = localStorage.getItem('ls_username') || 'Unknown';
     
-    // Store license
-    localStorage.setItem('ls_license_validated', 'true');
-    localStorage.setItem('ls_license_key', key);
-    localStorage.setItem('ls_license_date', new Date().toISOString());
-    localStorage.setItem('ls_license_days', isLifetime ? 'lifetime' : days.toString());
+    // Generate machine fingerprint
+    var fingerprint = generateMachineFingerprint();
     
-    // Track activation to Google Forms
-    try {
-        var formUrl = 'https://docs.google.com/forms/d/e/1FAIpQLSe_FORM_ID_HERE/formResponse';
-        var trackData = new FormData();
-        trackData.append('entry.0', key);
-        trackData.append('entry.1', userName);
-        trackData.append('entry.2', navigator.userAgent.substring(0, 80));
-        trackData.append('entry.3', isLifetime ? 'Lifetime' : days + ' days');
-        trackData.append('entry.4', new Date().toISOString());
-        trackData.append('entry.5', navigator.platform);
-        fetch(formUrl, { method: 'POST', body: trackData, mode: 'no-cors' }).catch(function(){});
-    } catch(e) {}
+    // Show activating state
+    errDiv.style.display = 'block';
+    errDiv.style.color = '#f59e0b';
+    errDiv.textContent = '⏳ Activating license...';
+    inp.disabled = true;
     
-    unlockApp();
+    // Call activation API
+    fetch(LICENSE_API_URL + '/api/license/activate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            license_key: key,
+            fingerprint: fingerprint,
+            user_name: userName,
+            user_agent: navigator.userAgent.substring(0, 200)
+        })
+    })
+    .then(function(resp) { return resp.json(); })
+    .then(function(data) {
+        inp.disabled = false;
+        if (data.activated) {
+            // SUCCESS — store and unlock
+            localStorage.setItem('ls_license_validated', 'true');
+            localStorage.setItem('ls_license_key', key);
+            localStorage.setItem('ls_license_date', new Date().toISOString());
+            localStorage.setItem('ls_license_days', isLifetime ? 'lifetime' : days.toString());
+            localStorage.setItem('ls_license_fp', fingerprint);
+            unlockApp();
+        } else {
+            // BLOCKED — different machine
+            errDiv.style.color = '#ef4444';
+            errDiv.textContent = '❌ ' + (data.error || 'Activation failed') + (data.message ? '\n' + data.message : '');
+            errDiv.style.display = 'block';
+            inp.style.borderColor = '#ef4444';
+        }
+    })
+    .catch(function(err) {
+        inp.disabled = false;
+        // Network error — allow offline activation with local validation only
+        // This handles cases where user has no internet temporarily
+        errDiv.style.color = '#f59e0b';
+        errDiv.textContent = '⚠️ Could not reach activation server. Trying offline validation...';
+        
+        // Check if previously activated on this machine
+        var storedFP = localStorage.getItem('ls_license_fp');
+        if (storedFP === fingerprint && localStorage.getItem('ls_license_key') === key) {
+            // Same machine, same key — allow offline
+            localStorage.setItem('ls_license_validated', 'true');
+            setTimeout(unlockApp, 500);
+        } else if (!storedFP) {
+            // First time but no internet — block (must activate online first time)
+            errDiv.style.color = '#ef4444';
+            errDiv.textContent = '❌ Internet required for first-time activation. Please connect to the internet and try again.';
+        } else {
+            // Different fingerprint/key — block
+            errDiv.style.color = '#ef4444';
+            errDiv.textContent = '❌ This license is registered to another device. Contact admin for transfer.';
+        }
+    });
 }
 
 function unlockApp() {
@@ -4585,34 +4709,66 @@ function validateLicense() {
         return;
     }
     
-    // ═══ ACTIVATE (same key works on multiple machines for team sharing) ═══
+    // ═══ ACTIVATE (per-machine locking) ═══
     const isLifetime = days >= 9999;
     const userName = localStorage.getItem('ls_username') || 'Unknown';
+    const fingerprint = generateMachineFingerprint();
     
-    // Store license
-    localStorage.setItem('ls_license_validated', 'true');
-    localStorage.setItem('ls_license_key', key);
-    localStorage.setItem('ls_license_date', new Date().toISOString());
-    localStorage.setItem('ls_license_days', isLifetime ? 'lifetime' : days.toString());
+    // Show activating state
+    errDiv.style.display = 'block';
+    errDiv.style.color = '#f59e0b';
+    errDiv.textContent = '⏳ Activating license...';
+    if (inp) inp.disabled = true;
     
-    // ═══ SEND ACTIVATION DATA TO GOOGLE FORM (for tracking) ═══
-    try {
-        const formUrl = 'https://docs.google.com/forms/d/e/1FAIpQLSe_FORM_ID_HERE/formResponse';
-        // Silent tracking — doesn't block activation
-        const trackData = new FormData();
-        trackData.append('entry.0', key);
-        trackData.append('entry.1', userName);
-        trackData.append('entry.2', navigator.platform + ' | ' + navigator.userAgent.substring(0, 50));
-        trackData.append('entry.3', isLifetime ? 'Lifetime' : days + ' days');
-        trackData.append('entry.4', new Date().toISOString());
-        trackData.append('entry.5', location.protocol + '//' + location.host);
-        fetch(formUrl, { method: 'POST', body: trackData, mode: 'no-cors' }).catch(() => {});
-    } catch(e) {} // Tracking is optional — don't block if it fails
-    
-    // Remove overlay and show app
-    var lo = document.getElementById('licenseOverlay');
-    if (lo) lo.remove();
-    unlockApp();
+    // Call activation API
+    fetch(LICENSE_API_URL + '/api/license/activate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            license_key: key,
+            fingerprint: fingerprint,
+            user_name: userName,
+            user_agent: navigator.userAgent.substring(0, 200)
+        })
+    })
+    .then(function(resp) { return resp.json(); })
+    .then(function(data) {
+        if (inp) inp.disabled = false;
+        if (data.activated) {
+            localStorage.setItem('ls_license_validated', 'true');
+            localStorage.setItem('ls_license_key', key);
+            localStorage.setItem('ls_license_date', new Date().toISOString());
+            localStorage.setItem('ls_license_days', isLifetime ? 'lifetime' : days.toString());
+            localStorage.setItem('ls_license_fp', fingerprint);
+            var lo = document.getElementById('licenseOverlay');
+            if (lo) lo.remove();
+            unlockApp();
+        } else {
+            errDiv.style.color = '#ef4444';
+            errDiv.textContent = '❌ ' + (data.error || 'Activation failed') + (data.message ? ' — ' + data.message : '');
+            errDiv.style.display = 'block';
+            if (inp) inp.style.borderColor = '#ef4444';
+        }
+    })
+    .catch(function(err) {
+        if (inp) inp.disabled = false;
+        // Offline fallback
+        var storedFP = localStorage.getItem('ls_license_fp');
+        if (storedFP === fingerprint && localStorage.getItem('ls_license_key') === key) {
+            localStorage.setItem('ls_license_validated', 'true');
+            var lo = document.getElementById('licenseOverlay');
+            if (lo) lo.remove();
+            unlockApp();
+        } else if (!storedFP) {
+            errDiv.style.color = '#ef4444';
+            errDiv.textContent = '❌ Internet required for first-time activation.';
+            errDiv.style.display = 'block';
+        } else {
+            errDiv.style.color = '#ef4444';
+            errDiv.textContent = '❌ This license is registered to another device.';
+            errDiv.style.display = 'block';
+        }
+    });
 }
 
 // Check license expiry on every page load
@@ -4624,7 +4780,18 @@ function validateLicense() {
     
     if (!validated || !licenseDate) return; // Will be caught by enforceNameEntry flow
     
-    // License keys work on multiple machines (team sharing)
+    // Verify machine fingerprint matches (per-machine lock)
+    const storedFP = localStorage.getItem('ls_license_fp');
+    if (storedFP) {
+        const currentFP = generateMachineFingerprint();
+        if (storedFP !== currentFP) {
+            // Fingerprint mismatch — someone copied localStorage
+            localStorage.removeItem('ls_license_validated');
+            localStorage.removeItem('ls_license_fp');
+            location.reload();
+            return;
+        }
+    }
     
     if (licenseDays === 'lifetime') return; // Never expires
     
