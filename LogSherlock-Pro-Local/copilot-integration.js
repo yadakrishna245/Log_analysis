@@ -364,6 +364,22 @@ Be actionable and specific to HPE VME/Morpheus environment.`;
     /**
      * Call the Copilot/OpenAI-compatible API
      */
+    // Model priority chain — ordered by accuracy (best first)
+    static MODEL_CHAIN = [
+        'gpt-4o',
+        'claude-sonnet-4',
+        'gemini-2.5-pro',
+        'claude-opus-4',
+        'gpt-4-turbo',
+        'o4-mini',
+        'o3-mini',
+        'claude-3.5-sonnet',
+        'gpt-4o-mini',
+        'gemini-2.5-flash',
+        'gemini-2.0-flash',
+        'claude-haiku-3.5',
+    ];
+
     async _callAPI(systemPrompt, userPrompt) {
         // Refresh Copilot token if needed
         await this._refreshCopilotTokenIfNeeded();
@@ -384,28 +400,71 @@ Be actionable and specific to HPE VME/Morpheus environment.`;
             headers['Openai-Intent'] = 'conversation-panel';
             headers['Copilot-Integration-Id'] = 'vscode-chat';
         }
-        
-        const response = await fetch(this.endpoint, {
-            method: 'POST',
-            headers: headers,
-            body: JSON.stringify({
-                model: this.model,
-                messages: [
-                    { role: 'system', content: systemPrompt },
-                    { role: 'user', content: userPrompt },
-                ],
-                max_tokens: this.maxTokens,
-                temperature: this.temperature,
-            }),
-        });
 
-        if (!response.ok) {
-            const error = await response.json().catch(() => ({}));
-            throw new Error(error.error?.message || `API error: ${response.status} ${response.statusText}`);
+        // Build model chain: selected model first, then fallbacks
+        let modelsToTry = [this.model];
+        if (isCopilot) {
+            // Add remaining models from chain (skip the one already selected)
+            const chain = CopilotIntegration.MODEL_CHAIN.filter(m => m !== this.model);
+            modelsToTry = [this.model, ...chain];
         }
 
-        const data = await response.json();
-        return data.choices?.[0]?.message?.content || 'No response generated.';
+        let lastError = null;
+        for (const model of modelsToTry) {
+            try {
+                const response = await fetch(this.endpoint, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({
+                        model: model,
+                        messages: [
+                            { role: 'system', content: systemPrompt },
+                            { role: 'user', content: userPrompt },
+                        ],
+                        max_tokens: this.maxTokens,
+                        temperature: this.temperature,
+                    }),
+                });
+
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({}));
+                    const errMsg = errData.error?.message || `${response.status}`;
+                    // If model not available/overloaded, try next
+                    if (response.status === 404 || response.status === 429 || response.status === 503) {
+                        console.warn(`[LogSherlock] Model ${model} failed (${response.status}), trying next...`);
+                        lastError = new Error(`${model}: ${errMsg}`);
+                        continue;
+                    }
+                    throw new Error(errMsg);
+                }
+
+                const data = await response.json();
+                const content = data.choices?.[0]?.message?.content;
+                if (!content) {
+                    lastError = new Error(`${model}: Empty response`);
+                    continue;
+                }
+                
+                // Success! Update the model used (for display)
+                this._lastModelUsed = model;
+                if (model !== this.model) {
+                    console.log(`[LogSherlock] Fallback: ${this.model} → ${model} (success)`);
+                }
+                return content;
+            } catch (err) {
+                lastError = err;
+                console.warn(`[LogSherlock] Model ${model} error:`, err.message);
+                continue;
+            }
+        }
+        
+        // All models failed
+        throw lastError || new Error('All models failed. Check your connection.');
+    }
+
+    /** Get the model that was actually used (after fallback) */
+    getLastModelUsed() {
+        return this._lastModelUsed || this.model;
     }
 
     /**
