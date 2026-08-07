@@ -4,6 +4,27 @@
 
 > Zero install. Zero data upload. One URL: `http://localhost:8888`
 
+### 🌍 Runs Everywhere — One App, All Platforms
+
+```mermaid
+flowchart LR
+    APP[LogSherlock Pro<br/>4 files, 252 KB] --> WIN[🪟 Windows<br/>python server.py]
+    APP --> LIN[🐧 Linux<br/>python3 server.py]
+    APP --> MAC[🍎 macOS<br/>python3 server.py]
+    WIN --> BROWSER[🌐 localhost:8888]
+    LIN --> BROWSER
+    MAC --> BROWSER
+```
+
+| Platform | Tested On | Command |
+|----------|-----------|---------|
+| 🪟 Windows 10/11 | HP i7 laptops, PowerShell/CMD/VS Code | `python server.py` |
+| 🐧 Ubuntu 20.04+ | Lab servers, WSL2 | `python3 server.py` |
+| 🐧 RHEL 8/9 | HPE support infra | `python3 server.py` |
+| 🍎 macOS 12+ | MacBooks | `python3 server.py` |
+
+> **Zero dependencies.** Only Python 3.10+ standard library. No pip install. No npm. No Docker. Just extract and run.
+
 ---
 
 ## 🚀 Quick Start — Step-by-Step
@@ -30,26 +51,26 @@ Extract to any location, e.g.: C:\Tools\LogSherlock-Pro-Local
 
 ### Step 2: Open a terminal and start the server
 
-**PowerShell:**
+**Windows (PowerShell / CMD / VS Code Terminal):**
 ```powershell
 cd "C:\Tools\LogSherlock-Pro-Local"
 python server.py
 ```
 
-**CMD:**
-```cmd
-cd C:\Tools\LogSherlock-Pro-Local
-python server.py
+**Linux (Ubuntu / RHEL / Debian):**
+```bash
+cd ~/LogSherlock-Pro-Local
+python3 server.py
 ```
 
-**VS Code Terminal (Ctrl+`):**
-```
-cd "C:\Tools\LogSherlock-Pro-Local"
-python server.py
+**macOS:**
+```bash
+cd ~/LogSherlock-Pro-Local
+python3 server.py
 ```
 
 > ✅ You should see: `Serving LogSherlock Pro on http://localhost:8888`  
-> ❌ If error: Make sure Python 3.10+ is installed → `python --version`
+> ❌ If error: Make sure Python 3.10+ is installed → `python --version` or `python3 --version`
 
 ### Step 3: Open browser
 

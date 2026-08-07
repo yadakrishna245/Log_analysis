@@ -39,29 +39,30 @@ flowchart LR
 | 5️⃣ | **Open Browser** | Go to **http://localhost:8888** |
 | 6️⃣ | **Enter your name + license key** | App unlocks → Drop log files → Get RCA! |
 
-#### Step 4 — Run the server (pick any terminal):
+#### Step 4 — Run the server (works on all platforms):
 
-**PowerShell:**
+**🪟 Windows (PowerShell / CMD / VS Code):**
 ```powershell
 cd "C:\Tools\LogSherlock-Pro-Local"
 python server.py
 ```
 
-**CMD:**
-```cmd
-cd C:\Tools\LogSherlock-Pro-Local
-python server.py
+**🐧 Linux (Ubuntu / RHEL):**
+```bash
+cd ~/LogSherlock-Pro-Local
+python3 server.py
 ```
 
-**VS Code Terminal (Ctrl+`):**
-```
-cd "C:\Tools\LogSherlock-Pro-Local"
-python server.py
+**🍎 macOS:**
+```bash
+cd ~/LogSherlock-Pro-Local
+python3 server.py
 ```
 
 > ✅ You should see: `Serving LogSherlock Pro on http://localhost:8888`  
-> ❌ If error: Make sure Python 3.10+ is installed (`python --version`)  
-> 🛑 To stop: Press `Ctrl+C` in the terminal
+> ❌ If error: Make sure Python 3.10+ is installed (`python --version` or `python3 --version`)  
+> 🛑 To stop: Press `Ctrl+C` in the terminal  
+> 🌍 **Zero dependencies** — Only Python standard library. No pip install needed.
 
 ---
 
