@@ -54,3 +54,12 @@ flask_stderr.log
 # Instance DBs
 instance/
 CHECKPOINT.md
+
+# Admin Dashboard (PRIVATE - in monitor repo only)
+templates/admin/
+LogSherlock-Pro-Local/Administration/
+
+# Unused files
+build_exe.bat
+run_exe.py
+knowledge_base/
