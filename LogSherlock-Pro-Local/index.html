@@ -5698,7 +5698,9 @@ async function signInWithCopilot() {
         // Save the Copilot token
         const copilotToken = exchData.token;
         localStorage.setItem('ls_copilot_api_key', copilotToken);
+        localStorage.setItem('ls_copilot_ghu_token', copilotToken);
         localStorage.setItem('ls_copilot_endpoint', 'https://api.githubcopilot.com/chat/completions');
+        localStorage.setItem('ls_copilot_model', 'gpt-4o');
         localStorage.setItem('ls_copilot_oauth_token', token);
         localStorage.setItem('ls_copilot_ghu_expiry', String(exchData.expires_at ? exchData.expires_at * 1000 : Date.now() + 1800000));
 
@@ -6197,16 +6199,18 @@ function askOllamaTicket() {
     panel.style.display = 'block';
     
     if (window.copilot && copilot.isReady()) {
-        panel.innerHTML = '<div style="padding:16px;color:var(--text-300);">🤖 Analyzing with Copilot...</div>';
+        panel.innerHTML = '<div style="padding:16px;color:var(--text-300);">🤖 Analyzing with GitHub Copilot AI...</div>';
         copilot.getInvestigationGuide(ticketText).then(r => {
             if (r.success) {
-                panel.innerHTML = '<div style="padding:16px;font-size:13px;color:var(--text-200);line-height:1.8;white-space:pre-wrap;border:1px solid #8b5cf6;border-left:4px solid #8b5cf6;border-radius:10px;"><div style="font-weight:700;color:#8b5cf6;margin-bottom:8px;">🤖 AI Analysis (GitHub Copilot)</div>' + r.guide.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</div>';
+                panel.innerHTML = '<div style="padding:16px;font-size:13px;color:var(--text-200);line-height:1.8;white-space:pre-wrap;border:1px solid #8b5cf6;border-left:4px solid #8b5cf6;border-radius:10px;"><div style="font-weight:700;color:#8b5cf6;margin-bottom:8px;">🤖 AI Analysis (GitHub Copilot — ' + (copilot.model || 'gpt-4o') + ')</div>' + r.guide.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</div>';
             } else {
-                panel.innerHTML = '<div style="padding:16px;color:#f59e0b;">Configure Copilot API key for AI analysis. See CONFIGURATION.md</div>';
+                panel.innerHTML = '<div style="padding:16px;color:#ef4444;">❌ AI Error: ' + (r.error || 'Unknown error') + '</div><div style="padding:8px 16px;font-size:11px;color:var(--text-500);">Try: Settings → Sign in with GitHub Copilot again</div>';
             }
+        }).catch(err => {
+            panel.innerHTML = '<div style="padding:16px;color:#ef4444;">❌ ' + err.message + '</div>';
         });
     } else {
-        panel.innerHTML = '<div style="padding:16px;border:1px solid #8b5cf6;border-left:4px solid #8b5cf6;border-radius:10px;"><div style="font-weight:700;color:#8b5cf6;margin-bottom:8px;">🤖 AI Analysis</div><div style="color:var(--text-300);font-size:13px;">GitHub Copilot not configured yet.<br><br>To enable AI-powered analysis:<br>1. Get your Copilot API key from your org admin<br>2. Open browser console (F12)<br>3. Run: <code>copilot.configure({apiKey: "your-key-here"})</code><br>4. Reload page<br><br>See CONFIGURATION.md for detailed instructions.</div></div>';
+        panel.innerHTML = '<div style="padding:16px;border:1px solid #8b5cf6;border-left:4px solid #8b5cf6;border-radius:10px;"><div style="font-weight:700;color:#8b5cf6;margin-bottom:8px;">🤖 AI Analysis</div><div style="color:var(--text-300);font-size:13px;">GitHub Copilot not connected.<br><br>To enable AI:<br>1. Go to ⚙️ Settings<br>2. Click "🚀 Sign in with GitHub Copilot"<br>3. Enter the code on GitHub<br>4. Come back and click "Ask AI for Solution" again</div></div>';
     }
 }
 
