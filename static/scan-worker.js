@@ -1,6 +1,7 @@
-// LogSherlock Pro — Scan Worker
+// LogSherlock Pro — Scan Worker (Local Edition)
 // Runs pattern matching in a background thread to prevent UI freeze
-// Handles: .tar.gz, .tgz, .gz, plain text files of ANY size
+// Handles: .tar.gz, .tgz, .gz, .zip, plain text files of ANY size
+// Copyright 2026 Krishna Yada. All Rights Reserved.
 
 self.onmessage = async function(e) {
     const { file, patterns, prefilterWords } = e.data;
@@ -31,11 +32,11 @@ self.onmessage = async function(e) {
         if (n.endsWith('/')) return 'skip';
         const binExts = ['.png','.jpg','.gif','.pdf','.rpm','.deb','.bin','.exe','.so','.ko','.pyc','.class','.sqlite','.db','.vmdk','.qcow2'];
         for (const ext of binExts) { if (n.endsWith(ext)) return 'skip'; }
-        if (size > 30 * 1024 * 1024) return 'skip'; // >30MB single file skip
+        if (size > 30 * 1024 * 1024) return 'skip';
         if (HIGH_PRI_RE.test(n)) return 'high';
         const textExts = ['.log','.err','.out','.txt'];
         for (const ext of textExts) { if (n.endsWith(ext)) return 'medium'; }
-        if (n.includes('/') && !n.includes('.')) return 'medium'; // files without extension in subdirs
+        if (n.includes('/') && !n.includes('.')) return 'medium';
         return 'low';
     }
     
@@ -62,7 +63,7 @@ self.onmessage = async function(e) {
                         file_date: mtime ? new Date(mtime * 1000).toISOString() : '',
                     });
                     if (findings.length >= MAX_FINDINGS) return;
-                    break; // one pattern per line is enough
+                    break;
                 }
             }
             if (findings.length >= MAX_FINDINGS) return;
@@ -72,9 +73,102 @@ self.onmessage = async function(e) {
     try {
         const isTar = file.name.endsWith('.tar.gz') || file.name.endsWith('.tgz') || file.name.endsWith('.tar');
         const isGz = file.name.endsWith('.gz') && !isTar;
+        const isZip = file.name.endsWith('.zip');
         
-        if (isTar) {
-            // Streaming tar.gz processing
+        if (isZip) {
+            // ═══ ZIP FILE SUPPORT ═══
+            // Read ZIP using manual parsing of local file headers
+            const arrayBuf = await file.arrayBuffer();
+            const view = new DataView(arrayBuf);
+            let offset = 0;
+            let mediumCount = 0;
+            
+            while (offset < arrayBuf.byteLength - 4 && findings.length < MAX_FINDINGS) {
+                // Check for local file header signature (PK\x03\x04)
+                const sig = view.getUint32(offset, true);
+                if (sig !== 0x04034b50) break; // Not a local file header
+                
+                const compMethod = view.getUint16(offset + 8, true);
+                const compSize = view.getUint32(offset + 18, true);
+                const uncompSize = view.getUint32(offset + 22, true);
+                const nameLen = view.getUint16(offset + 26, true);
+                const extraLen = view.getUint16(offset + 28, true);
+                
+                const nameBytes = new Uint8Array(arrayBuf, offset + 30, nameLen);
+                const name = decoder.decode(nameBytes);
+                
+                const dataOffset = offset + 30 + nameLen + extraLen;
+                offset = dataOffset + compSize;
+                
+                totalEntries++;
+                
+                // Skip directories, large files, binary files
+                const priority = classifyFile(name, uncompSize);
+                if (priority === 'skip' || uncompSize === 0) {
+                    filesSkipped++;
+                    continue;
+                }
+                if (priority === 'medium' && mediumCount >= 50) {
+                    filesSkipped++;
+                    continue;
+                }
+                if (priority === 'medium') mediumCount++;
+                
+                try {
+                    let text = '';
+                    const rawData = new Uint8Array(arrayBuf, dataOffset, compSize);
+                    
+                    if (compMethod === 0) {
+                        // Stored (no compression)
+                        text = decoder.decode(rawData);
+                    } else if (compMethod === 8) {
+                        // Deflate — use DecompressionStream
+                        const ds = new DecompressionStream('deflate-raw');
+                        const writer = ds.writable.getWriter();
+                        const reader = ds.readable.getReader();
+                        
+                        // Write and close
+                        writer.write(rawData);
+                        writer.close();
+                        
+                        // Read decompressed
+                        const chunks = [];
+                        let totalSize = 0;
+                        while (true) {
+                            const {value, done: rdone} = await reader.read();
+                            if (rdone) break;
+                            chunks.push(value);
+                            totalSize += value.length;
+                            if (totalSize > 30 * 1024 * 1024) break; // 30MB safety limit per file
+                        }
+                        const merged = new Uint8Array(totalSize);
+                        let pos = 0;
+                        for (const c of chunks) { merged.set(c, pos); pos += c.length; }
+                        text = decoder.decode(merged);
+                    } else {
+                        // Unsupported compression method
+                        filesSkipped++;
+                        continue;
+                    }
+                    
+                    scanLines(text, name, 0);
+                    
+                    if (filesAnalyzed % 5 === 0) {
+                        self.postMessage({
+                            type: 'progress',
+                            filesAnalyzed,
+                            totalEntries,
+                            findings: findings.length,
+                            totalLines,
+                            currentFile: name.split('/').pop(),
+                        });
+                    }
+                } catch(entryErr) {
+                    filesSkipped++;
+                }
+            }
+            
+        } else if (isTar) {
             let stream = file.stream();
             if (file.name.endsWith('.tar.gz') || file.name.endsWith('.tgz')) {
                 stream = stream.pipeThrough(new DecompressionStream('gzip'));
@@ -125,7 +219,6 @@ self.onmessage = async function(e) {
                 if ((type === '0' || type === '\0') && size > 0 && size <= 30 * 1024 * 1024) {
                     const priority = classifyFile(name, size);
                     if (priority === 'skip') {
-                        // Skip content
                         if (!(await fillBuffer(paddedSize))) break;
                         consume(paddedSize);
                         filesSkipped++;
@@ -141,7 +234,6 @@ self.onmessage = async function(e) {
                         const text = decoder.decode(content);
                         scanLines(text, name, mtime);
                         
-                        // Report progress every 5 files
                         if (filesAnalyzed % 5 === 0) {
                             self.postMessage({
                                 type: 'progress',
@@ -154,7 +246,6 @@ self.onmessage = async function(e) {
                         }
                     }
                 } else {
-                    // Skip non-regular or oversized
                     if (paddedSize > 0) {
                         if (!(await fillBuffer(paddedSize))) break;
                         consume(paddedSize);
@@ -164,7 +255,6 @@ self.onmessage = async function(e) {
             }
             
         } else if (isGz) {
-            // Plain .gz file (not tar) — decompress and scan as text
             const stream = file.stream().pipeThrough(new DecompressionStream('gzip'));
             const reader = stream.getReader();
             let leftover = '';
@@ -196,7 +286,6 @@ self.onmessage = async function(e) {
                     if (findings.length >= MAX_FINDINGS) break;
                 }
                 
-                // Progress every chunk
                 if (totalLines % 50000 === 0) {
                     self.postMessage({
                         type: 'progress',
@@ -212,7 +301,6 @@ self.onmessage = async function(e) {
             filesAnalyzed = 1;
             
         } else {
-            // Plain text file — stream line by line
             const stream = file.stream();
             const reader = stream.getReader();
             let leftover = '';
@@ -263,7 +351,6 @@ self.onmessage = async function(e) {
             self.postMessage({ type: 'error', message: err.message });
             return;
         }
-        // Partial results — still return them
     }
     
     // Done — send results
