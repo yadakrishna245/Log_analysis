@@ -26,7 +26,48 @@ class CopilotIntegration {
         this.temperature = 0.3; // Low temperature for factual analysis
         this._copilotToken = localStorage.getItem('ls_copilot_ghu_token') || '';
         this._copilotTokenExpiry = parseInt(localStorage.getItem('ls_copilot_ghu_expiry') || '0');
+        this._ollamaAvailable = false;
+        this._ollamaModels = [];
+        
+        // Auto-detect Ollama on startup
+        this._detectOllama();
     }
+
+    /** Auto-detect local Ollama and available models */
+    async _detectOllama() {
+        try {
+            const resp = await fetch('http://localhost:11434/api/tags', { signal: AbortSignal.timeout(3000) });
+            if (resp.ok) {
+                const data = await resp.json();
+                this._ollamaModels = (data.models || []).map(m => m.name);
+                this._ollamaAvailable = this._ollamaModels.length > 0;
+                if (this._ollamaAvailable) {
+                    console.log(`[LogSherlock] Ollama detected! Models: ${this._ollamaModels.join(', ')}`);
+                    // If no Copilot configured, auto-enable with Ollama
+                    if (!this._copilotToken && !this.apiKey) {
+                        this.endpoint = 'http://localhost:11434/v1/chat/completions';
+                        this.apiKey = 'ollama';
+                        this.model = this._ollamaModels.find(m => m.includes('qwen')) 
+                                  || this._ollamaModels.find(m => m.includes('llama'))
+                                  || this._ollamaModels[0];
+                        this.enabled = true;
+                        localStorage.setItem('ls_copilot_endpoint', this.endpoint);
+                        localStorage.setItem('ls_copilot_api_key', 'ollama');
+                        localStorage.setItem('ls_copilot_model', this.model);
+                    }
+                }
+            }
+        } catch(e) {
+            // Ollama not running — that's fine
+            this._ollamaAvailable = false;
+        }
+    }
+
+    /** Check if Ollama is available */
+    isOllamaAvailable() { return this._ollamaAvailable; }
+    
+    /** Get list of local Ollama models */
+    getOllamaModels() { return this._ollamaModels; }
 
     /**
      * GitHub Copilot OAuth Device Flow
@@ -164,17 +205,18 @@ class CopilotIntegration {
      * Check if Copilot is configured and ready
      */
     isReady() {
-        // Check either API key OR OAuth Copilot token
-        return (this.enabled && this.apiKey.length > 10) || (!!this._copilotToken && this._copilotToken.length > 10);
+        // Check: API key OR OAuth Copilot token OR Ollama running locally
+        return (this.enabled && this.apiKey.length > 0) || (!!this._copilotToken && this._copilotToken.length > 10) || this._ollamaAvailable;
     }
 
     /**
      * Get connection status
      */
     getStatus() {
-        if (this._copilotToken) return { status: 'ready', message: `GitHub Copilot connected (${this.model})`, model: this.model };
-        if (!this.apiKey) return { status: 'not_configured', message: 'API key not set' };
-        return { status: 'ready', message: `Connected (${this.model})`, model: this.model };
+        if (this._copilotToken) return { status: 'ready', message: `GitHub Copilot connected (${this.model})`, model: this.model, provider: 'copilot' };
+        if (this._ollamaAvailable && this.endpoint.includes('11434')) return { status: 'ready', message: `Ollama Local (${this.model})`, model: this.model, provider: 'ollama' };
+        if (!this.apiKey) return { status: 'not_configured', message: 'Not configured — Sign in with Copilot or start Ollama' };
+        return { status: 'ready', message: `Connected (${this.model})`, model: this.model, provider: 'custom' };
     }
 
     /**
@@ -455,6 +497,37 @@ Be actionable and specific to HPE VME/Morpheus environment.`;
                 lastError = err;
                 console.warn(`[LogSherlock] Model ${model} error:`, err.message);
                 continue;
+            }
+        }
+        
+        // All cloud models failed — try Ollama as final fallback
+        if (isCopilot && this._ollamaAvailable && this._ollamaModels.length > 0) {
+            console.log('[LogSherlock] All cloud models failed. Falling back to local Ollama...');
+            try {
+                const ollamaModel = this._ollamaModels.find(m => m.includes('qwen')) || this._ollamaModels[0];
+                const ollamaResp = await fetch('http://localhost:11434/v1/chat/completions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: ollamaModel,
+                        messages: [
+                            { role: 'system', content: systemPrompt },
+                            { role: 'user', content: userPrompt },
+                        ],
+                        temperature: this.temperature,
+                    }),
+                });
+                if (ollamaResp.ok) {
+                    const ollamaData = await ollamaResp.json();
+                    const content = ollamaData.choices?.[0]?.message?.content;
+                    if (content) {
+                        this._lastModelUsed = `${ollamaModel} (local)`;
+                        console.log(`[LogSherlock] Ollama fallback success: ${ollamaModel}`);
+                        return content;
+                    }
+                }
+            } catch(e) {
+                console.warn('[LogSherlock] Ollama fallback also failed:', e.message);
             }
         }
         
