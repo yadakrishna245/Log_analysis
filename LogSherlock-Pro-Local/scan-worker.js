@@ -4,7 +4,7 @@
 // Copyright 2026 Krishna Yada. All Rights Reserved.
 
 self.onmessage = async function(e) {
-    const { file, patterns, prefilterWords } = e.data;
+    const { file, patterns, prefilterWords, archiveName } = e.data;
     
     // Build prefilter regex
     const PREFILTER_RE = new RegExp(prefilterWords.join('|'), 'i');
@@ -42,10 +42,32 @@ self.onmessage = async function(e) {
         return 'low';
     }
     
+    // Timestamp extraction patterns for log lines
+    const TS_PATTERNS = [
+        // ISO format: 2026-08-07T05:37:12 or 2026-08-07T05:37:12.123Z
+        /(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?)/,
+        // ISO date+time with space: 2026-08-07 05:37:12.123
+        /(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)?)/,
+        // Syslog format: Aug  7 05:37:12 or Aug 07 05:37:12
+        /((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2}\s+\d{2}:\d{2}:\d{2})/,
+        // Syslog with year: Aug 07 2026 05:37:12
+        /((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2}\s+\d{4}\s+\d{2}:\d{2}:\d{2})/,
+    ];
+
+    function extractTimestamp(line) {
+        for (const re of TS_PATTERNS) {
+            const m = line.match(re);
+            if (m) return m[1];
+        }
+        return '';
+    }
+
     function scanLines(text, fileName, mtime) {
         const lines = text.split('\n');
         filesAnalyzed++;
         const maxLines = text.length > 5*1024*1024 ? 30000 : (text.length > 1024*1024 ? 50000 : 100000);
+        // Prepend archive name to file path if available
+        const fullFile = archiveName ? archiveName + '/' + fileName : fileName;
         
         for (let ln = 0; ln < Math.min(lines.length, maxLines); ln++) {
             totalLines++;
@@ -57,12 +79,13 @@ self.onmessage = async function(e) {
                         pattern_name: p.name,
                         severity: p.severity,
                         category: p.category,
-                        file: fileName,
+                        file: fullFile,
                         line_number: ln + 1,
                         line_content: line.substring(0, 500),
                         description: p.description,
                         solution_hint: p.solution_hint || '',
                         file_date: mtime ? new Date(mtime * 1000).toISOString() : '',
+                        log_timestamp: extractTimestamp(line),
                     });
                     if (findings.length >= MAX_FINDINGS) return;
                     break;
@@ -278,8 +301,9 @@ self.onmessage = async function(e) {
                         if (p.compiled.test(line)) {
                             findings.push({
                                 pattern_name: p.name, severity: p.severity, category: p.category,
-                                file: file.name, line_number: totalLines, line_content: line.substring(0, 500),
+                                file: archiveName ? archiveName + '/' + file.name : file.name, line_number: totalLines, line_content: line.substring(0, 500),
                                 description: p.description, solution_hint: p.solution_hint || '', file_date: '',
+                                log_timestamp: extractTimestamp(line),
                             });
                             if (findings.length >= MAX_FINDINGS) break;
                             break;
@@ -324,8 +348,9 @@ self.onmessage = async function(e) {
                         if (p.compiled.test(line)) {
                             findings.push({
                                 pattern_name: p.name, severity: p.severity, category: p.category,
-                                file: file.name, line_number: totalLines, line_content: line.substring(0, 500),
+                                file: archiveName ? archiveName + '/' + file.name : file.name, line_number: totalLines, line_content: line.substring(0, 500),
                                 description: p.description, solution_hint: p.solution_hint || '', file_date: '',
+                                log_timestamp: extractTimestamp(line),
                             });
                             if (findings.length >= MAX_FINDINGS) break;
                             break;

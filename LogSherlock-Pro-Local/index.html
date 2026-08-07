@@ -174,6 +174,19 @@
         .line-badge{display:inline-block;background:var(--bg-0);border:1px solid var(--hpe-green);border-radius:4px;padding:1px 7px;font-size:10px;font-family:var(--mono);color:var(--hpe-green);font-weight:600;margin-left:4px;cursor:pointer;transition:all 0.15s;}
         .line-badge:hover{background:var(--hpe-green);color:#fff;transform:scale(1.05);}
 
+        /* Timestamp badge */
+        .ts-badge{display:inline-block;background:var(--bg-0);border:1px solid var(--border-default);border-radius:4px;padding:2px 8px;font-size:11px;font-family:var(--mono);color:var(--text-100);font-weight:600;margin-right:8px;}
+        /* Breadcrumb styling */
+        .finding-breadcrumb{display:inline-flex;align-items:center;flex-wrap:wrap;gap:2px;font-size:12px;font-family:var(--mono);}
+        .bc-archive{color:var(--text-400);font-weight:600;}
+        .bc-dir{color:var(--text-400);}
+        .bc-file{color:var(--hpe-green);font-weight:700;}
+        .bc-sep{color:var(--text-400);margin:0 4px;font-size:10px;}
+        /* Image preview in chat */
+        .chat-img-preview{position:relative;display:inline-block;margin-bottom:8px;}
+        .chat-img-preview img{max-width:120px;max-height:80px;border-radius:8px;border:2px solid var(--hpe-green);object-fit:cover;}
+        .chat-img-preview .remove-img{position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:var(--bg-0);border:1px solid var(--border-default);color:var(--text-100);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;}
+
         /* Line actions popup */
         .line-popup{position:fixed;z-index:9999;background:var(--bg-1);border:1px solid var(--border-default);border-radius:10px;padding:12px;box-shadow:0 8px 32px rgba(0,0,0,0.4);min-width:320px;font-size:12px;}
         .line-popup-title{font-size:11px;font-weight:600;color:var(--hpe-green);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.04em;}
@@ -1228,8 +1241,11 @@ Try asking:
                 </div>
                 
                 <!-- Input Area -->
+                <div id="chatImagePreview" class="chat-img-preview" style="display:none;"></div>
+                <input type="file" id="chatImageInput" accept="image/*" style="display:none;" onchange="handleChatImageSelect(event)">
                 <div style="display:flex;gap:10px;align-items:flex-end;">
                     <textarea id="chatInput" placeholder="Ask anything about HPE VME, Linux, clusters, storage, networking..." style="flex:1;resize:none;height:50px;padding:12px 16px;border-radius:10px;border:1px solid var(--border-default);background:var(--bg-2);color:var(--text-100);font-size:14px;font-family:var(--sans);outline:none;transition:border-color 0.2s;" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat()}"></textarea>
+                    <button onclick="document.getElementById('chatImageInput').click()" title="Attach image (or paste with Ctrl+V)" style="padding:12px 14px;border-radius:10px;background:var(--bg-2);border:1px solid var(--border-default);color:var(--text-100);cursor:pointer;font-size:16px;">🖼️</button>
                     <button onclick="sendChat()" style="padding:12px 20px;border-radius:10px;background:var(--hpe-green);color:white;border:none;font-weight:600;cursor:pointer;font-size:14px;white-space:nowrap;">Send ➤</button>
                 </div>
                 <div style="text-align:center;font-size:10px;color:var(--text-500);margin-top:8px;">Shift+Enter for new line • Runs on local Ollama (qwen3.5) • No data leaves your machine</div>
@@ -2058,7 +2074,7 @@ async function scanLocally(file) {
             resolve();
         };
 
-        worker.postMessage({ file, patterns: patternData, prefilterWords });
+        worker.postMessage({ file, patterns: patternData, prefilterWords, archiveName: file.name });
     });
 }
 
@@ -2342,6 +2358,20 @@ function render(data){
     hideProgress();
     const f=data.findings||[];
     _allFindings = f; // Store for filter functions
+    // Sort findings by recency (newest first, no-timestamp at bottom)
+    _allFindings.sort((a, b) => {
+        const tsA = a.log_timestamp || '';
+        const tsB = b.log_timestamp || '';
+        if (!tsA && !tsB) return 0;
+        if (!tsA) return 1;
+        if (!tsB) return -1;
+        // Try to parse timestamps for comparison
+        const dA = new Date(tsA).getTime() || 0;
+        const dB = new Date(tsB).getTime() || 0;
+        if (dA && dB) return dB - dA;
+        // Fallback: reverse string compare (works for ISO and syslog within same year)
+        return tsB.localeCompare(tsA);
+    });
     const c=f.filter(x=>x.severity==='CRITICAL').length;
     const h=f.filter(x=>x.severity==='HIGH').length;
     const m=f.filter(x=>x.severity==='MEDIUM').length;
@@ -2868,6 +2898,7 @@ function filterByFile(fname, severity) {
 
 function renderFindingsList(findings, label, fullPath) {
     let headerHTML = `<span style="color:var(--text-100);font-weight:600">${esc(label)}</span>`;
+    headerHTML += ` <span style="font-size:11px;color:var(--text-400);margin-left:8px;">⏬ Sorted by recency (newest first)</span>`;
     if (fullPath) {
         headerHTML += `<div style="font-size:11px;color:var(--hpe-green);font-family:var(--mono);margin-top:4px;padding:4px 8px;background:var(--bg-0);border-radius:4px;border:1px solid var(--border-subtle)">📁 ${esc(fullPath)}</div>`;
     }
@@ -2875,16 +2906,72 @@ function renderFindingsList(findings, label, fullPath) {
         headerHTML += ` <button class="btn-ghost" style="margin-left:12px;font-size:11px" onclick="filterFindings('')">✕ Clear filter</button>`;
     }
     $('#findingsCount').innerHTML = headerHTML;
-    $('#findingsList').innerHTML = findings.map((x, idx) => `
+
+    // Helper: determine date group label
+    function getDateGroup(ts) {
+        if (!ts) return 'Older';
+        const now = new Date();
+        const d = new Date(ts);
+        if (isNaN(d.getTime())) {
+            // Try syslog format: "Aug  7 05:37:12" — assume current year
+            const withYear = ts.replace(/^([A-Za-z]+\s+\d+)/, '$1 ' + now.getFullYear());
+            const d2 = new Date(withYear);
+            if (isNaN(d2.getTime())) return 'Older';
+            return _classifyDate(d2, now);
+        }
+        return _classifyDate(d, now);
+    }
+    function _classifyDate(d, now) {
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
+        const weekAgo = new Date(today); weekAgo.setDate(weekAgo.getDate() - 7);
+        if (d >= today) return 'Today';
+        if (d >= yesterday) return 'Yesterday';
+        if (d >= weekAgo) return 'This Week';
+        return 'Older';
+    }
+
+    // Helper: format file path as breadcrumb
+    function formatBreadcrumb(filePath, lineNum) {
+        const parts = (filePath || '').split('/').filter(p => p);
+        if (parts.length === 0) return `<span class="line-badge" onclick="showLineActions(event, '', ${lineNum||0})" title="Click for open options">📍 Line ${lineNum||'?'}</span>`;
+        const fileName = parts.pop();
+        let bc = '';
+        // Check if first part looks like an archive
+        if (parts.length > 0 && /\.(tar\.gz|tgz|tar|zip|gz)$/i.test(parts[0])) {
+            bc += `<span class="bc-archive">📦 ${esc(parts.shift())}</span>`;
+        }
+        // Middle path parts (directories)
+        if (parts.length > 0) {
+            bc += parts.map(p => `<span class="bc-sep">→</span><span class="bc-dir">📁 ${esc(p)}</span>`).join('');
+        }
+        // Final file
+        bc += `<span class="bc-sep">→</span><span class="bc-file">📄 ${esc(fileName)}</span>`;
+        // Line number
+        bc += `<span class="bc-sep">→</span><span class="line-badge" onclick="showLineActions(event, '${esc(filePath)}', ${lineNum||0})" title="Click for open options">📍 Line ${lineNum||'?'}</span>`;
+        return `<span class="finding-breadcrumb">${bc}</span>`;
+    }
+
+    let lastGroup = '';
+    let html = '';
+    findings.forEach((x, idx) => {
+        const group = getDateGroup(x.log_timestamp || '');
+        if (group !== lastGroup) {
+            lastGroup = group;
+            html += `<div style="padding:6px 12px;margin-top:${idx===0?0:12}px;margin-bottom:4px;font-size:11px;font-weight:700;color:var(--hpe-green);text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid var(--border-default);">📅 ${group}</div>`;
+        }
+        html += `
         <div class="finding">
             <div><span class="badge badge-${x.severity.toLowerCase()}">${x.severity}</span></div>
             <div class="finding-content">
-                <div class="finding-source">${esc(x.file||'')} <span class="line-badge" onclick="showLineActions(event, '${esc(x.file||'')}', ${x.line_number||0})" title="Click for open options">📍 Line ${x.line_number||'?'}</span>${x.file_date?` <span style="color:var(--text-400);font-size:11px;margin-left:8px;">📅 ${esc(x.file_date)}</span>`:''}</div>
+                <div class="finding-source">${x.log_timestamp ? `<span class="ts-badge">🕐 ${esc(x.log_timestamp)}</span> ` : ''}${formatBreadcrumb(x.file, x.line_number)}${x.file_date?` <span style="color:var(--text-400);font-size:11px;margin-left:8px;">📅 ${esc(x.file_date)}</span>`:''}</div>
                 <div class="finding-text">${esc(x.description||x.pattern_name||'')}</div>
                 <div class="finding-code">${esc(x.line_content||'')}</div>
                 ${x.solution_hint?`<div class="finding-fix">${esc(x.solution_hint)}</div>`:''}
             </div>
-        </div>`).join('');
+        </div>`;
+    });
+    $('#findingsList').innerHTML = html;
 }
 
 // ── LINE NUMBER ACTIONS POPUP ────────────────────────────────────────
@@ -5014,6 +5101,55 @@ function copyReply() {
 
 // ═══ AI CHAT ═══════════════════════════════════════════════
 let _chatHistory = [];
+let _pendingImage = null; // base64 image data (without data:... prefix)
+
+// Image paste handler — attach to chatInput after DOM ready
+document.addEventListener('DOMContentLoaded', () => {
+    const chatInput = document.getElementById('chatInput');
+    if (chatInput) {
+        chatInput.addEventListener('paste', function(e) {
+            const items = e.clipboardData && e.clipboardData.items;
+            if (!items) return;
+            for (const item of items) {
+                if (item.type.startsWith('image/')) {
+                    e.preventDefault();
+                    const file = item.getAsFile();
+                    if (file) processImageFile(file);
+                    return;
+                }
+            }
+        });
+    }
+});
+
+function handleChatImageSelect(e) {
+    const file = e.target.files && e.target.files[0];
+    if (file && file.type.startsWith('image/')) {
+        processImageFile(file);
+    }
+    e.target.value = '';
+}
+
+function processImageFile(file) {
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+        const dataUrl = ev.target.result; // data:image/png;base64,...
+        const base64 = dataUrl.split(',')[1]; // raw base64
+        _pendingImage = base64;
+        // Show preview
+        const preview = document.getElementById('chatImagePreview');
+        preview.style.display = 'inline-block';
+        preview.innerHTML = `<img src="${dataUrl}" alt="attached"><div class="remove-img" onclick="removePendingImage()" title="Remove image">✕</div>`;
+    };
+    reader.readAsDataURL(file);
+}
+
+function removePendingImage() {
+    _pendingImage = null;
+    const preview = document.getElementById('chatImagePreview');
+    preview.style.display = 'none';
+    preview.innerHTML = '';
+}
 
 function showChat() {
     // Hide all pages, show chat
@@ -5103,7 +5239,7 @@ function clearChatHistory() {
 async function sendChat() {
     const input = document.getElementById('chatInput');
     const msg = input.value.trim();
-    if (!msg) return;
+    if (!msg && !_pendingImage) return;
     if (!_ollamaAvailable) {
         alert('Ollama not detected. Install it first (click 🤖 icon in sidebar for instructions).');
         return;
@@ -5111,12 +5247,13 @@ async function sendChat() {
     trackEvent('ai_chat', { query_length: msg.length });
     
     // Add user message to UI
-    appendChatMessage('user', msg);
+    const displayMsg = msg || '[Image attached]';
+    appendChatMessage('user', _pendingImage ? '🖼️ ' + displayMsg : displayMsg);
     input.value = '';
     input.style.height = '50px';
     
     // Add to history
-    _chatHistory.push({ role: 'user', content: msg });
+    _chatHistory.push({ role: 'user', content: msg || 'Analyze this image' });
     
     // Show typing indicator
     const typingId = appendChatMessage('assistant', '<div style="display:flex;align-items:center;gap:8px;color:var(--text-400)"><div style="width:12px;height:12px;border:2px solid var(--hpe-green);border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite"></div> Thinking...</div>', true);
@@ -5159,16 +5296,25 @@ Be concise and actionable. Give exact commands when possible. Use code blocks fo
                  || (models[0]?.name || 'qwen3.5:4b');
         }
         
+        // Build request body — include image if attached
+        const requestBody = {
+            model: model,
+            messages: chatMessages,
+            stream: true,
+            think: false,
+            options: { temperature: 0.4, num_predict: 800, num_ctx: 2048 }
+        };
+        if (_pendingImage) {
+            // Ollama vision models accept images array in the last message
+            requestBody.messages[requestBody.messages.length - 1].images = [_pendingImage];
+            _pendingImage = null;
+            removePendingImage();
+        }
+
         const response = await fetch(endpoint + '/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                model: model,
-                messages: chatMessages,
-                stream: true,
-                think: false,
-                options: { temperature: 0.4, num_predict: 800, num_ctx: 2048 }
-            })
+            body: JSON.stringify(requestBody)
         });
         
         if (!response.ok) throw new Error('Ollama error: ' + response.status);
