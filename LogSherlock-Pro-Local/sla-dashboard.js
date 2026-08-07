@@ -33,42 +33,10 @@
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   }
 
-  function generateSampleData() {
-    const now = Date.now();
-    const hour = 3600000;
-    const day = 86400000;
-    const samples = [
-      { ticketId: 'INC-1001', severity: 'P1', startTime: now - 25 * day, resolutionHours: 1.2 },
-      { ticketId: 'INC-1002', severity: 'P2', startTime: now - 24 * day, resolutionHours: 2.8 },
-      { ticketId: 'INC-1003', severity: 'P3', startTime: now - 22 * day, resolutionHours: 5.5 },
-      { ticketId: 'INC-1004', severity: 'P1', startTime: now - 20 * day, resolutionHours: 1.8 },
-      { ticketId: 'INC-1005', severity: 'P4', startTime: now - 18 * day, resolutionHours: 12.0 },
-      { ticketId: 'INC-1006', severity: 'P2', startTime: now - 16 * day, resolutionHours: 3.1 },
-      { ticketId: 'INC-1007', severity: 'P3', startTime: now - 14 * day, resolutionHours: 7.2 },
-      { ticketId: 'INC-1008', severity: 'P1', startTime: now - 12 * day, resolutionHours: 1.5 },
-      { ticketId: 'INC-1009', severity: 'P2', startTime: now - 10 * day, resolutionHours: 3.9 },
-      { ticketId: 'INC-1010', severity: 'P4', startTime: now - 9 * day, resolutionHours: 18.0 },
-      { ticketId: 'INC-1011', severity: 'P1', startTime: now - 7 * day, resolutionHours: 0.9 },
-      { ticketId: 'INC-1012', severity: 'P3', startTime: now - 5 * day, resolutionHours: 4.8 },
-      { ticketId: 'INC-1013', severity: 'P2', startTime: now - 3 * day, resolutionHours: 2.5 },
-      { ticketId: 'INC-1014', severity: 'P1', startTime: now - 2 * day, resolutionHours: 1.1 },
-      { ticketId: 'INC-1015', severity: 'P3', startTime: now - 1 * day, resolutionHours: 6.0 },
-    ];
-
-    return samples.map(s => ({
-      ticketId: s.ticketId,
-      severity: s.severity,
-      startTime: s.startTime,
-      endTime: s.startTime + (s.resolutionHours * hour),
-      resolutionHours: s.resolutionHours,
-      recordedAt: s.startTime + (s.resolutionHours * hour)
-    }));
-  }
-
   function initData() {
     let data = loadData();
-    if (!data || !data.resolutions || data.resolutions.length === 0) {
-      data = { resolutions: generateSampleData() };
+    if (!data || !data.resolutions) {
+      data = { resolutions: [] };
       saveData(data);
     }
     return data;
@@ -184,9 +152,66 @@
     };
   }
 
+  // ─── Empty State ──────────────────────────────────────────────────────────────
+
+  function renderEmptyState() {
+    return `
+<div id="sla-dashboard" style="font-family:'Segoe UI',system-ui,sans-serif;background:#1e1e2e;color:#e0e0e0;padding:24px;border-radius:12px;max-width:900px;margin:0 auto;">
+  <h2 style="margin:0 0 16px 0;color:#fff;font-size:22px;">📈 SLA/MTTR Dashboard</h2>
+
+  <div style="background:#2a2a3e;padding:32px;border-radius:10px;text-align:center;margin-bottom:24px;border:1px solid #3a3a5e;">
+    <p style="font-size:16px;color:#e0e0e0;margin:0 0 12px 0;">No resolution data recorded yet.</p>
+    <p style="font-size:14px;color:#888;margin:0;">As you resolve tickets, click "Record Resolution" to track your MTTR and SLA metrics.</p>
+  </div>
+
+  <!-- Record Resolution Form (shown by default in empty state) -->
+  <div style="background:#2a2a3e;padding:18px 20px;border-radius:10px;border:1px solid #3a3a5e;">
+    <h3 style="margin:0 0 14px 0;font-size:15px;color:#fff;">Record Resolution</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div>
+        <label style="font-size:11px;color:#888;display:block;margin-bottom:3px;">Ticket ID</label>
+        <input id="sla-ticket-id" type="text" placeholder="INC-1001" style="width:100%;padding:8px 10px;background:#1e1e2e;border:1px solid #3a3a5e;border-radius:5px;color:#e0e0e0;font-size:13px;box-sizing:border-box;" />
+      </div>
+      <div>
+        <label style="font-size:11px;color:#888;display:block;margin-bottom:3px;">Severity</label>
+        <select id="sla-severity" style="width:100%;padding:8px 10px;background:#1e1e2e;border:1px solid #3a3a5e;border-radius:5px;color:#e0e0e0;font-size:13px;box-sizing:border-box;">
+          <option value="P1">P1 - Critical (&lt;2h)</option>
+          <option value="P2">P2 - High (&lt;4h)</option>
+          <option value="P3" selected>P3 - Medium (&lt;8h)</option>
+          <option value="P4">P4 - Low (&lt;24h)</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:11px;color:#888;display:block;margin-bottom:3px;">Start Time</label>
+        <input id="sla-start-time" type="datetime-local" style="width:100%;padding:8px 10px;background:#1e1e2e;border:1px solid #3a3a5e;border-radius:5px;color:#e0e0e0;font-size:13px;box-sizing:border-box;" />
+      </div>
+      <div>
+        <label style="font-size:11px;color:#888;display:block;margin-bottom:3px;">End Time</label>
+        <input id="sla-end-time" type="datetime-local" style="width:100%;padding:8px 10px;background:#1e1e2e;border:1px solid #3a3a5e;border-radius:5px;color:#e0e0e0;font-size:13px;box-sizing:border-box;" />
+      </div>
+    </div>
+    <div style="margin-top:12px;display:flex;gap:10px;">
+      <button onclick="window._slaDashboardSubmit()" style="background:#01a982;color:#fff;border:none;padding:9px 20px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;">Save Resolution</button>
+      <span id="sla-form-msg" style="font-size:12px;color:#888;line-height:36px;"></span>
+    </div>
+  </div>
+
+  <div style="text-align:center;margin-top:16px;font-size:11px;color:#555;">
+    LogSherlock Pro • Data stored locally
+  </div>
+</div>`;
+  }
+
   // ─── Exported: renderSLADashboard ─────────────────────────────────────────────
 
   function renderSLADashboard() {
+    const data = initData();
+
+    // Show empty state if no resolutions recorded
+    if (!data.resolutions || data.resolutions.length === 0) {
+      return renderEmptyState();
+    }
+
     const metrics = getSLAMetrics();
 
     const slaColor = metrics.slaCompliance > 90 ? '#01a982' :
@@ -285,12 +310,12 @@
       <div style="text-align:center;padding:14px;background:#1e1e2e;border-radius:8px;border:1px solid #444;">
         <div style="font-size:11px;text-transform:uppercase;color:#e74c3c;letter-spacing:1px;margin-bottom:6px;">Before (Manual)</div>
         <div style="font-size:28px;font-weight:700;color:#e74c3c;">${MANUAL_AVG_HOURS}h</div>
-        <div style="font-size:11px;color:#888;">Avg resolution time</div>
+        <div style="font-size:11px;color:#888;">Avg resolution time (industry benchmark)</div>
       </div>
       <div style="text-align:center;padding:14px;background:#1e1e2e;border-radius:8px;border:1px solid #01a982;">
         <div style="font-size:11px;text-transform:uppercase;color:#01a982;letter-spacing:1px;margin-bottom:6px;">After (LogSherlock)</div>
         <div style="font-size:28px;font-weight:700;color:#01a982;">${metrics.mttr.toFixed(1)}h</div>
-        <div style="font-size:11px;color:#888;">Avg resolution time</div>
+        <div style="font-size:11px;color:#888;">Avg resolution time (your data)</div>
       </div>
     </div>
     <div style="text-align:center;margin-top:12px;padding:10px;background:#0a3d2e;border-radius:6px;border:1px solid #01a982;">
@@ -383,7 +408,7 @@
   // ─── Self-Initialize on DOMContentLoaded ──────────────────────────────────────
 
   function init() {
-    // Ensure data exists (seeds if empty)
+    // Initialize data structure (no fake seeding)
     initData();
 
     // Auto-render if a target container exists

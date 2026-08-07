@@ -52,12 +52,13 @@ const PATTERN_TO_ENGLISH = [
 
 /**
  * Translate technical patterns found in analysis into plain English descriptions.
+ * Returns null if no patterns can be translated (instead of a fallback).
  */
 function translatePatternsToEnglish(findings) {
   const issues = [];
 
   if (!findings || !findings.patterns) {
-    return ['a system issue'];
+    return null;
   }
 
   const patternsFound = Array.isArray(findings.patterns)
@@ -78,7 +79,7 @@ function translatePatternsToEnglish(findings) {
   });
 
   if (issues.length === 0) {
-    issues.push('a system issue');
+    return null;
   }
 
   return issues;
@@ -107,15 +108,15 @@ function getDataSafetyStatement(severity, issues) {
   });
 
   if (severity === 'CRITICAL' && hasStorageIssue) {
-    return 'We want to assure you that data protection mechanisms are in place, and we are actively monitoring data integrity throughout the resolution process.';
+    return 'Our team is actively investigating to ensure your system is restored to full operation.';
   }
   if (severity === 'CRITICAL') {
-    return 'Your data remains protected by our redundancy systems, and we are monitoring the situation closely.';
+    return 'Our team is actively investigating to ensure your system is restored to full operation.';
   }
   if (hasStorageIssue) {
-    return 'We can confirm that your data is safe and no data loss has occurred.';
+    return 'Based on our analysis, we have not identified indicators of data loss. However, we recommend verifying data integrity as part of the resolution process.';
   }
-  return 'Your data and services remain protected throughout this process.';
+  return 'Based on our analysis, we have not identified indicators of data loss. However, we recommend verifying data integrity as part of the resolution process.';
 }
 
 /**
@@ -138,12 +139,25 @@ function formatIssuesList(issues) {
  * @param {Object} findings - Analysis findings from LogSherlock Pro
  * @param {string} ticketText - Original ticket/log text
  * @param {string} [tone='professional'] - Tone: 'professional', 'empathetic', or 'urgent'
- * @returns {{subject: string, body: string, tone: string}}
+ * @returns {{subject: string, body: string, tone: string} | {subject: string, body: string, tone: string, noAction: boolean}}
  */
 function generateCustomerEmail(findings, ticketText, tone) {
+  // FIX #1: Guard — if findings is null/undefined/empty array or no patterns matched
+  if (!findings || (Array.isArray(findings) && findings.length === 0)) {
+    console.log('No issues detected — no customer email needed');
+    return { subject: '', body: '', tone: tone || 'professional', noAction: true, message: 'No issues detected — no customer email needed' };
+  }
+
   tone = (tone || 'professional').toLowerCase();
   var severity = extractSeverity(findings);
   var issues = translatePatternsToEnglish(findings);
+
+  // FIX #2: If no patterns translate to English, don't generate an email
+  if (!issues || issues.length === 0) {
+    console.log('Unable to generate email — no specific issues identified in the scan');
+    return { subject: '', body: '', tone: tone, noAction: true, message: 'Unable to generate email — no specific issues identified in the scan' };
+  }
+
   var issueDescription = formatIssuesList(issues);
   var severityLabel = SEVERITY_LANGUAGE[severity];
   var eta = SEVERITY_ETA[severity];
@@ -191,8 +205,9 @@ function generateCustomerEmail(findings, ticketText, tone) {
     action = 'Our team is actively working on resolving this issue. We are applying corrective measures and will continue to monitor your environment to ensure full stability.';
   }
 
-  // ETA
-  var etaStatement = 'Based on our assessment, we expect to have this resolved within ' + eta + '. We will keep you updated on our progress.';
+  // ETA with disclaimer (FIX #5)
+  var etaStatement = 'Based on our assessment, we expect to have this resolved within ' + eta + '. We will keep you updated on our progress.\n' +
+    '(This is an estimated timeframe based on issue severity and may vary depending on investigation findings.)';
 
   // Data safety
   var safety = dataSafety;
@@ -249,7 +264,39 @@ function generateCustomerEmail(findings, ticketText, tone) {
  * @returns {string} HTML string for the email panel
  */
 function renderCustomerEmailPanel(findings, ticketText) {
+  // FIX #6: Guard — if findings is empty/null, show "no issues" panel
+  if (!findings || (Array.isArray(findings) && findings.length === 0) ||
+      (findings && typeof findings === 'object' && !Array.isArray(findings) &&
+       (!findings.patterns || (Array.isArray(findings.patterns) && findings.patterns.length === 0) ||
+        (typeof findings.patterns === 'object' && Object.keys(findings.patterns).length === 0)))) {
+    var emptyHtml = '';
+    emptyHtml += '<div class="customer-email-panel" style="' +
+      'background: #1e1e2e; border: 1px solid #3a3a5a; border-radius: 12px; padding: 24px; ' +
+      'font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif; ' +
+      'max-width: 700px; margin: 16px auto; text-align: center;">';
+    emptyHtml += '<h3 style="color: #e0e0e0; margin: 0 0 16px 0; font-size: 16px;">📧 Customer Email Generator</h3>';
+    emptyHtml += '<p style="color: #aaa; font-size: 14px; margin: 0 0 12px 0;">No issues detected in the scan. No customer communication needed at this time.</p>';
+    emptyHtml += '<p style="color: #888; font-size: 13px; margin: 0;">If you still need to send an email, use the Ticket Advisor for manual drafting.</p>';
+    emptyHtml += '</div>';
+    return emptyHtml;
+  }
+
   var email = generateCustomerEmail(findings, ticketText, 'professional');
+
+  // If generateCustomerEmail returned a noAction result, show the empty panel
+  if (email.noAction) {
+    var noActionHtml = '';
+    noActionHtml += '<div class="customer-email-panel" style="' +
+      'background: #1e1e2e; border: 1px solid #3a3a5a; border-radius: 12px; padding: 24px; ' +
+      'font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif; ' +
+      'max-width: 700px; margin: 16px auto; text-align: center;">';
+    noActionHtml += '<h3 style="color: #e0e0e0; margin: 0 0 16px 0; font-size: 16px;">📧 Customer Email Generator</h3>';
+    noActionHtml += '<p style="color: #aaa; font-size: 14px; margin: 0 0 12px 0;">No issues detected in the scan. No customer communication needed at this time.</p>';
+    noActionHtml += '<p style="color: #888; font-size: 13px; margin: 0;">If you still need to send an email, use the Ticket Advisor for manual drafting.</p>';
+    noActionHtml += '</div>';
+    return noActionHtml;
+  }
+
   var panelId = 'customer-email-panel-' + Date.now();
 
   var html = '';
@@ -365,6 +412,8 @@ if (typeof window !== 'undefined') {
     if (!state) return;
 
     var email = generateCustomerEmail(state.findings, state.ticketText, tone);
+    if (email.noAction) return; // Don't update if no action needed
+
     var subjectEl = panel.querySelector('.email-subject');
     var bodyEl = panel.querySelector('.email-body');
     if (subjectEl) subjectEl.textContent = email.subject;

@@ -2764,7 +2764,7 @@ function buildProfessionalRCA(findings, critCount, highCount, medCount, lowCount
     const contributing = rankedPatterns.slice(1, 4);
 
     let severity = '3-MEDIUM';
-    if (critCount > 5) severity = '1-CRITICAL-DOWN';
+    if (critCount > 5) severity = '1-CRITICAL';
     else if (critCount > 0) severity = '2-HIGH';
 
     const componentMap = {'cluster':'Cluster/Pacemaker','storage':'Storage/Multipath','filesystem':'GFS2/Filesystem','virtualization':'HVM/KVM','network':'Networking','kernel':'Kernel/OS','application':'Morpheus Application','security':'Security/Auth','hardware':'Hardware','service':'Systemd Services','backup':'Backup/VME','system':'System'};
@@ -2790,13 +2790,13 @@ function buildProfessionalRCA(findings, critCount, highCount, medCount, lowCount
     rca += `h3. 2. Impact\n`;
     rca += `* ${affectedFiles.length} file(s) contain error indicators across ${categories.length} subsystem(s)\n`;
     rca += `* ${critCount} CRITICAL events detected — system stability at risk\n`;
-    if (categories.includes('cluster')) rca += `* Cluster integrity compromised — potential quorum loss, fencing, or split-brain condition\n`;
-    if (categories.includes('storage')) rca += `* Storage paths degraded — data availability and I/O continuity at risk\n`;
-    if (categories.includes('filesystem')) rca += `* Filesystem errors detected — GFS2 withdraw or read-only state may cause VM failures\n`;
-    if (categories.includes('virtualization')) rca += `* Virtual machine operations impacted — VMs may be crashed, stuck, or unreachable\n`;
-    if (categories.includes('network')) rca += `* Network connectivity issues — inter-node cluster communication affected\n`;
-    if (categories.includes('kernel')) rca += `* Kernel-level errors — system panic, OOM, or watchdog events detected\n`;
-    if (categories.includes('application')) rca += `* Application-layer failures — Morpheus services experiencing errors\n`;
+    if (categories.includes('cluster')) rca += `* Cluster: ${findings.filter(f => f.category === 'cluster').slice(0,3).map(f => f.description).join('; ') || 'Issues detected'}\n`;
+    if (categories.includes('storage')) rca += `* Storage: ${findings.filter(f => f.category === 'storage').slice(0,3).map(f => f.description).join('; ') || 'Issues detected'}\n`;
+    if (categories.includes('filesystem')) rca += `* Filesystem: ${findings.filter(f => f.category === 'filesystem').slice(0,3).map(f => f.description).join('; ') || 'Issues detected'}\n`;
+    if (categories.includes('virtualization')) rca += `* Virtualization: ${findings.filter(f => f.category === 'virtualization').slice(0,3).map(f => f.description).join('; ') || 'Issues detected'}\n`;
+    if (categories.includes('network')) rca += `* Network: ${findings.filter(f => f.category === 'network').slice(0,3).map(f => f.description).join('; ') || 'Issues detected'}\n`;
+    if (categories.includes('kernel')) rca += `* Kernel: ${findings.filter(f => f.category === 'kernel').slice(0,3).map(f => f.description).join('; ') || 'Issues detected'}\n`;
+    if (categories.includes('application')) rca += `* Application: ${findings.filter(f => f.category === 'application').slice(0,3).map(f => f.description).join('; ') || 'Issues detected'}\n`;
     rca += `\n`;
 
     rca += `h3. 3. Timeline\n`;
@@ -2804,7 +2804,7 @@ function buildProfessionalRCA(findings, critCount, highCount, medCount, lowCount
     const timelineEvents = findings.filter(x => x.severity === 'CRITICAL' || x.severity === 'HIGH').slice(0, 12);
     timelineEvents.forEach(ev => {
         const tsMatch = (ev.line_content || '').match(/(\d{2}:\d{2}:\d{2}|\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2})/);
-        const time = tsMatch ? tsMatch[1] : today;
+        const time = tsMatch ? tsMatch[1] : 'Timestamp not available';
         const file = (ev.file || '').split('/').pop();
         const desc = (ev.description || ev.pattern_name || '').substring(0, 80);
         rca += `|${time}|${ev.pattern_name} — ${desc}|${ev.severity}|${file}|\n`;
@@ -2828,11 +2828,10 @@ function buildProfessionalRCA(findings, critCount, highCount, medCount, lowCount
     });
     rca += `\n`;
 
-    rca += `h3. 5. Cascade Chain\n`;
-    rca += `_The following failure cascade was identified from log correlation:_\n\n`;
+    rca += `h3. 5. Top Issues by Severity (ordered by impact, NOT causal chain)\n`;
+    rca += `_The following issues were detected, ranked by severity and frequency:_\n\n`;
     rankedPatterns.slice(0, 7).forEach((cp, i) => {
-        const connector = i < 6 ? ' ↓' : ' ⛔';
-        rca += `* *Step ${i + 1}:* [${cp.severity}] *${cp.name}* — ${cp.description.substring(0, 100)}${connector}\n`;
+        rca += `# [${cp.severity}] *${cp.name}* — ${cp.description.substring(0, 100)}\n`;
     });
     rca += `\n`;
 
@@ -2867,7 +2866,6 @@ function buildProfessionalRCA(findings, critCount, highCount, medCount, lowCount
     if (categories.includes('network')) {
         rca += `|${step++}|Verify iptables rules|iptables -L -n -v|HIGH|\n`;
         rca += `|${step++}|Check network config|ip addr; ip route|HIGH|\n`;
-        rca += `|${step++}|Install iptables-persistent|apt-get install iptables-persistent|HIGH|\n`;
     }
     if (categories.includes('virtualization')) {
         rca += `|${step++}|Check VM status|virsh list --all|HIGH|\n`;
@@ -2879,19 +2877,20 @@ function buildProfessionalRCA(findings, critCount, highCount, medCount, lowCount
     }
     rca += `|${step++}|Collect sosreport|sosreport --batch|MEDIUM|\n`;
     rca += `|${step++}|Schedule maintenance window|Coordinate with customer|MEDIUM|\n`;
-    rca += `\n*Important:* Apply fixes in rolling fashion (one node at a time) to maintain cluster quorum.\n\n`;
+    if (categories.includes('cluster')) {
+        rca += `\n*Important:* Apply fixes in rolling fashion (one node at a time) to maintain cluster quorum.\n`;
+    }
+    rca += `\n`;
 
     rca += `h3. 8. Prevention / Long-Term Recommendations\n`;
-    if (categories.includes('network')) rca += `* Install iptables-persistent to survive reboots: apt-get install iptables-persistent && iptables-save > /etc/iptables/rules.v4\n`;
+    if (categories.includes('network')) rca += `* Ensure iptables rules persist across reboots: save rules with iptables-save and configure appropriate service (iptables-services on RHEL)\n`;
     if (categories.includes('cluster')) rca += `* Implement cluster health monitoring with automated alerting on quorum loss or fencing events\n`;
     if (categories.includes('storage')) rca += `* Configure multipath path-checking with email alerts; verify iSCSI timeouts are appropriate\n`;
     if (categories.includes('filesystem')) rca += `* Schedule regular GFS2 filesystem checks; monitor DLM lock health and journal space\n`;
     if (categories.includes('virtualization')) rca += `* Set memory limits per VM to prevent OOM kills; enable VM HA restart policies\n`;
     if (categories.includes('kernel')) rca += `* Configure kdump for kernel crash analysis; monitor watchdog timeouts\n`;
     if (categories.includes('application')) rca += `* Monitor Morpheus application heap usage; configure proper JVM memory limits\n`;
-    rca += `* Add post-reboot health check script that validates all services before declaring node healthy\n`;
-    rca += `* Include pre-upgrade checklist verification in maintenance runbooks\n`;
-    rca += `* Schedule regular proactive log analysis scans using LogSherlock Pro\n`;
+    rca += `* Based on detected patterns, review the specific findings above for targeted remediation steps.\n`;
 
     return rca;
 }
