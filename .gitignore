@@ -41,10 +41,13 @@ Thumbs.db
 htmlcov/
 .pytest_cache/
 test_uploads/
+tests/
+test_ticket_advisor.py
 
 # Deployment
 .deployment-info.json
 deploy/.aws-sam/
+deploy/license_handler.py
 
 # Logs (runtime)
 *.log
@@ -58,8 +61,21 @@ CHECKPOINT.md
 # Admin Dashboard (PRIVATE - in monitor repo only)
 templates/admin/
 LogSherlock-Pro-Local/Administration/
+LogSherlock-Pro-Local/Check-Licenses.ps1
+LogSherlock-Pro-Local/USER-TRACKING.md
+LogSherlock-Pro-Local/LogSherlock-Pro.zip
+LogSherlock-Pro-Local/LogSherlock.bat
 
-# Unused files
+# Unused/Removed
 build_exe.bat
 run_exe.py
 knowledge_base/
+docker/
+setup_ollama.ps1
+setup_ollama.sh
+run_server.py
+LogSherlock.bat
+docs/SALES_PITCH.md
+docs/PRODUCTION_READINESS.md
+docs/.env.example
+demo/collect_demovmehost01_20260802_100000/
