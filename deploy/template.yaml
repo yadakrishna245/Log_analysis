@@ -216,6 +216,12 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref LicensesTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - ses:SendEmail
+                - ses:SendRawEmail
+              Resource: '*'
       Events:
         Activate:
           Type: HttpApi
@@ -246,6 +252,30 @@ Resources:
           Properties:
             ApiId: !Ref LogSherlockApi
             Path: /api/license/list-all
+            Method: POST
+        BulkRevoke:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref LogSherlockApi
+            Path: /api/license/bulk-revoke
+            Method: POST
+        Analytics:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref LogSherlockApi
+            Path: /api/license/analytics
+            Method: POST
+        WebhookConfig:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref LogSherlockApi
+            Path: /api/license/webhook-config
+            Method: POST
+        AdminUsers:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref LogSherlockApi
+            Path: /api/license/admin-users
             Method: POST
 
   # ============================================================

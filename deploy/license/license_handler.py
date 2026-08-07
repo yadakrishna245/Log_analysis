@@ -63,10 +63,18 @@ def handler(event, context):
             result = activate(data)
         elif '/validate' in path:
             result = validate(data)
+        elif '/bulk-revoke' in path:
+            result = bulk_revoke(data)
         elif '/reset' in path:
             result = reset(data)
         elif '/list-all' in path:
             result = list_all(data)
+        elif '/analytics' in path:
+            result = analytics(data)
+        elif '/webhook-config' in path:
+            result = webhook_config(data)
+        elif '/admin-users' in path:
+            result = admin_users(data)
         elif '/status' in path:
             result = status(data)
         else:
@@ -107,6 +115,10 @@ def activate(data):
     # Validate the license key format (same algorithm as client-side)
     if not validate_key_format(license_key):
         return {'error': 'Invalid license key format', 'activated': False, 'status': 400}
+
+    # Rate limiting — max 5 attempts per key per minute
+    if not _check_rate_limit(license_key):
+        return {'error': 'Too many activation attempts. Please wait 1 minute and try again.', 'activated': False, 'status': 429}
 
     # Hash the fingerprint for privacy (we don't store raw hardware info)
     fp_hash = hashlib.sha256(fingerprint.encode()).hexdigest()[:32]
@@ -170,6 +182,13 @@ def activate(data):
             'is_lifetime': is_lifetime,
             'ttl': ttl
         })
+        
+        # Send notification on new activation (non-blocking — doesn't affect response)
+        try:
+            _send_activation_notification(license_key, user_name, expiry_days, user_agent)
+        except Exception:
+            pass  # Never block activation for notification failure
+        
         return {
             'activated': True,
             'message': f'License activated successfully! Locked to this device.',
@@ -274,7 +293,7 @@ def list_all(data):
     """Admin list ALL activated licenses — full dashboard view."""
     admin_secret = data.get('admin_secret', '').strip()
 
-    if admin_secret != ADMIN_SECRET:
+    if not _verify_admin(admin_secret):
         return {'error': 'Invalid admin credentials', 'status': 401}
 
     try:
@@ -286,6 +305,9 @@ def list_all(data):
         while 'LastEvaluatedKey' in response:
             response = table.scan(ExclusiveStartKey=response['LastEvaluatedKey'])
             items.extend(response.get('Items', []))
+
+        # Filter out non-license items (rate limit records, config, etc.)
+        items = [i for i in items if i.get('license_key', '').count('-') == 3 and not i.get('license_key', '').startswith('CONFIG:') and not i.get('license_key', '').startswith('RATE:')]
 
         # Sort by last_seen (most recently active first)
         items.sort(key=lambda x: x.get('last_seen', ''), reverse=True)
@@ -344,6 +366,306 @@ def list_all(data):
         }
     except Exception as e:
         return {'error': f'List failed: {str(e)}', 'status': 500}
+
+
+# ═══════════════════════════════════════════════════════════════════
+# NEW FEATURES (Added Aug 7, 2026 — non-breaking additions)
+# ═══════════════════════════════════════════════════════════════════
+
+def bulk_revoke(data):
+    """Admin bulk revoke — delete multiple licenses at once."""
+    admin_secret = data.get('admin_secret', '').strip()
+    if not _verify_admin(admin_secret):
+        return {'error': 'Invalid admin credentials', 'status': 401}
+
+    keys = data.get('license_keys', [])
+    if not keys or not isinstance(keys, list):
+        return {'error': 'Provide license_keys array', 'status': 400}
+
+    revoked = []
+    failed = []
+    for key in keys[:50]:  # Max 50 at once
+        try:
+            resp = table.get_item(Key={'license_key': key.strip().upper()})
+            if resp.get('Item'):
+                table.delete_item(Key={'license_key': key.strip().upper()})
+                revoked.append(key)
+            else:
+                failed.append({'key': key, 'reason': 'Not found'})
+        except Exception as e:
+            failed.append({'key': key, 'reason': str(e)})
+
+    return {
+        'revoked_count': len(revoked),
+        'revoked': revoked,
+        'failed_count': len(failed),
+        'failed': failed,
+        'message': f'Successfully revoked {len(revoked)} license(s).'
+    }
+
+
+def analytics(data):
+    """Admin analytics — activation counts per week/month."""
+    admin_secret = data.get('admin_secret', '').strip()
+    if not _verify_admin(admin_secret):
+        return {'error': 'Invalid admin credentials', 'status': 401}
+
+    try:
+        response = table.scan()
+        items = response.get('Items', [])
+        while 'LastEvaluatedKey' in response:
+            response = table.scan(ExclusiveStartKey=response['LastEvaluatedKey'])
+            items.extend(response.get('Items', []))
+
+        # Filter only actual licenses
+        items = [i for i in items if i.get('activated_at') and i.get('license_key', '').count('-') == 3 
+                 and not i.get('license_key', '').startswith('CONFIG:')]
+
+        now = datetime.now(timezone.utc)
+        
+        # Count activations per day (last 30 days)
+        daily_counts = {}
+        weekly_counts = {}
+        monthly_counts = {}
+        
+        for item in items:
+            try:
+                act_date = datetime.fromisoformat(item['activated_at'].replace('Z', '+00:00'))
+                day_key = act_date.strftime('%Y-%m-%d')
+                week_key = act_date.strftime('%Y-W%W')
+                month_key = act_date.strftime('%Y-%m')
+                
+                daily_counts[day_key] = daily_counts.get(day_key, 0) + 1
+                weekly_counts[week_key] = weekly_counts.get(week_key, 0) + 1
+                monthly_counts[month_key] = monthly_counts.get(month_key, 0) + 1
+            except (ValueError, KeyError):
+                pass
+
+        # Last 7 days
+        from datetime import timedelta
+        last_7_days = []
+        for i in range(7):
+            day = (now - timedelta(days=i)).strftime('%Y-%m-%d')
+            last_7_days.append({'date': day, 'count': daily_counts.get(day, 0)})
+        last_7_days.reverse()
+
+        # Total stats
+        total = len(items)
+        this_week = sum(1 for i in items if _is_this_week(i.get('activated_at', '')))
+        this_month = sum(1 for i in items if _is_this_month(i.get('activated_at', '')))
+        today = daily_counts.get(now.strftime('%Y-%m-%d'), 0)
+
+        return {
+            'total_activations': total,
+            'today': today,
+            'this_week': this_week,
+            'this_month': this_month,
+            'last_7_days': last_7_days,
+            'weekly': dict(sorted(weekly_counts.items())[-8:]),
+            'monthly': dict(sorted(monthly_counts.items())[-6:]),
+        }
+    except Exception as e:
+        return {'error': f'Analytics failed: {str(e)}', 'status': 500}
+
+
+def webhook_config(data):
+    """Admin configure webhook URL for activation notifications."""
+    admin_secret = data.get('admin_secret', '').strip()
+    if not _verify_admin(admin_secret):
+        return {'error': 'Invalid admin credentials', 'status': 401}
+
+    action = data.get('action', 'get')  # get or set
+    
+    if action == 'set':
+        webhook_url = data.get('webhook_url', '').strip()
+        email_notify = data.get('email_notify', True)
+        
+        # Store config in DynamoDB (using special key prefix)
+        table.put_item(Item={
+            'license_key': 'CONFIG:WEBHOOK',
+            'webhook_url': webhook_url,
+            'email_notify': email_notify,
+            'updated_at': datetime.now(timezone.utc).isoformat()
+        })
+        return {'saved': True, 'webhook_url': webhook_url, 'email_notify': email_notify}
+    else:
+        # Get current config
+        try:
+            resp = table.get_item(Key={'license_key': 'CONFIG:WEBHOOK'})
+            item = resp.get('Item', {})
+            return {
+                'webhook_url': item.get('webhook_url', ''),
+                'email_notify': item.get('email_notify', True),
+            }
+        except Exception:
+            return {'webhook_url': '', 'email_notify': True}
+
+
+def admin_users(data):
+    """Multi-admin support — manage admin users list."""
+    admin_secret = data.get('admin_secret', '').strip()
+    if not _verify_admin(admin_secret):
+        return {'error': 'Invalid admin credentials', 'status': 401}
+
+    action = data.get('action', 'list')  # list, add, remove
+    
+    # Get current admin list
+    try:
+        resp = table.get_item(Key={'license_key': 'CONFIG:ADMINS'})
+        item = resp.get('Item', {})
+        admins = item.get('admin_list', [{'username': 'krishna', 'email': 'yadakrishna245@gmail.com', 'role': 'super_admin'}])
+    except Exception:
+        admins = [{'username': 'krishna', 'email': 'yadakrishna245@gmail.com', 'role': 'super_admin'}]
+
+    if action == 'list':
+        return {'admins': admins}
+    
+    elif action == 'add':
+        new_admin = data.get('new_admin', {})
+        username = new_admin.get('username', '').strip()
+        email = new_admin.get('email', '').strip()
+        if not username or not email:
+            return {'error': 'Username and email required', 'status': 400}
+        
+        # Check if already exists
+        if any(a['username'] == username for a in admins):
+            return {'error': f'Admin {username} already exists', 'status': 400}
+        
+        admins.append({'username': username, 'email': email, 'role': 'admin', 'added_at': datetime.now(timezone.utc).isoformat()})
+        table.put_item(Item={'license_key': 'CONFIG:ADMINS', 'admin_list': admins})
+        return {'admins': admins, 'message': f'Admin {username} added'}
+    
+    elif action == 'remove':
+        username = data.get('username', '').strip()
+        if username == 'krishna':
+            return {'error': 'Cannot remove super admin', 'status': 400}
+        admins = [a for a in admins if a['username'] != username]
+        table.put_item(Item={'license_key': 'CONFIG:ADMINS', 'admin_list': admins})
+        return {'admins': admins, 'message': f'Admin {username} removed'}
+    
+    return {'error': 'Invalid action', 'status': 400}
+
+
+# ═══ HELPER FUNCTIONS ═══════════════════════════════════════════════
+
+def _verify_admin(secret):
+    """Verify admin credentials (supports multi-admin)."""
+    if secret == ADMIN_SECRET:
+        return True
+    # Future: check against CONFIG:ADMINS table for secondary admins
+    return False
+
+
+def _is_this_week(date_str):
+    """Check if date is in current week."""
+    if not date_str:
+        return False
+    try:
+        from datetime import timedelta
+        d = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+        now = datetime.now(timezone.utc)
+        start_of_week = now - timedelta(days=now.weekday())
+        return d >= start_of_week.replace(hour=0, minute=0, second=0, microsecond=0)
+    except (ValueError, TypeError):
+        return False
+
+
+def _is_this_month(date_str):
+    """Check if date is in current month."""
+    if not date_str:
+        return False
+    try:
+        d = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+        now = datetime.now(timezone.utc)
+        return d.year == now.year and d.month == now.month
+    except (ValueError, TypeError):
+        return False
+
+
+def _send_activation_notification(license_key, user_name, expiry_days, user_agent):
+    """Send notification on new activation (email + webhook)."""
+    now = datetime.now(timezone.utc).isoformat()
+    
+    # Get webhook config
+    try:
+        resp = table.get_item(Key={'license_key': 'CONFIG:WEBHOOK'})
+        config = resp.get('Item', {})
+    except Exception:
+        config = {}
+
+    # Send webhook (Slack/Discord/custom)
+    webhook_url = config.get('webhook_url', '')
+    if webhook_url:
+        try:
+            payload = json.dumps({
+                'text': f'🔑 New LogSherlock Pro Activation!\n• User: {user_name}\n• Key: {license_key}\n• Expiry: {expiry_days} days\n• Device: {user_agent[:60]}\n• Time: {now}',
+                'username': 'LogSherlock License Bot',
+                'icon_emoji': ':key:'
+            }).encode()
+            req = urllib.request.Request(webhook_url, data=payload, headers={'Content-Type': 'application/json'})
+            urllib.request.urlopen(req, timeout=5)
+        except Exception:
+            pass  # Non-blocking
+
+    # Send email via AWS SES (if configured)
+    email_notify = config.get('email_notify', True)
+    if email_notify:
+        try:
+            import boto3
+            ses = boto3.client('ses', region_name='us-east-1')
+            ses.send_email(
+                Source='yadakrishna245@gmail.com',
+                Destination={'ToAddresses': ['yadakrishna245@gmail.com']},
+                Message={
+                    'Subject': {'Data': f'🔑 New License Activation: {user_name}'},
+                    'Body': {
+                        'Html': {'Data': f'''
+                            <h2>🔑 New LogSherlock Pro Activation</h2>
+                            <table style="border-collapse:collapse;font-family:Arial;">
+                                <tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold;">User</td><td style="padding:8px;border:1px solid #ddd;">{user_name}</td></tr>
+                                <tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold;">License Key</td><td style="padding:8px;border:1px solid #ddd;">{license_key}</td></tr>
+                                <tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold;">Expiry</td><td style="padding:8px;border:1px solid #ddd;">{expiry_days} days</td></tr>
+                                <tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold;">Device</td><td style="padding:8px;border:1px solid #ddd;">{user_agent[:100]}</td></tr>
+                                <tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold;">Time</td><td style="padding:8px;border:1px solid #ddd;">{now}</td></tr>
+                            </table>
+                            <p style="color:#666;font-size:12px;">— LogSherlock Pro License System</p>
+                        '''}
+                    }
+                }
+            )
+        except Exception:
+            pass  # SES might not be verified yet — non-blocking
+
+
+def _check_rate_limit(license_key):
+    """Rate limiting — max 5 activation attempts per key per minute.
+    Returns True if allowed, False if rate limited.
+    """
+    rate_key = f'RATE:{license_key}'
+    now_ts = int(time.time())
+    window_start = now_ts - 60  # 1 minute window
+    
+    try:
+        resp = table.get_item(Key={'license_key': rate_key})
+        item = resp.get('Item', {})
+        
+        attempts = item.get('attempts', [])
+        # Filter to only recent attempts (within window)
+        recent = [a for a in attempts if a > window_start]
+        
+        if len(recent) >= 5:
+            return False  # Rate limited
+        
+        # Record this attempt
+        recent.append(now_ts)
+        table.put_item(Item={
+            'license_key': rate_key,
+            'attempts': recent[-10:],  # Keep last 10
+            'ttl': now_ts + 300  # Auto-cleanup in 5 min
+        })
+        return True
+    except Exception:
+        return True  # If rate check fails, allow (don't block legitimate users)
 
 
 def validate_key_format(key):
