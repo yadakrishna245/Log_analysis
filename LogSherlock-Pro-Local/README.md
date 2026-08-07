@@ -87,59 +87,150 @@ Key is auto-copied to clipboard. Share with your team.
 
 ---
 
-## 💡 How It Actually Works (Simple Explanation)
+## 💡 How It Works — Architecture Flow
 
-**If someone asks "How does LogSherlock Pro work?" — here's the answer:**
+### High-Level Architecture
 
+```mermaid
+flowchart TB
+    subgraph LOCAL["🖥️ YOUR LAPTOP (Everything stays here)"]
+        direction TB
+        
+        subgraph SERVER["server.py (Port 8888)"]
+            S1[Python HTTP Server]
+            S2[Serves index.html + JS files]
+            S3[Copilot OAuth Proxy]
+        end
+        
+        subgraph BROWSER["Browser — http://localhost:8888"]
+            direction TB
+            UI[index.html<br/>Main UI + 922KB SPA]
+            WORKER[scan-worker.js<br/>Background Thread]
+            COPILOT[copilot-integration.js<br/>AI Module]
+        end
+        
+        subgraph FILES["📁 Your Log Files"]
+            LOGS[customer_logs.tar.gz]
+        end
+        
+        S1 -->|serves files| BROWSER
+        LOGS -->|drag & drop| UI
+        UI -->|sends file to scan| WORKER
+        WORKER -->|results back| UI
+    end
+    
+    subgraph EXTERNAL["☁️ Internet (Optional — only for AI)"]
+        GH[github.com<br/>OAuth Login]
+        API[api.githubcopilot.com<br/>AI Chat API]
+    end
+    
+    S3 -.->|"proxy (only pattern names)"| GH
+    COPILOT -.->|"AI request (no log data)"| API
+    
+    style LOCAL fill:#0d1117,stroke:#01a982,color:#fff
+    style BROWSER fill:#1a1a2e,stroke:#8b5cf6,color:#fff
+    style SERVER fill:#1a1a2e,stroke:#f59e0b,color:#fff
+    style FILES fill:#1a1a2e,stroke:#ef4444,color:#fff
+    style EXTERNAL fill:#2d1b1b,stroke:#666,color:#999
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                                                                   │
-│   LogSherlock Pro is a SINGLE HTML FILE that runs in your         │
-│   browser. No server. No install. No internet needed.             │
-│                                                                   │
-│   HOW:                                                            │
-│   1. You open index.html in Chrome/Edge                           │
-│   2. You drop a .tar.gz log bundle into it                        │
-│   3. The browser DECOMPRESSES the .tar.gz in memory               │
-│   4. A background thread (Web Worker) reads every log file        │
-│   5. Each line is matched against 455 known error patterns        │
-│   6. Matches = "Findings" (with severity + solution)              │
-│   7. Findings are grouped into a Root Cause Analysis              │
-│   8. You copy the RCA report and paste it into Jira               │
-│                                                                   │
-│   WHY IT'S FAST:                                                  │
-│   - Two-stage filter: first keywords, then regex                  │
-│   - 95% of lines are rejected in Stage 1 (< 1ms)                 │
-│   - Only 5% of lines go to full regex matching                    │
-│   - Web Worker = separate thread = UI never freezes               │
-│                                                                   │
-│   WHY IT'S SAFE:                                                  │
-│   - EVERYTHING runs in the browser sandbox                        │
-│   - Log files NEVER leave your machine                            │
-│   - No upload, no API call, no cloud storage                      │
-│   - Even with Copilot AI: only pattern NAMES are sent             │
-│     (never raw log lines or customer data)                        │
-│                                                                   │
-│   TECH STACK:                                                     │
-│   - HTML + JavaScript (vanilla, no React/Angular)                 │
-│   - Web Workers API (background threads)                          │
-│   - DecompressionStream API (browser-native gzip)                 │
-│   - localStorage (scan history, preferences)                      │
-│   - GitHub Copilot API (optional, for AI features)                │
-│                                                                   │
-└─────────────────────────────────────────────────────────────────┘
+
+---
+
+### Log Scanning Pipeline (Core Engine)
+
+```mermaid
+flowchart LR
+    A[📦 .tar.gz file<br/>dropped in browser] --> B[🔓 Streaming<br/>Decompression]
+    B --> C[📂 Tar Parser<br/>extracts files]
+    C --> D{File Type?}
+    D -->|messages, syslog,<br/>corosync.log| E[⚡ HIGH Priority]
+    D -->|.log, .txt, .out| F[📄 MEDIUM Priority]
+    D -->|binary, >30MB| G[🚫 SKIP]
+    E --> H[Stage 1: Keyword<br/>Prefilter<br/>644 keywords]
+    F --> H
+    H -->|95% lines rejected<br/>in < 1ms| I[❌ No Match]
+    H -->|5% pass| J[Stage 2: Regex<br/>455 Patterns]
+    J --> K[🎯 Finding!<br/>severity + solution]
+    K --> L[📊 Results<br/>Dashboard]
+    L --> M[📄 RCA Report<br/>→ Copy to Jira]
+    
+    style A fill:#1a1a2e,stroke:#f59e0b,color:#fff
+    style H fill:#1a1a2e,stroke:#01a982,color:#fff
+    style J fill:#1a1a2e,stroke:#8b5cf6,color:#fff
+    style K fill:#1a1a2e,stroke:#ef4444,color:#fff
+    style L fill:#1a1a2e,stroke:#22c55e,color:#fff
 ```
 
-### The "Magic" Explained
+---
 
-| People Ask | Answer |
-|------------|--------|
-| "Where's the backend?" | There is none. It's 100% client-side JavaScript running in your browser. |
-| "How can it parse 3GB files?" | Streaming decompression — reads in chunks, never loads entire file in RAM. |
-| "How does it know what's wrong?" | 66 error patterns extracted from real closed HPE support tickets. |
-| "Is it AI?" | The core scan is pattern matching (not AI). AI (Copilot) is optional for explanations. |
-| "Is customer data safe?" | Yes. Files never leave the browser. Even AI only gets pattern names, never log content. |
-| "Why a single HTML file?" | Easy distribution — just copy 1 file. Works anywhere with a browser. |
+### What Runs Where
+
+```mermaid
+flowchart TD
+    subgraph TERMINAL["Terminal (PowerShell / CMD / VS Code)"]
+        PY["python server.py<br/>→ starts localhost:8888"]
+    end
+    
+    subgraph BROWSER["Browser Tab"]
+        direction LR
+        MAIN["Main Thread<br/>• UI rendering<br/>• License check<br/>• KB search<br/>• AI chat"]
+        BG["Web Worker Thread<br/>• File decompression<br/>• Line-by-line scan<br/>• Pattern matching<br/>• Result collection"]
+    end
+    
+    subgraph DISK["Your Hard Drive"]
+        direction LR
+        LOG["Log files<br/>(never uploaded)"]
+        LS["localStorage<br/>• Scan history<br/>• Settings<br/>• License key"]
+    end
+    
+    PY -->|"serves HTML/JS"| BROWSER
+    LOG -->|"read in browser memory"| BG
+    MAIN <-->|"messages"| BG
+    MAIN <-->|"read/write"| LS
+    
+    style TERMINAL fill:#0d1117,stroke:#f59e0b,color:#fff
+    style BROWSER fill:#0d1117,stroke:#01a982,color:#fff
+    style DISK fill:#0d1117,stroke:#8b5cf6,color:#fff
+```
+
+---
+
+### Security: What Gets Sent vs What Stays Local
+
+```mermaid
+flowchart LR
+    subgraph NEVER_LEAVES["🔒 NEVER Leaves Your Machine"]
+        direction TB
+        N1[Raw log content]
+        N2[Customer hostnames/IPs]
+        N3[Ticket descriptions]
+        N4[File names & paths]
+        N5[Scan results & findings]
+    end
+    
+    subgraph OPTIONAL_SEND["☁️ Sent to Copilot AI (Optional)"]
+        direction TB
+        O1[Pattern names only<br/>e.g. 'kernel_panic']
+        O2[Generic questions<br/>e.g. 'What causes GFS2 withdraw?']
+    end
+    
+    style NEVER_LEAVES fill:#0d2818,stroke:#22c55e,color:#fff
+    style OPTIONAL_SEND fill:#2d1b1b,stroke:#f59e0b,color:#fff
+```
+
+---
+
+### Simple Explanation
+
+| Question | Answer |
+|----------|--------|
+| "Where's the backend?" | `server.py` is just a file server (like Apache). All logic runs in the browser. |
+| "How can it handle 3GB files?" | Streaming decompression — reads in chunks, never loads the entire file in RAM. |
+| "How does it know what's wrong?" | 455 regex patterns extracted from real closed HPE support tickets. |
+| "Is it AI?" | Core scan = pure pattern matching (no AI). AI (Copilot) is optional for explanations. |
+| "Is customer data safe?" | Yes. Files never leave the browser. AI only gets pattern names, never log content. |
+| "What does server.py do?" | Serves HTML files on port 8888 + proxies GitHub OAuth (for Copilot sign-in). |
+| "Can I run without server.py?" | Yes! `python -m http.server 8888` works too, just no Copilot sign-in. |
 
 ---
 
