@@ -5545,25 +5545,72 @@ async function signInWithCopilot() {
     flowDiv.innerHTML = '<div style="color:var(--text-400);">🔄 Starting GitHub authentication...</div>';
     
     try {
-        const auth = await copilot.authenticateCopilot();
+        // Step 1: Get device code via local server proxy
+        const codeResp = await fetch('/api/copilot/device-code', { method: 'POST' });
+        if (!codeResp.ok) throw new Error('Server not running. Launch with LogSherlock.bat');
+        const codeData = await codeResp.json();
+        if (codeData.error) throw new Error(codeData.error);
+
+        const userCode = codeData.user_code;
+        const verificationUrl = codeData.verification_uri;
+        const deviceCode = codeData.device_code;
+        const interval = (codeData.interval || 5) * 1000;
+
+        // Open GitHub authorization page
+        window.open(verificationUrl, '_blank');
+
         flowDiv.innerHTML = `
             <div style="font-size:14px;font-weight:700;color:var(--accent);margin-bottom:8px;">Enter this code on GitHub:</div>
-            <div style="font-size:28px;font-weight:700;color:var(--text-100);letter-spacing:4px;font-family:var(--mono);margin-bottom:8px;">${auth.userCode}</div>
-            <div style="font-size:11px;color:var(--text-400);margin-bottom:8px;">A browser tab opened to: ${auth.verificationUrl}</div>
+            <div style="font-size:28px;font-weight:700;color:var(--text-100);letter-spacing:4px;font-family:var(--mono);margin-bottom:8px;">${userCode}</div>
+            <div style="font-size:11px;color:var(--text-400);margin-bottom:8px;">A browser tab opened to: ${verificationUrl}</div>
             <div style="font-size:11px;color:var(--text-300);">⏳ Waiting for you to enter the code and authorize...</div>
         `;
-        
-        // Poll for token
-        const result = await auth.pollForToken();
-        flowDiv.innerHTML = '<div style="color:var(--hpe-green);font-weight:600;">✅ Signed in with GitHub Copilot! AI features are now active.</div>';
-        
-        // Update UI
-        document.getElementById('copilotProvider').value = 'https://api.githubcopilot.com/chat/completions';
-        document.getElementById('copilotEndpoint').value = 'https://api.githubcopilot.com/chat/completions';
-        showCopilotStatus('✅ GitHub Copilot authenticated! Using your Copilot subscription.', 'var(--hpe-green)');
+
+        // Step 2: Poll for token
+        let token = null;
+        for (let i = 0; i < 60; i++) {
+            await new Promise(r => setTimeout(r, interval));
+            const pollResp = await fetch('/api/copilot/poll-token', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ device_code: deviceCode })
+            });
+            const pollData = await pollResp.json();
+            
+            if (pollData.access_token) { token = pollData.access_token; break; }
+            if (pollData.error === 'authorization_pending') continue;
+            if (pollData.error === 'slow_down') { await new Promise(r => setTimeout(r, 5000)); continue; }
+            if (pollData.error === 'expired_token') throw new Error('Code expired. Try again.');
+            if (pollData.error === 'access_denied') throw new Error('Access denied.');
+        }
+        if (!token) throw new Error('Timeout. Try again.');
+
+        // Step 3: Exchange for Copilot API token
+        flowDiv.innerHTML = '<div style="color:var(--text-400);">🔄 Getting Copilot API access...</div>';
+        const exchResp = await fetch('/api/copilot/exchange', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ oauth_token: token })
+        });
+        const exchData = await exchResp.json();
+        if (exchData.error) throw new Error(exchData.error);
+
+        // Save the Copilot token
+        const copilotToken = exchData.token;
+        localStorage.setItem('ls_copilot_api_key', copilotToken);
+        localStorage.setItem('ls_copilot_endpoint', 'https://api.githubcopilot.com/chat/completions');
+        localStorage.setItem('ls_copilot_oauth_token', token);
+        localStorage.setItem('ls_copilot_ghu_expiry', String(exchData.expires_at ? exchData.expires_at * 1000 : Date.now() + 1800000));
+
+        if (window.copilot) {
+            copilot.configure({ apiKey: copilotToken, endpoint: 'https://api.githubcopilot.com/chat/completions', model: document.getElementById('copilotModel').value });
+        }
+
+        flowDiv.innerHTML = '<div style="color:var(--hpe-green);font-weight:600;font-size:14px;">✅ Signed in with GitHub Copilot! AI features are now active.</div>';
+        showCopilotStatus('✅ GitHub Copilot authenticated! AI features enabled.', 'var(--hpe-green)');
         updateCopilotStatusDot(true);
     } catch (err) {
-        flowDiv.innerHTML = `<div style="color:#ef4444;">❌ ${err.message}</div>`;
+        flowDiv.innerHTML = `<div style="color:#ef4444;">❌ ${err.message}</div><div style="font-size:11px;color:var(--text-500);margin-top:4px;">Make sure you launched the app using LogSherlock.bat</div>`;
     }
 }
 
