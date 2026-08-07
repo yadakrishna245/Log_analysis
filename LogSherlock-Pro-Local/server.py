@@ -38,6 +38,13 @@ class LogSherlockHandler(http.server.SimpleHTTPRequestHandler):
         else:
             super().do_GET()
 
+    def end_headers(self):
+        # Prevent browser caching — always serve fresh files
+        self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
+        self.send_header('Pragma', 'no-cache')
+        self.send_header('Expires', '0')
+        super().end_headers()
+
     def _proxy_device_code(self):
         """Step 1: Request device code from GitHub."""
         data = json.dumps({'client_id': COPILOT_CLIENT_ID, 'scope': 'read:user'}).encode()
