@@ -67,6 +67,69 @@ python3 server.py
 
 ---
 
+### 🐍 Don't have Python? Install it first:
+
+<details>
+<summary><b>🪟 Windows — Install Python</b> (click to expand)</summary>
+
+**Option A: Download from python.org (Recommended)**
+1. Go to https://www.python.org/downloads/
+2. Click **"Download Python 3.11.x"** (big yellow button)
+3. Run the installer
+4. ⚠️ **IMPORTANT:** Check ✅ **"Add Python to PATH"** at the bottom of installer!
+5. Click "Install Now"
+6. Verify: Open PowerShell → type `python --version` → should show `Python 3.11.x`
+
+**Option B: Using winget (Windows 10/11)**
+```powershell
+winget install Python.Python.3.11
+```
+
+**Option C: Microsoft Store**
+- Open Microsoft Store → Search "Python 3.11" → Install
+
+</details>
+
+<details>
+<summary><b>🐧 Linux (Ubuntu/Debian) — Install Python</b> (click to expand)</summary>
+
+```bash
+sudo apt update
+sudo apt install python3 python3-pip -y
+python3 --version
+```
+
+</details>
+
+<details>
+<summary><b>🐧 Linux (RHEL/CentOS) — Install Python</b> (click to expand)</summary>
+
+```bash
+sudo yum install python3 -y
+# or on RHEL 9+:
+sudo dnf install python3 -y
+python3 --version
+```
+
+</details>
+
+<details>
+<summary><b>🍎 macOS — Install Python</b> (click to expand)</summary>
+
+**Option A: Download from python.org**
+1. Go to https://www.python.org/downloads/macos/
+2. Download and install the `.pkg` file
+
+**Option B: Using Homebrew**
+```bash
+brew install python@3.11
+python3 --version
+```
+
+</details>
+
+---
+
 ### Option 2: Cloud Edition (AWS)
 
 ```
