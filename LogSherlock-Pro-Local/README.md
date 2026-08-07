@@ -353,6 +353,40 @@ flowchart LR
 
 ## 🆕 What's New (Aug 7, 2026)
 
+### 🎬 Incident Replay Cinema — WATCH the Incident Unfold
+- **Full-screen animated replay** — dark war-room aesthetic
+- **13 topology nodes** (Storage, Cluster, Network, VMs, Kernel...) glow/pulse as they fail
+- **Causal arrows** draw between systems showing cascade propagation
+- **AI narration** — typewriter text explaining each step in plain English
+- **Severity meter** — rising bar from green → red showing escalation
+- **Speed control** — 0.5x, 1x, 2x, 4x playback
+- **Demo WOW factor** — no competitor has anything like this
+
+### 🔗 Root Cause Graph — 50 Findings → 3 Root Causes
+- Automatically collapses all findings into 3-5 root cause chains
+- Shows cause→effect with pattern names and match percentage
+- "89% of findings explained by 3 root causes"
+- 10 predefined chains: Storage I/O, Cluster Comms, Memory, Disk Full, Network, Morpheus, Fencing, Kernel, Security, SCSI PR
+
+### 🧠 Log Memory — Gets Smarter With Every Case
+- **Saves** every resolved case with resolution notes
+- **Auto-matches** new tickets to solved ones (Jaccard similarity)
+- Shows: "87% match to case from Aug 5 — Resolution: Restarted DLM + remounted GFS2"
+- Stores up to 50 cases locally — compounds over time
+
+### ⏱️ Timeline Replay — Swimlane View
+- One lane per log file, color-coded
+- Severity dots on timeline (🔴 critical, 🟠 high, 🟡 medium, 🟢 low)
+- Hover for details, chronological event list below
+
+### 🎯 Intelligence Layer — Jira Rovo-Level Accuracy
+- **Confidence scoring**: 0-100% with reasoning factors
+- **Severity auto-classify**: P1 Critical → P4 Low
+- **Symptom correlation**: Links multiple findings to single root cause
+- **KB article linking**: Auto-matches top 5 relevant articles
+- **Time-to-resolve**: Estimates fix time per issue type
+- **Impact assessment**: Cluster-wide vs single-system, data-at-risk flag
+
 ### 📸 Image/Screenshot Paste — Just Like ChatGPT
 - **Ctrl+V** to paste a screenshot anywhere (ticket context OR AI chat)
 - Or click **🖼️** button to browse and attach

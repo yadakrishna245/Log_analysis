@@ -1,7 +1,8 @@
 #!/bin/bash
-# LogSherlock Pro v3.0 - Single-click AWS Serverless Deployment
+# LogSherlock Pro v4.0 - Single-click AWS Serverless Deployment
 # Features: 455 patterns, streaming engine (3GB+), multi-file scan, Jira integration,
-#           Ticket Advisor (iterative L4 troubleshooting), License key system
+#           Ticket Advisor, Intelligence Layer, Incident Cinema, Root Cause Graph,
+#           Timeline Replay, Log Memory, Per-Machine License, Multi-Provider AI
 # Usage: ./deploy.sh [stack-name] [region] [api-key]
 # Example: ./deploy.sh logsherlock-pro us-east-1
 
@@ -14,8 +15,8 @@ CLOUDFRONT_DIST_ID="E3V2MZ00F7WXY9"
 
 echo ""
 echo "╔══════════════════════════════════════════════════════════════════╗"
-echo "║        LogSherlock Pro v3.0 — AWS Serverless Deployment        ║"
-echo "║   455 Patterns | Ticket Advisor | Streaming 3GB+ | Local AI    ║"
+echo "║        LogSherlock Pro v4.0 — AWS Serverless Deployment        ║"
+echo "║   455 Patterns | 85+ Features | Intelligence | Incident Cinema ║"
 echo "╚══════════════════════════════════════════════════════════════════╝"
 echo ""
 

@@ -19,7 +19,7 @@
     - S3 bucket for log uploads
     - IAM roles
 
-    Features: 455 patterns | 120 known issues | 14 categories | Jira RCA | Local AI (optional)
+    Features: 455 patterns | 120 known issues | 14 categories | Jira RCA | Local AI | Intelligence Layer | Incident Cinema | Root Cause Graph | Timeline Replay | Log Memory
 .PARAMETER StackName
     CloudFormation stack name (default: logsherlock-pro)
 .PARAMETER Region
@@ -36,7 +36,8 @@ $startTime = Get-Date
 Write-Host ""
 Write-Host "  ╔══════════════════════════════════════════════════╗" -ForegroundColor Cyan
 Write-Host "  ║   LogSherlock Pro - One-Command AWS Deploy       ║" -ForegroundColor Cyan
-Write-Host "  ║   455 Patterns | 120 Known Issues | 14 Categories║" -ForegroundColor Cyan
+Write-Host "  ║   455 Patterns | 120 Issues | 85+ Features       ║" -ForegroundColor Cyan
+Write-Host "  ║   + Intelligence Layer | Incident Cinema         ║" -ForegroundColor Cyan
 Write-Host "  ╚══════════════════════════════════════════════════╝" -ForegroundColor Cyan
 Write-Host ""
 

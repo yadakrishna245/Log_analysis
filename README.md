@@ -211,7 +211,7 @@ flowchart TD
 
 ---
 
-## ✨ Features (55+)
+## ✨ Features (85+)
 
 ### Core Analysis
 | # | Feature | Description |
@@ -307,6 +307,53 @@ flowchart TD
 | 47 | **Usage Dashboard** | Track who's using the tool, scan counts, file sizes |
 | 48 | **Mandatory Name Entry** | All users must enter their name before using (blocks app) |
 | 49 | **Admin-Only Access** | Analytics visible only with admin password |
+
+### Intelligence Layer (NEW — Aug 7)
+| # | Feature | Description |
+|---|---------|-------------|
+| 50 | **Confidence Scoring** | 0-100% score with reasoning factors — tells you HOW sure the analysis is |
+| 51 | **Severity Auto-Classification** | P1 Critical / P2 High / P3 Medium / P4 Low — auto-detects from keywords |
+| 52 | **Symptom Correlation Chains** | Links multiple findings to single root cause (10 predefined chains) |
+| 53 | **KB Article Auto-Linking** | Matches findings to 20 knowledge base articles with relevance scores |
+| 54 | **Time-to-Resolve Estimation** | Estimates fix time based on issue type + severity |
+| 55 | **Impact Blast Radius** | Assesses scope: cluster-wide vs single-system, data-at-risk flag |
+
+### Advanced Insights (NEW — Aug 7)
+| # | Feature | Description |
+|---|---------|-------------|
+| 56 | **🔗 Root Cause Graph** | Collapses 50+ findings into 3-5 root causes with visual cause→effect chains |
+| 57 | **⏱️ Timeline Replay** | Swimlane chronological view — events across files in time order |
+| 58 | **🧠 Log Memory** | Fingerprints every case you solve. Auto-matches new tickets to past solutions (Jaccard similarity) |
+| 59 | **💾 Save & Learn** | Save resolution notes per case — tool gets smarter with every ticket |
+
+### 🎬 Incident Replay Cinema (NEW — Aug 7)
+| # | Feature | Description |
+|---|---------|-------------|
+| 60 | **Full-Screen Animated Replay** | Watch the incident unfold like a movie — nodes light up as systems fail |
+| 61 | **Animated Topology** | 13 system nodes (Storage, Cluster, Network, VMs, Kernel...) pulse/glow as failures cascade |
+| 62 | **Causal Arrows** | Red lines draw between nodes showing failure propagation |
+| 63 | **AI Narration** | Typewriter-style text explaining each step in plain English |
+| 64 | **Severity Meter** | Rising progress bar showing escalation from green → yellow → red |
+| 65 | **Speed Control** | 0.5x, 1x, 2x, 4x playback — scrub through the incident at your pace |
+
+### Per-Machine License System (NEW — Aug 7)
+| # | Feature | Description |
+|---|---------|-------------|
+| 66 | **Machine Fingerprint** | Canvas hash + WebGL + screen + cores + timezone → unique device ID |
+| 67 | **One Key = One Device** | License key locked to the first machine that activates it |
+| 68 | **AWS DynamoDB Backend** | Secure activation/validation via Lambda |
+| 69 | **Admin Dashboard** | Full license management SPA (7 tabs) — private repo only |
+| 70 | **Rate Limiting** | Max 5 activation attempts per key per minute |
+| 71 | **Email/Webhook Alerts** | Notification on new activation via SES or Slack/Discord |
+
+### Multi-Provider AI Chat (NEW — Aug 7)
+| # | Feature | Description |
+|---|---------|-------------|
+| 72 | **Ollama Local** | Works offline with qwen3.5:4b, llama3.2:3b |
+| 73 | **GitHub Copilot** | GPT-4o, Claude Sonnet 4, Gemini 2.5 via OAuth device flow |
+| 74 | **Model Fallback Chain** | If one model fails, auto-tries next best (12 models deep) |
+| 75 | **Image/Screenshot Paste** | Ctrl+V images in chat — analyzed by vision models |
+| 76 | **ZIP/Folder Support** | Scan .zip archives and drag-drop entire folders |
 
 ---
 
