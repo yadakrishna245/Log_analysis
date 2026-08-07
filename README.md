@@ -822,6 +822,207 @@ cd deploy
 
 See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for full deployment guide.
 
+---
+
+<details>
+<summary><h3>🐧 Option 5: Full Linux Installation (Step-by-Step)</h3></summary>
+
+Complete guide for deploying LogSherlock Pro on a fresh Linux server (Ubuntu/Debian/RHEL).
+
+#### Step 1 — Install Git
+
+**Ubuntu / Debian:**
+```bash
+sudo apt update
+sudo apt install git -y
+git --version
+```
+
+**RHEL / CentOS / Rocky:**
+```bash
+sudo yum install git -y
+# or on RHEL 9+:
+sudo dnf install git -y
+git --version
+```
+
+#### Step 2 — Install Python 3.10+
+
+**Ubuntu / Debian:**
+```bash
+sudo apt install python3 python3-pip python3-venv -y
+python3 --version   # Should show 3.10+
+```
+
+**RHEL / CentOS:**
+```bash
+sudo dnf install python3 python3-pip -y
+python3 --version
+```
+
+#### Step 3 — Clone the Repository
+
+```bash
+cd ~
+git clone https://github.com/yadakrishna245/Log_analysis.git
+cd Log_analysis
+```
+
+#### Step 4 — Install Dependencies
+
+```bash
+pip3 install -r requirements.txt
+```
+
+#### Step 5 — Deploy Using the Shell Script
+
+```bash
+cd deploy
+chmod +x deploy.sh
+./deploy.sh
+```
+
+> ✅ The script will:
+> - Build the SAM template
+> - Package and deploy to AWS Lambda
+> - Output the CloudFront URL when done
+
+#### Step 6 — Verify Deployment
+
+```bash
+# Check the API is responding
+curl https://d3tv1czat55yad.cloudfront.net/api/patterns/export | python3 -m json.tool | head -5
+```
+
+#### Alternative: Run Locally (No AWS needed)
+
+```bash
+cd ~/Log_analysis
+python3 run_server.py
+# → Open http://localhost:5000 in browser
+```
+
+#### Troubleshooting
+
+| Issue | Fix |
+|-------|-----|
+| `git: command not found` | Run `sudo apt install git -y` or `sudo yum install git -y` |
+| `python3: command not found` | Run `sudo apt install python3 -y` |
+| `pip3: command not found` | Run `sudo apt install python3-pip -y` |
+| `Permission denied: deploy.sh` | Run `chmod +x deploy.sh` |
+| `SAM CLI not found` | Install: `pip3 install aws-sam-cli` |
+| Port 5000 in use | Use `python3 run_server.py --port 8080` |
+
+</details>
+
+---
+
+<details>
+<summary><h3>📦 Option 6: Pro-Local Edition Deployment (Step-by-Step)</h3></summary>
+
+The **Pro-Local Edition** is a standalone version that runs entirely on your machine — no internet, no cloud, no AWS. Perfect for air-gapped environments.
+
+#### Step 1 — Download the Pro-Local Folder
+
+**Option A: From GitHub (if you have git)**
+```bash
+git clone https://github.com/yadakrishna245/Log_analysis.git
+cd Log_analysis/LogSherlock-Pro-Local
+```
+
+**Option B: Download ZIP**
+1. Go to https://github.com/yadakrishna245/Log_analysis
+2. Click **Code** → **Download ZIP**
+3. Extract the ZIP
+4. Navigate to the `LogSherlock-Pro-Local` folder
+
+#### Step 2 — Verify Python is Installed
+
+```bash
+python3 --version   # Linux/macOS
+python --version    # Windows
+```
+
+> Need Python? See the **🐍 Don't have Python?** section above.
+
+#### Step 3 — Run the Server
+
+**🐧 Linux / 🍎 macOS:**
+```bash
+cd LogSherlock-Pro-Local
+python3 server.py
+```
+
+**🪟 Windows (PowerShell):**
+```powershell
+cd LogSherlock-Pro-Local
+python server.py
+```
+
+> ✅ You should see: `Serving LogSherlock Pro on http://localhost:8888`
+
+#### Step 4 — Open in Browser
+
+```
+http://localhost:8888
+```
+
+#### Step 5 — Activate Your License
+
+1. Enter your **name** (required for usage tracking)
+2. Enter your **license key** (format: `XXXX-XXXX-XXXX-XXXX`)
+3. Click **Activate**
+4. ✅ App unlocks — you're ready to scan!
+
+#### Step 6 — Start Scanning
+
+1. Drag & drop your `.tar.gz` or `.zip` log bundle onto the upload zone
+2. Or enter a folder path (comma-separated for multiple folders)
+3. Click **▶ Run Scan**
+4. View results: Verdict, Health Score, Heatmap, RCA Report
+
+#### What's Included in Pro-Local
+
+| File | Purpose |
+|------|---------|
+| `server.py` | Local HTTP server (Python stdlib only — zero pip install needed!) |
+| `index.html` | Full application (single-page, all features) |
+| `verdict-engine.js` | Smart Verdict Panel |
+| `health-score.js` | Health Score gauge |
+| `predictive-engine.js` | Predictive failure warnings |
+| `before-after.js` | Before/After comparison |
+| `customer-email.js` | Customer email generator |
+| `roi-calculator.js` | ROI calculator |
+| `advanced-insights.js` | Root Cause Graph + Timeline + Log Memory |
+| `incident-cinema.js` | Incident Replay Cinema |
+| `scan-worker.js` | Background scanning worker |
+
+#### Key Differences: Pro-Local vs Cloud Edition
+
+| Feature | Pro-Local | Cloud Edition |
+|---------|:---------:|:-------------:|
+| Internet required | ❌ No | ✅ Yes (first load) |
+| Setup | `python server.py` | Open URL |
+| Port | `localhost:8888` | CloudFront URL |
+| Dependencies | Python only (stdlib) | None (browser) |
+| License | Per-machine key | Per-machine key |
+| All 102 features | ✅ | ✅ |
+| Works air-gapped | ✅ | ❌ |
+
+#### Troubleshooting
+
+| Issue | Fix |
+|-------|-----|
+| `python: command not found` | Use `python3` instead, or install Python |
+| Port 8888 already in use | Edit `server.py` → change `PORT = 8888` to another port |
+| License won't activate | Check internet connection (activation requires one-time API call) |
+| Blank page in browser | Make sure all `.js` files are in the same folder as `index.html` |
+| Permission denied (Linux) | Run `chmod 644 *.js *.html` and `chmod 755 server.py` |
+
+</details>
+
+---
+
 ### 🤖 Optional: Local AI (Ollama)
 
 For AI-powered root cause summaries (runs on your machine, zero cloud dependency):
