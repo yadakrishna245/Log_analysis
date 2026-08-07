@@ -8,6 +8,7 @@
 [![Flask](https://img.shields.io/badge/Flask-3.0-000000?style=for-the-badge&logo=flask&logoColor=white)](https://flask.palletsprojects.com)
 [![AWS](https://img.shields.io/badge/AWS-Serverless-FF9900?style=for-the-badge&logo=amazonaws&logoColor=white)](https://aws.amazon.com)
 [![Patterns](https://img.shields.io/badge/Patterns-455-01A982?style=for-the-badge)](docs/USER_GUIDE.md)
+[![Features](https://img.shields.io/badge/Features-100+-8b5cf6?style=for-the-badge)](#-features-95)
 [![Known Issues](https://img.shields.io/badge/Known_Issues-120-01A982?style=for-the-badge)](docs/USER_GUIDE.md)
 [![Runbooks](https://img.shields.io/badge/Runbooks-12-01A982?style=for-the-badge)](docs/USER_GUIDE.md)
 [![Privacy](https://img.shields.io/badge/Privacy-Zero_Upload-01A982?style=for-the-badge&logo=shieldsdotio&logoColor=white)](#-security--privacy)
@@ -211,7 +212,7 @@ flowchart TD
 
 ---
 
-## ✨ Features (85+)
+## ✨ Features (95+)
 
 ### Core Analysis
 | # | Feature | Description |
@@ -354,6 +355,56 @@ flowchart TD
 | 74 | **Model Fallback Chain** | If one model fails, auto-tries next best (12 models deep) |
 | 75 | **Image/Screenshot Paste** | Ctrl+V images in chat — analyzed by vision models |
 | 76 | **ZIP/Folder Support** | Scan .zip archives and drag-drop entire folders |
+
+### ⚖️ Smart Verdict Panel (NEW — Aug 7)
+| # | Feature | Description |
+|---|---------|-------------|
+| 77 | **One-Sentence Verdict** | Like a doctor's diagnosis — ONE clear root cause statement, not 50 findings to read |
+| 78 | **Evidence Chain** | Ordered cause→effect sequence with file names + line numbers proving the verdict |
+| 79 | **Ticket Alignment Score** | Shows HOW WELL the findings match your ticket description (0-100%) |
+| 80 | **Resolution Path** | Copy-paste fix commands — ready for the terminal, ordered by execution sequence |
+| 81 | **Confidence Scoring** | Multi-factor confidence: chain coverage + trigger hits + evidence volume + ticket alignment |
+| 82 | **Copy to Ticket Button** | One-click exports the full verdict + evidence + resolution as formatted text for Jira |
+| 83 | **10 Causal Chains** | GFS2 withdraw, fencing failure, storage I/O cascade, OOM, network bond, Morpheus crash, kernel panic, disk full, quorum loss, migration failure |
+
+### 🟢 Health Score (NEW — Aug 7)
+| # | Feature | Description |
+|---|---------|-------------|
+| 84 | **0-100 Health Gauge** | Single number tells the story — everyone from beginner to CEO understands it |
+| 85 | **Grade System** | A/B/C/D/F with color coding (green→red) |
+| 86 | **Visual Circular Gauge** | Animated conic-gradient circle with severity breakdown |
+
+### 🔮 Predictive Failure Warnings (NEW — Aug 7)
+| # | Feature | Description |
+|---|---------|-------------|
+| 87 | **12 Prediction Rules** | "System WILL crash within 48 hours if not fixed" — based on current warning patterns |
+| 88 | **Probability Scores** | Each prediction shows likelihood (40-85%) with visual probability bar |
+| 89 | **Time-to-Failure** | Estimated hours until predicted failure (e.g., "2-6 hours") |
+| 90 | **Prevention Steps** | Exact command to run NOW to prevent the predicted failure |
+
+### 🔄 Before/After Comparison (NEW — Aug 7)
+| # | Feature | Description |
+|---|---------|-------------|
+| 91 | **Snapshot Before Patch** | Save current findings as "before" state |
+| 92 | **Snapshot After Patch** | Save post-fix findings as "after" state |
+| 93 | **Visual Diff** | Green = resolved issues, Red = new issues, Grey = persistent — proves the fix worked |
+| 94 | **Health Score Delta** | "Before: 34/100 → After: 78/100 (+44 improvement)" |
+
+### 📧 Customer Email Generator (NEW — Aug 7)
+| # | Feature | Description |
+|---|---------|-------------|
+| 95 | **Non-Technical Email** | One-click generates customer-friendly email (no jargon, plain English) |
+| 96 | **3 Tone Modes** | Professional / Empathetic / Urgent — match the situation |
+| 97 | **Auto ETA** | Severity-based time estimate (P1: 1-2hrs, P2: 4-8hrs, P3: 1-2 days) |
+| 98 | **Data Safety Statement** | Auto-includes whether customer data is at risk |
+
+### 📊 ROI Calculator (NEW — Aug 7)
+| # | Feature | Description |
+|---|---------|-------------|
+| 99 | **Automatic Tracking** | Counts all scans from history — calculates hours saved (2.5hrs/scan benchmark) |
+| 100 | **Money Saved** | Hours × $150/hr engineer rate = total dollar savings |
+| 101 | **Monthly Projection** | Projects savings for the month based on current usage rate |
+| 102 | **ROI Percentage** | (Saved - License Cost) / License Cost × 100% — justifies the tool to any manager |
 
 ---
 

@@ -353,6 +353,49 @@ flowchart LR
 
 ## 🆕 What's New (Aug 7, 2026)
 
+### ⚖️ Smart Verdict Panel — "The Judge"
+- **One-sentence diagnosis** — "ROOT CAUSE: GFS2 withdraw due to SCSI PR conflict"
+- **Evidence chain** — ordered cause→effect with file:line numbers
+- **Ticket alignment score** — shows HOW WELL findings match your Jira description (0-100%)
+- **Resolution path** — numbered fix commands, ready to copy-paste into terminal
+- **Confidence scoring** — multi-factor: chain coverage + triggers + volume + ticket alignment
+- **📋 Copy to Ticket** — one-click exports formatted verdict for Jira/ServiceNow
+- **10 built-in causal chains** — GFS2, fencing, storage I/O, OOM, network, Morpheus, kernel, disk full, quorum, migration
+
+### 🟢 Health Score (0-100) — Everyone Understands This
+- **Single number** — 0 to 100, like a blood pressure reading for your system
+- **Grade: A/B/C/D/F** — instantly communicates severity to anyone (beginner to CEO)
+- **Animated circular gauge** — color-coded from green to dark red
+- **Severity breakdown** — shows deductions: 3 CRITICAL × 15pts, 4 HIGH × 8pts, etc.
+
+### 🔮 Predictive Failure Warnings — See the FUTURE
+- **"System will crash in 48 hours"** — predicts failures before they happen
+- **12 prediction rules** — storage, memory, disk, network, cluster, kernel, fencing, etc.
+- **Probability bars** — visual 40-85% likelihood per prediction
+- **Time-to-failure** — "Estimated: 2-6 hours" for each predicted issue
+- **Prevention steps** — exact command to run NOW to prevent disaster
+
+### 🔄 Before/After Comparison — Prove the Fix Worked
+- **📸 Save as BEFORE** — snapshot findings before applying patch
+- **📸 Save as AFTER** — snapshot findings after the fix
+- **Visual diff** — ✅ GREEN = resolved, ❌ RED = new issues, ⬜ GREY = persistent
+- **Health score delta** — "Before: 34/100 → After: 78/100 (+44 improvement)"
+- **Perfect for change management** — prove to customer/manager the fix worked
+
+### 📧 Customer Email Generator — One-Click Professional Response
+- **Non-technical language** — translates "SCSI PR conflict" → "storage connectivity issue"
+- **3 tone modes** — Professional / Empathetic / Urgent
+- **Auto-generated ETA** — P1: 1-2hrs, P2: 4-8hrs, P3: 1-2 days, P4: next maintenance
+- **Data safety statement** — auto-determines if customer data is at risk
+- **📋 Copy Email** — paste directly into Outlook/Gmail
+
+### 📊 ROI Calculator — Justify the Tool to Any Manager
+- **Auto-tracks all scans** — reads from your history
+- **Hours saved** — 2.5 hrs saved per scan (industry benchmark)
+- **Money saved** — Hours × $150/hr L4 engineer rate
+- **ROI percentage** — (Saved - License Cost) / Cost × 100%
+- **Monthly projection** — "At this rate, saving $7,050/month"
+
 ### 🎬 Incident Replay Cinema — WATCH the Incident Unfold
 - **Full-screen animated replay** — dark war-room aesthetic
 - **13 topology nodes** (Storage, Cluster, Network, VMs, Kernel...) glow/pulse as they fail
