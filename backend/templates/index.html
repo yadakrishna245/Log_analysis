@@ -2259,10 +2259,12 @@ function analyzeFolder(){
 }
 
 let _allFindings = []; // Global for filtering
+window._allFindings = _allFindings; // Expose for cinema/insights
 function render(data){
     hideProgress();
     const f=data.findings||[];
     _allFindings = f; // Store for filter functions
+    window._allFindings = f; // Expose for cinema/insights
     const c=f.filter(x=>x.severity==='CRITICAL').length;
     const h=f.filter(x=>x.severity==='HIGH').length;
     const m=f.filter(x=>x.severity==='MEDIUM').length;
@@ -2409,6 +2411,19 @@ function render(data){
     if(!j){ j = buildProfessionalRCA(f, c, h, m, l, data); }
     $('#jiraReportRaw').value=j;
     $('#jiraReportRendered').innerHTML=renderJiraMarkup(j);
+    // Advanced Insights (Root Cause Graph + Timeline + Log Memory + Cinema)
+    if (typeof renderAdvancedInsights === 'function' && f.length > 0) {
+        let insightsContainer = document.getElementById('advancedInsightsPanel');
+        if (!insightsContainer) {
+            insightsContainer = document.createElement('div');
+            insightsContainer.id = 'advancedInsightsPanel';
+            const findingsList = document.getElementById('findingsList');
+            if (findingsList && findingsList.parentNode) {
+                findingsList.parentNode.insertBefore(insightsContainer, findingsList);
+            }
+        }
+        insightsContainer.innerHTML = renderAdvancedInsights(f);
+    }
     saveHistory(data);
 }
 
@@ -5622,5 +5637,7 @@ function askOllamaTicket() {
 
 </script>
 <script src='/static/copilot-integration.js'></script>
+<script src='/static/advanced-insights.js'></script>
+<script src='/static/incident-cinema.js'></script>
 </body>
 </html>
