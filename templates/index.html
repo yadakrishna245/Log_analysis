@@ -434,6 +434,12 @@
             <span id="jiraStatusDot" style="position:absolute;top:6px;right:6px;width:8px;height:8px;border-radius:50%;background:#71717a;border:2px solid var(--bg-1);"></span>
         </div>
 
+        <!-- Copilot Settings -->
+        <div class="rail-item" id="copilotNavItem" onclick="showPage('copilot-settings')" tabindex="0" title="Copilot AI Settings" style="position:relative;">
+            <span style="font-size:16px;">⚙️</span>
+            <span id="copilotStatusDot" style="position:absolute;top:6px;right:6px;width:8px;height:8px;border-radius:50%;background:#71717a;border:2px solid var(--bg-1);"></span>
+        </div>
+
         <!-- Ticket Advisor -->
         <div class="rail-item" onclick="showPage('advisor')" tabindex="0" title="Ticket Advisor">
             <span style="font-size:16px;">🎯</span>
@@ -924,6 +930,83 @@
                         </div>
                         <button class="btn" onclick="postJiraComment()" style="background:#8b5cf6;align-self:flex-start;">📤 Post Comment to Jira</button>
                         <div id="jiraPostStatus" style="font-size:12px;color:var(--text-400);display:none;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- COPILOT AI SETTINGS PAGE -->
+            <div id="page-copilot-settings" class="page">
+                <div class="pg-header">
+                    <div class="pg-title">⚙️ GitHub Copilot AI Settings</div>
+                    <div class="pg-desc">Configure GitHub Copilot as your AI engine for ticket analysis, investigation guides, and smart replies. Copilot is preferred over Ollama when configured.</div>
+                </div>
+
+                <!-- Copilot Auth Section -->
+                <div style="background:var(--bg-2);border:1px solid var(--border-default);border-radius:12px;padding:24px;margin-bottom:20px;">
+                    <div style="font-size:14px;font-weight:600;color:var(--text-100);margin-bottom:16px;">🔑 Authentication</div>
+                    <div style="display:flex;flex-direction:column;gap:12px;">
+                        <div>
+                            <label style="font-size:11px;font-weight:500;color:var(--text-400);text-transform:uppercase;letter-spacing:0.05em;">API Token (Copilot / OpenAI-compatible)</label>
+                            <input type="password" id="copilotApiKey" placeholder="ghu_xxxx or sk-xxxx or 'ollama' for local" style="width:100%;margin-top:4px;padding:10px 14px;background:var(--bg-0);border:1px solid var(--border-default);border-radius:8px;font-size:13px;color:var(--text-200);font-family:var(--mono);">
+                        </div>
+                        <div>
+                            <label style="font-size:11px;font-weight:500;color:var(--text-400);text-transform:uppercase;letter-spacing:0.05em;">Model</label>
+                            <select id="copilotModel" style="width:100%;margin-top:4px;padding:10px 14px;background:var(--bg-0);border:1px solid var(--border-default);border-radius:8px;font-size:13px;color:var(--text-200);">
+                                <option value="gpt-4o">gpt-4o (recommended)</option>
+                                <option value="claude-sonnet-4">claude-sonnet-4</option>
+                                <option value="gemini-2.5-pro">gemini-2.5-pro</option>
+                                <option value="claude-opus-4">claude-opus-4</option>
+                                <option value="gpt-4-turbo">gpt-4-turbo</option>
+                                <option value="o4-mini">o4-mini</option>
+                                <option value="o3-mini">o3-mini</option>
+                                <option value="claude-3.5-sonnet">claude-3.5-sonnet</option>
+                                <option value="gpt-4o-mini">gpt-4o-mini</option>
+                                <option value="gemini-2.5-flash">gemini-2.5-flash</option>
+                                <option value="gemini-2.0-flash">gemini-2.0-flash</option>
+                                <option value="claude-haiku-3.5">claude-haiku-3.5</option>
+                            </select>
+                        </div>
+                        <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;">
+                            <button class="btn" onclick="saveCopilotSettings()" style="background:#8b5cf6;">💾 Save Settings</button>
+                            <button class="btn-ghost" onclick="testCopilotConnection()" style="border-color:#8b5cf6;color:#8b5cf6;">🔌 Test Connection</button>
+                            <button class="btn-ghost" style="border-color:#ef4444;color:#ef4444;" onclick="clearCopilotSettings()">🗑️ Clear</button>
+                        </div>
+                        <div id="copilotSettingsStatus" style="font-size:12px;color:var(--text-400);margin-top:4px;display:none;"></div>
+                    </div>
+                </div>
+
+                <!-- GitHub Copilot OAuth Sign-In -->
+                <div style="background:var(--bg-2);border:1px solid #8b5cf6;border-radius:12px;padding:24px;margin-bottom:20px;">
+                    <div style="font-size:14px;font-weight:600;color:#8b5cf6;margin-bottom:8px;">🚀 Quick Sign-In (Recommended)</div>
+                    <div style="font-size:12px;color:var(--text-300);margin-bottom:16px;line-height:1.6;">
+                        Sign in with your GitHub account to use Copilot AI. Requires an active GitHub Copilot subscription (individual or organization).
+                        Uses the standard VS Code device flow — your organization's Copilot license covers this.
+                    </div>
+                    <button class="btn" onclick="signInWithCopilot()" style="background:#8b5cf6;font-size:14px;padding:12px 24px;">
+                        🔐 Sign in with GitHub Copilot
+                    </button>
+                    <div id="copilotAuthStatus" style="margin-top:12px;font-size:12px;color:var(--text-400);display:none;"></div>
+                    <!-- NOTE: For cloud deployment, the GitHub OAuth device flow may require
+                         server-side proxy routes to avoid CORS issues with github.com.
+                         Add these routes to app.py if needed:
+                         @app.route('/api/copilot/device-code', methods=['POST'])
+                         @app.route('/api/copilot/token', methods=['POST'])
+                         @app.route('/api/copilot/copilot-token', methods=['POST'])
+                         See LogSherlock-Pro-Local/server.py for reference implementation. -->
+                </div>
+
+                <!-- Status -->
+                <div style="background:var(--bg-2);border:1px solid var(--border-default);border-radius:12px;padding:24px;">
+                    <div style="font-size:14px;font-weight:600;color:var(--text-100);margin-bottom:12px;">📊 Connection Status</div>
+                    <div id="copilotConnectionStatus" style="font-size:13px;color:var(--text-300);line-height:1.8;">
+                        Checking...
+                    </div>
+                    <div style="margin-top:16px;padding:12px;background:var(--bg-0);border-radius:8px;border:1px solid var(--border-subtle);">
+                        <div style="font-size:11px;color:var(--text-400);line-height:1.7;">
+                            🔒 <strong>Privacy:</strong> Only pattern names and categories are sent to Copilot — never raw log content.<br>
+                            🔄 <strong>Fallback:</strong> If Copilot is unavailable, the system automatically falls back to local Ollama.<br>
+                            ⚡ <strong>Model Chain:</strong> If your selected model is overloaded, it auto-falls to the next best model (gpt-4o → claude-sonnet → gemini-pro → ...)
+                        </div>
                     </div>
                 </div>
             </div>
@@ -5184,6 +5267,196 @@ function advisorClearConversation() {
     if (typeof flash === 'function') flash('Conversation cleared');
 }
 
+// ═══════════════════════════════════════════════════════════════════════
+// GITHUB COPILOT INTEGRATION — Settings, Auth, Override
+// ═══════════════════════════════════════════════════════════════════════
+
+function saveCopilotSettings() {
+    const apiKey = document.getElementById('copilotApiKey').value.trim();
+    const model = document.getElementById('copilotModel').value;
+    const statusEl = document.getElementById('copilotSettingsStatus');
+    
+    if (!apiKey) {
+        statusEl.style.display = 'block';
+        statusEl.style.color = '#ef4444';
+        statusEl.textContent = '❌ Please enter an API token.';
+        return;
+    }
+
+    if (window.copilot) {
+        copilot.configure({ apiKey: apiKey, model: model });
+    } else {
+        localStorage.setItem('ls_copilot_api_key', apiKey);
+        localStorage.setItem('ls_copilot_model', model);
+    }
+
+    statusEl.style.display = 'block';
+    statusEl.style.color = '#01a982';
+    statusEl.textContent = '✅ Copilot settings saved! Model: ' + model;
+    updateCopilotStatusDot();
+    updateCopilotConnectionStatus();
+}
+
+function testCopilotConnection() {
+    const statusEl = document.getElementById('copilotSettingsStatus');
+    statusEl.style.display = 'block';
+    statusEl.style.color = 'var(--text-400)';
+    statusEl.textContent = '⏳ Testing connection...';
+
+    if (window.copilot && copilot.isReady()) {
+        copilot.askQuestion('Say OK if you can hear me. One word only.').then(r => {
+            if (r.success) {
+                statusEl.style.color = '#01a982';
+                statusEl.textContent = '✅ Connection successful! Model: ' + (copilot.getLastModelUsed ? copilot.getLastModelUsed() : 'unknown');
+            } else {
+                statusEl.style.color = '#ef4444';
+                statusEl.textContent = '❌ ' + (r.error || 'Connection failed');
+            }
+        }).catch(err => {
+            statusEl.style.color = '#ef4444';
+            statusEl.textContent = '❌ ' + err.message;
+        });
+    } else {
+        statusEl.style.color = '#ef4444';
+        statusEl.textContent = '❌ Copilot not configured. Save settings first or sign in.';
+    }
+}
+
+function clearCopilotSettings() {
+    if (!confirm('Clear all Copilot settings? This will remove your API key.')) return;
+    localStorage.removeItem('ls_copilot_api_key');
+    localStorage.removeItem('ls_copilot_endpoint');
+    localStorage.removeItem('ls_copilot_model');
+    localStorage.removeItem('ls_copilot_ghu_token');
+    localStorage.removeItem('ls_copilot_ghu_expiry');
+    localStorage.removeItem('ls_copilot_oauth_token');
+    document.getElementById('copilotApiKey').value = '';
+    document.getElementById('copilotModel').value = 'gpt-4o';
+    
+    if (window.copilot) {
+        copilot.apiKey = '';
+        copilot._copilotToken = '';
+        copilot.enabled = false;
+    }
+
+    const statusEl = document.getElementById('copilotSettingsStatus');
+    statusEl.style.display = 'block';
+    statusEl.style.color = 'var(--text-400)';
+    statusEl.textContent = '🗑️ Copilot settings cleared.';
+    updateCopilotStatusDot();
+    updateCopilotConnectionStatus();
+}
+
+async function signInWithCopilot() {
+    const authStatus = document.getElementById('copilotAuthStatus');
+    authStatus.style.display = 'block';
+    authStatus.innerHTML = '<div style="color:var(--text-400);">⏳ Initiating GitHub device flow...</div>';
+
+    if (!window.copilot) {
+        authStatus.innerHTML = '<div style="color:#ef4444;">❌ copilot-integration.js not loaded. Check console.</div>';
+        return;
+    }
+
+    try {
+        const auth = await copilot.authenticateCopilot();
+        authStatus.innerHTML = `
+            <div style="padding:16px;background:var(--bg-0);border:1px solid #8b5cf6;border-radius:8px;text-align:center;">
+                <div style="font-size:13px;color:var(--text-200);margin-bottom:8px;">Enter this code on GitHub:</div>
+                <div style="font-size:32px;font-weight:700;color:#8b5cf6;font-family:var(--mono);letter-spacing:4px;margin:12px 0;">${auth.userCode}</div>
+                <div style="font-size:11px;color:var(--text-400);margin-bottom:12px;">A browser tab opened → <a href="${auth.verificationUrl}" target="_blank" style="color:#8b5cf6;">${auth.verificationUrl}</a></div>
+                <div style="font-size:11px;color:var(--text-400);">⏳ Waiting for authorization...</div>
+            </div>`;
+
+        const result = await auth.pollForToken();
+        authStatus.innerHTML = `
+            <div style="padding:12px;background:rgba(1,169,130,0.1);border:1px solid #01a982;border-radius:8px;">
+                <div style="color:#01a982;font-weight:600;">✅ GitHub Copilot Connected!</div>
+                <div style="color:var(--text-300);font-size:11px;margin-top:4px;">Token expires: ${new Date(result.expiresAt).toLocaleTimeString()} (auto-refreshes)</div>
+            </div>`;
+        updateCopilotStatusDot();
+        updateCopilotConnectionStatus();
+        // Update the model dropdown to match
+        document.getElementById('copilotModel').value = copilot.model || 'gpt-4o';
+    } catch (err) {
+        authStatus.innerHTML = `<div style="color:#ef4444;">❌ ${err.message}</div>`;
+    }
+}
+
+function updateCopilotStatusDot() {
+    const dot = document.getElementById('copilotStatusDot');
+    if (!dot) return;
+    if (window.copilot && copilot.isReady()) {
+        const status = copilot.getStatus();
+        if (status.provider === 'copilot') {
+            dot.style.background = '#8b5cf6'; // Purple for Copilot
+        } else if (status.provider === 'ollama') {
+            dot.style.background = '#01a982'; // Green for Ollama
+        } else {
+            dot.style.background = '#3b82f6'; // Blue for custom
+        }
+    } else {
+        dot.style.background = '#71717a'; // Gray for disconnected
+    }
+}
+
+function updateCopilotConnectionStatus() {
+    const el = document.getElementById('copilotConnectionStatus');
+    if (!el) return;
+    if (window.copilot && copilot.isReady()) {
+        const status = copilot.getStatus();
+        el.innerHTML = `<div style="display:flex;align-items:center;gap:8px;"><span style="width:10px;height:10px;border-radius:50%;background:${status.provider==='copilot'?'#8b5cf6':status.provider==='ollama'?'#01a982':'#3b82f6'};display:inline-block;"></span> <strong>${status.message}</strong></div><div style="margin-top:8px;font-size:11px;color:var(--text-400);">Provider: ${status.provider} | Model: ${status.model}</div>`;
+    } else {
+        el.innerHTML = '<div style="color:var(--text-400);">❌ Not connected. Sign in with GitHub Copilot or configure an API key above.</div>';
+    }
+}
+
+// Initialize Copilot settings page on load
+(function initCopilotSettingsPage() {
+    setTimeout(function() {
+        const keyInput = document.getElementById('copilotApiKey');
+        const modelSelect = document.getElementById('copilotModel');
+        if (keyInput) {
+            const savedKey = localStorage.getItem('ls_copilot_api_key') || '';
+            if (savedKey && savedKey !== 'ollama') keyInput.value = savedKey;
+        }
+        if (modelSelect) {
+            const savedModel = localStorage.getItem('ls_copilot_model') || 'gpt-4o';
+            modelSelect.value = savedModel;
+        }
+        updateCopilotStatusDot();
+        updateCopilotConnectionStatus();
+    }, 500);
+})();
+
+// ═══ Override: Use Copilot if available, fallback to Ollama ═══════════
+const _originalAskOllamaTicket = typeof askOllamaTicket === 'function' ? askOllamaTicket : null;
+function askOllamaTicket() {
+    const ticketText = document.getElementById('ticketContext').value.trim();
+    if (!ticketText) { alert('Please paste a Jira ticket description first.'); return; }
+    const panel = document.getElementById('aiTicketPanel');
+    panel.style.display = 'block';
+    if (window.copilot && copilot.isReady()) {
+        panel.innerHTML = '<div style="padding:16px;color:var(--text-300);">🤖 Analyzing with GitHub Copilot AI...</div>';
+        copilot.getInvestigationGuide(ticketText).then(r => {
+            if (r.success) {
+                const usedModel = copilot.getLastModelUsed ? copilot.getLastModelUsed() : 'gpt-4o';
+                panel.innerHTML = '<div style="padding:16px;font-size:13px;color:var(--text-200);line-height:1.8;white-space:pre-wrap;border:1px solid #8b5cf6;border-left:4px solid #8b5cf6;border-radius:10px;"><div style="font-weight:700;color:#8b5cf6;margin-bottom:8px;">🤖 AI Analysis (GitHub Copilot — ' + usedModel + ')</div>' + r.guide.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</div>';
+            } else if (_ollamaAvailable) {
+                _originalAskOllamaTicket && _originalAskOllamaTicket();
+            } else {
+                panel.innerHTML = '<div style="padding:16px;color:#ef4444;">❌ ' + (r.error || 'AI not available') + '</div><div style="padding:8px 16px;font-size:11px;color:var(--text-500);">Go to Settings → Sign in with GitHub Copilot</div>';
+            }
+        }).catch(err => {
+            panel.innerHTML = '<div style="padding:16px;color:#ef4444;">❌ ' + err.message + '</div>';
+        });
+    } else if (_ollamaAvailable && _originalAskOllamaTicket) {
+        _originalAskOllamaTicket();
+    } else {
+        panel.innerHTML = '<div style="padding:16px;border:1px solid #8b5cf6;border-left:4px solid #8b5cf6;border-radius:10px;"><div style="font-weight:700;color:#8b5cf6;margin-bottom:8px;">🤖 AI Analysis</div><div style="color:var(--text-300);font-size:13px;">No AI configured.<br><br>Option 1: Sign in with GitHub Copilot (⚙️ Settings)<br>Option 2: Start Ollama locally (ollama serve)</div></div>';
+    }
+}
+
 </script>
+<script src='/static/copilot-integration.js'></script>
 </body>
 </html>
