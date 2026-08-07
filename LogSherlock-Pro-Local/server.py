@@ -37,6 +37,19 @@ class LogSherlockHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
         if self.path == '/api/health':
             self._json_response({'status': 'ok', 'server': 'LogSherlock Pro Local'})
+        elif self.path == '/admin' or self.path == '/admin/':
+            # Serve admin dashboard
+            admin_path = os.path.join(DIR, 'Administration', 'admin-dashboard.html')
+            if os.path.exists(admin_path):
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/html; charset=utf-8')
+                with open(admin_path, 'rb') as f:
+                    content = f.read()
+                self.send_header('Content-Length', str(len(content)))
+                self.end_headers()
+                self.wfile.write(content)
+            else:
+                self.send_error(404, 'Admin dashboard not found')
         else:
             super().do_GET()
 
