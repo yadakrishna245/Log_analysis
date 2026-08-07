@@ -396,7 +396,7 @@
     <div class="shortcuts-modal-row"><span class="shortcuts-modal-desc">Close modal</span><span class="shortcuts-modal-key">Escape</span></div>
 </div>
 
-<div class="shell">
+<div class="shell" id="appShell" style="display:none;">
     <!-- Icon rail -->
     <nav class="rail">
         <div class="rail-logo" style="background:none;width:auto;height:auto;" title="HPE LogSherlock Pro">
@@ -4106,7 +4106,16 @@ function trackEvent(eventType, eventData) {
 
 // ═══ MANDATORY NAME ENTRY — blocks app until name is entered ═══
 (function enforceNameEntry() {
-    if (localStorage.getItem('ls_username')) return; // Already set
+    if (localStorage.getItem('ls_username')) {
+        // Name exists — but still check license
+        if (!localStorage.getItem('ls_license_validated')) {
+            showLicenseOverlay();
+        } else {
+            // Both name and license valid — show app
+            document.getElementById('appShell').style.display = '';
+        }
+        return;
+    }
     // Create blocking overlay
     const overlay = document.createElement('div');
     overlay.id = 'nameOverlay';
@@ -4144,6 +4153,7 @@ function submitName() {
     if (!localStorage.getItem('ls_license_validated')) {
         showLicenseOverlay();
     } else {
+        document.getElementById('appShell').style.display = '';
         trackEvent('page_view', { url: location.href });
     }
 }
@@ -4324,6 +4334,7 @@ function validateLicense() {
     } catch(e) {} // Tracking is optional — don't block if it fails
     
     document.getElementById('licenseOverlay').remove();
+    document.getElementById('appShell').style.display = '';
     trackEvent('page_view', { url: location.href });
 }
 
@@ -4343,6 +4354,7 @@ function validateLicense() {
         if (storedMachine && storedMachine !== currentMachine) {
             // Machine changed! Invalidate license
             localStorage.removeItem('ls_license_validated');
+            document.getElementById('appShell').style.display = 'none';
             showLicenseExpiredOverlay(0);
             return;
         }
@@ -4359,6 +4371,7 @@ function validateLicense() {
     if (daysLeft <= 0) {
         // License expired — show renewal overlay
         localStorage.removeItem('ls_license_validated');
+        document.getElementById('appShell').style.display = 'none';
         showLicenseExpiredOverlay(totalDays);
     } else if (daysLeft <= 3) {
         // Show warning banner (3 days or less remaining)
