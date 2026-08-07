@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500">
+  <rect width="800" height="500" fill="#1a1a2e"/>
+  <text x="400" y="40" text-anchor="middle" fill="#01a982" font-family="Arial" font-size="20" font-weight="bold">LogSherlock Pro — Dark Theme</text>
+  <!-- Sidebar -->
+  <rect x="0" y="0" width="180" height="500" fill="#0d1117"/>
+  <rect x="10" y="15" width="160" height="30" rx="6" fill="#01a982" opacity="0.2"/>
+  <text x="90" y="35" text-anchor="middle" fill="#01a982" font-family="Arial" font-size="11" font-weight="bold">LogSherlock</text>
+  <rect x="10" y="60" width="160" height="28" rx="4" fill="#01a982" opacity="0.15"/>
+  <text x="30" y="78" fill="#01a982" font-family="Arial" font-size="10">Dashboard</text>
+  <rect x="10" y="95" width="160" height="28" rx="4" fill="transparent"/>
+  <text x="30" y="113" fill="#e0e0e0" font-family="Arial" font-size="10">Scan</text>
+  <rect x="10" y="130" width="160" height="28" rx="4" fill="transparent"/>
+  <text x="30" y="148" fill="#e0e0e0" font-family="Arial" font-size="10">Patterns</text>
+  <rect x="10" y="165" width="160" height="28" rx="4" fill="transparent"/>
+  <text x="30" y="183" fill="#e0e0e0" font-family="Arial" font-size="10">Reports</text>
+  <rect x="10" y="200" width="160" height="28" rx="4" fill="transparent"/>
+  <text x="30" y="218" fill="#e0e0e0" font-family="Arial" font-size="10">Integrations</text>
+  <rect x="10" y="235" width="160" height="28" rx="4" fill="transparent"/>
+  <text x="30" y="253" fill="#e0e0e0" font-family="Arial" font-size="10">Settings</text>
+  <!-- Main content area -->
+  <rect x="190" y="55" width="600" height="435" rx="8" fill="#16213e"/>
+  <!-- Top bar -->
+  <rect x="190" y="55" width="600" height="40" rx="8" fill="#0f3460"/>
+  <text x="210" y="80" fill="#e0e0e0" font-family="Arial" font-size="12">Dashboard</text>
+  <circle cx="750" cy="75" r="12" fill="#01a982" opacity="0.3"/>
+  <text x="750" y="79" text-anchor="middle" fill="#01a982" font-family="Arial" font-size="9">SC</text>
+  <!-- Mini cards -->
+  <rect x="200" y="105" width="140" height="60" rx="6" fill="#0f3460"/>
+  <text x="270" y="125" text-anchor="middle" fill="#e0e0e0" font-family="Arial" font-size="9">Health</text>
+  <text x="270" y="150" text-anchor="middle" fill="#01a982" font-family="Arial" font-size="18" font-weight="bold">72</text>
+  <rect x="350" y="105" width="140" height="60" rx="6" fill="#0f3460"/>
+  <text x="420" y="125" text-anchor="middle" fill="#e0e0e0" font-family="Arial" font-size="9">Alerts</text>
+  <text x="420" y="150" text-anchor="middle" fill="#ff4757" font-family="Arial" font-size="18" font-weight="bold">5</text>
+  <rect x="500" y="105" width="140" height="60" rx="6" fill="#0f3460"/>
+  <text x="570" y="125" text-anchor="middle" fill="#e0e0e0" font-family="Arial" font-size="9">Scans</text>
+  <text x="570" y="150" text-anchor="middle" fill="#70a1ff" font-family="Arial" font-size="18" font-weight="bold">47</text>
+  <rect x="650" y="105" width="130" height="60" rx="6" fill="#0f3460"/>
+  <text x="715" y="125" text-anchor="middle" fill="#e0e0e0" font-family="Arial" font-size="9">MTTR</text>
+  <text x="715" y="150" text-anchor="middle" fill="#2ed573" font-family="Arial" font-size="16" font-weight="bold">4.2m</text>
+  <!-- Chart area -->
+  <rect x="200" y="175" width="380" height="150" rx="6" fill="#0f3460"/>
+  <text x="220" y="195" fill="#e0e0e0" font-family="Arial" font-size="10">Event Timeline</text>
+  <line x1="220" y1="300" x2="560" y2="300" stroke="#2a2a4a" stroke-width="1"/>
+  <circle cx="250" cy="270" r="3" fill="#ff4757"/>
+  <circle cx="300" cy="280" r="3" fill="#ffa502"/>
+  <circle cx="350" cy="260" r="3" fill="#01a982"/>
+  <circle cx="400" cy="290" r="3" fill="#2ed573"/>
+  <circle cx="450" cy="250" r="3" fill="#ff4757"/>
+  <circle cx="500" cy="275" r="3" fill="#70a1ff"/>
+  <line x1="250" y1="270" x2="300" y2="280" stroke="#01a982" stroke-width="1"/>
+  <line x1="300" y1="280" x2="350" y2="260" stroke="#01a982" stroke-width="1"/>
+  <line x1="350" y1="260" x2="400" y2="290" stroke="#01a982" stroke-width="1"/>
+  <line x1="400" y1="290" x2="450" y2="250" stroke="#01a982" stroke-width="1"/>
+  <line x1="450" y1="250" x2="500" y2="275" stroke="#01a982" stroke-width="1"/>
+  <!-- Recent findings panel -->
+  <rect x="590" y="175" width="190" height="150" rx="6" fill="#0f3460"/>
+  <text x="610" y="195" fill="#e0e0e0" font-family="Arial" font-size="10">Recent</text>
+  <rect x="600" y="205" width="170" height="22" rx="3" fill="#ff4757" opacity="0.2"/>
+  <text x="610" y="219" fill="#ff4757" font-family="Arial" font-size="8">SSH Brute Force</text>
+  <rect x="600" y="232" width="170" height="22" rx="3" fill="#ffa502" opacity="0.2"/>
+  <text x="610" y="246" fill="#ffa502" font-family="Arial" font-size="8">CPU Spike</text>
+  <rect x="600" y="259" width="170" height="22" rx="3" fill="#2ed573" opacity="0.2"/>
+  <text x="610" y="273" fill="#2ed573" font-family="Arial" font-size="8">Log rotated</text>
+  <rect x="600" y="286" width="170" height="22" rx="3" fill="#70a1ff" opacity="0.2"/>
+  <text x="610" y="300" fill="#70a1ff" font-family="Arial" font-size="8">Cron job OK</text>
+</svg>

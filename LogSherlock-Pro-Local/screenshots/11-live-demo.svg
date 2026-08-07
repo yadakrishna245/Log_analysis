@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500">
+  <rect width="800" height="500" fill="#1a1a2e"/>
+  <text x="400" y="40" text-anchor="middle" fill="#01a982" font-family="Arial" font-size="20" font-weight="bold">Live Demo Mode</text>
+  <rect x="30" y="60" width="740" height="420" rx="8" fill="#16213e" stroke="#01a982" stroke-width="1"/>
+  <!-- Demo banner -->
+  <rect x="50" y="75" width="700" height="40" rx="8" fill="#ffa502" opacity="0.2" stroke="#ffa502"/>
+  <text x="400" y="100" text-anchor="middle" fill="#ffa502" font-family="Arial" font-size="13" font-weight="bold">DEMO MODE — Using synthetic log data | No real systems connected</text>
+  <!-- Synthetic results -->
+  <rect x="50" y="130" width="340" height="160" rx="8" fill="#0f3460"/>
+  <text x="70" y="155" fill="#e0e0e0" font-family="Arial" font-size="12" font-weight="bold">Synthetic Scan Results</text>
+  <rect x="70" y="165" width="200" height="12" rx="3" fill="#2a2a4a"/>
+  <rect x="70" y="165" width="160" height="12" rx="3" fill="#ff4757"/>
+  <text x="70" y="195" fill="#e0e0e0" font-family="Arial" font-size="10">Critical: 8 findings</text>
+  <rect x="70" y="205" width="200" height="12" rx="3" fill="#2a2a4a"/>
+  <rect x="70" y="205" width="120" height="12" rx="3" fill="#ffa502"/>
+  <text x="70" y="235" fill="#e0e0e0" font-family="Arial" font-size="10">High: 15 findings</text>
+  <rect x="70" y="245" width="200" height="12" rx="3" fill="#2a2a4a"/>
+  <rect x="70" y="245" width="80" height="12" rx="3" fill="#2ed573"/>
+  <text x="70" y="275" fill="#e0e0e0" font-family="Arial" font-size="10">Medium: 23 findings</text>
+  <!-- Demo controls -->
+  <rect x="410" y="130" width="340" height="160" rx="8" fill="#0f3460"/>
+  <text x="430" y="155" fill="#e0e0e0" font-family="Arial" font-size="12" font-weight="bold">Demo Scenarios</text>
+  <rect x="430" y="165" width="300" height="30" rx="6" fill="#01a982" opacity="0.2" stroke="#01a982"/>
+  <text x="580" y="184" text-anchor="middle" fill="#01a982" font-family="Arial" font-size="10">Security Breach Simulation</text>
+  <rect x="430" y="205" width="300" height="30" rx="6" fill="#0f3460" stroke="#2a2a4a"/>
+  <text x="580" y="224" text-anchor="middle" fill="#e0e0e0" font-family="Arial" font-size="10">Performance Degradation</text>
+  <rect x="430" y="245" width="300" height="30" rx="6" fill="#0f3460" stroke="#2a2a4a"/>
+  <text x="580" y="264" text-anchor="middle" fill="#e0e0e0" font-family="Arial" font-size="10">Cascade Failure</text>
+  <!-- Sample output -->
+  <rect x="50" y="310" width="700" height="150" rx="8" fill="#0f3460"/>
+  <text x="70" y="335" fill="#01a982" font-family="Arial" font-size="10">$ logsherlock demo --scenario security</text>
+  <text x="70" y="355" fill="#e0e0e0" font-family="Arial" font-size="10">Generating synthetic auth.log with 500 entries...</text>
+  <text x="70" y="375" fill="#e0e0e0" font-family="Arial" font-size="10">Injecting brute-force pattern (47 failed logins)...</text>
+  <text x="70" y="395" fill="#e0e0e0" font-family="Arial" font-size="10">Injecting privilege escalation event...</text>
+  <text x="70" y="415" fill="#2ed573" font-family="Arial" font-size="10">Demo ready! Running analysis...</text>
+  <text x="70" y="435" fill="#01a982" font-family="Arial" font-size="10">Found 8 critical, 15 high, 23 medium findings</text>
+</svg>

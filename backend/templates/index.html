@@ -2507,6 +2507,75 @@ function render(data){
         }
         insightsContainer.innerHTML = renderAdvancedInsights(f);
     }
+    // Multi-Log Correlation Panel (🔗)
+    if (typeof renderCorrelationPanel === 'function' && f.length > 0) {
+        let corrContainer = document.getElementById('correlationPanelContainer');
+        if (!corrContainer) {
+            corrContainer = document.createElement('div');
+            corrContainer.id = 'correlationPanelContainer';
+            const findingsList = document.getElementById('findingsList');
+            if (findingsList && findingsList.parentNode) {
+                findingsList.parentNode.insertBefore(corrContainer, findingsList);
+            }
+        }
+        corrContainer.innerHTML = renderCorrelationPanel(f);
+    }
+    // Topology Map (🗺️)
+    if (typeof renderTopologyMap === 'function' && f.length > 0) {
+        let topoContainer = document.getElementById('topologyMapContainer');
+        if (!topoContainer) {
+            topoContainer = document.createElement('div');
+            topoContainer.id = 'topologyMapContainer';
+            const findingsList = document.getElementById('findingsList');
+            if (findingsList && findingsList.parentNode) {
+                findingsList.parentNode.insertBefore(topoContainer, findingsList);
+            }
+        }
+        topoContainer.innerHTML = renderTopologyMap(f);
+    }
+    // SLA Dashboard (📈)
+    if (typeof renderSLADashboard === 'function') {
+        let slaContainer = document.getElementById('slaDashboardContainer');
+        if (!slaContainer) {
+            slaContainer = document.createElement('div');
+            slaContainer.id = 'slaDashboardContainer';
+            const findingsList = document.getElementById('findingsList');
+            if (findingsList && findingsList.parentNode) {
+                findingsList.parentNode.insertBefore(slaContainer, findingsList);
+            }
+        }
+        slaContainer.innerHTML = renderSLADashboard();
+    }
+    // Audit Trail (📜)
+    if (typeof renderAuditTrailPanel === 'function') {
+        let auditContainer = document.getElementById('auditTrailContainer');
+        if (!auditContainer) {
+            auditContainer = document.createElement('div');
+            auditContainer.id = 'auditTrailContainer';
+            const findingsList = document.getElementById('findingsList');
+            if (findingsList && findingsList.parentNode) {
+                findingsList.parentNode.insertBefore(auditContainer, findingsList);
+            }
+        }
+        auditContainer.innerHTML = renderAuditTrailPanel();
+    }
+    // Pattern Updates (🔄)
+    if (typeof renderPatternUpdatesPanel === 'function') {
+        let puContainer = document.getElementById('patternUpdatesContainer');
+        if (!puContainer) {
+            puContainer = document.createElement('div');
+            puContainer.id = 'patternUpdatesContainer';
+            const findingsList = document.getElementById('findingsList');
+            if (findingsList && findingsList.parentNode) {
+                findingsList.parentNode.insertBefore(puContainer, findingsList);
+            }
+        }
+        puContainer.innerHTML = renderPatternUpdatesPanel();
+    }
+    // Log audit event
+    if (typeof logAuditEvent === 'function') {
+        logAuditEvent('SCAN_COMPLETED', { findings_count: f.length, files_analyzed: data.files_analyzed || 0 });
+    }
     saveHistory(data);
 }
 
@@ -5728,5 +5797,20 @@ function askOllamaTicket() {
 <script src='/static/roi-calculator.js'></script>
 <script src='/static/advanced-insights.js'></script>
 <script src='/static/incident-cinema.js'></script>
+<script src='/static/live-demo-mode.js'></script>
+<script src='/static/pattern-dictionary.js'></script>
+<script src='/static/audit-trail.js'></script>
+<script src='/static/sla-dashboard.js'></script>
+<script src='/static/guided-mode.js'></script>
+<script src='/static/multi-log-correlation.js'></script>
+<script src='/static/topology-map.js'></script>
+<script src='/static/training-mode.js'></script>
+<script src='/static/usage-reports.js'></script>
+<script src='/static/changelog.js'></script>
+<script src='/static/onboarding-flow.js'></script>
+<script src='/static/social-proof.js'></script>
+<script src='/static/comparison-page.js'></script>
+<script src='/static/pattern-updates.js'></script>
+<script src='/static/team-dashboard.js'></script>
 </body>
 </html>

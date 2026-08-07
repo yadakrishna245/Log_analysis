@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500">
+  <rect width="800" height="500" fill="#1a1a2e"/>
+  <text x="400" y="40" text-anchor="middle" fill="#01a982" font-family="Arial" font-size="20" font-weight="bold">Guided Mode — Step 4 of 7</text>
+  <rect x="30" y="60" width="740" height="420" rx="8" fill="#16213e" stroke="#01a982" stroke-width="1"/>
+  <!-- Progress steps -->
+  <circle cx="120" cy="90" r="12" fill="#01a982"/>
+  <text x="120" y="94" text-anchor="middle" fill="#1a1a2e" font-family="Arial" font-size="10">1</text>
+  <line x1="132" y1="90" x2="188" y2="90" stroke="#01a982" stroke-width="2"/>
+  <circle cx="200" cy="90" r="12" fill="#01a982"/>
+  <text x="200" y="94" text-anchor="middle" fill="#1a1a2e" font-family="Arial" font-size="10">2</text>
+  <line x1="212" y1="90" x2="268" y2="90" stroke="#01a982" stroke-width="2"/>
+  <circle cx="280" cy="90" r="12" fill="#01a982"/>
+  <text x="280" y="94" text-anchor="middle" fill="#1a1a2e" font-family="Arial" font-size="10">3</text>
+  <line x1="292" y1="90" x2="348" y2="90" stroke="#01a982" stroke-width="2"/>
+  <circle cx="360" cy="90" r="14" fill="#01a982" stroke="#e0e0e0" stroke-width="2"/>
+  <text x="360" y="95" text-anchor="middle" fill="#1a1a2e" font-family="Arial" font-size="11" font-weight="bold">4</text>
+  <line x1="374" y1="90" x2="428" y2="90" stroke="#2a2a4a" stroke-width="2"/>
+  <circle cx="440" cy="90" r="12" fill="#2a2a4a"/>
+  <text x="440" y="94" text-anchor="middle" fill="#e0e0e0" font-family="Arial" font-size="10">5</text>
+  <line x1="452" y1="90" x2="508" y2="90" stroke="#2a2a4a" stroke-width="2"/>
+  <circle cx="520" cy="90" r="12" fill="#2a2a4a"/>
+  <text x="520" y="94" text-anchor="middle" fill="#e0e0e0" font-family="Arial" font-size="10">6</text>
+  <line x1="532" y1="90" x2="588" y2="90" stroke="#2a2a4a" stroke-width="2"/>
+  <circle cx="600" cy="90" r="12" fill="#2a2a4a"/>
+  <text x="600" y="94" text-anchor="middle" fill="#e0e0e0" font-family="Arial" font-size="10">7</text>
+  <!-- Current step content -->
+  <text x="400" y="140" text-anchor="middle" fill="#e0e0e0" font-family="Arial" font-size="16" font-weight="bold">Configure Alert Rules</text>
+  <text x="400" y="165" text-anchor="middle" fill="#e0e0e0" font-family="Arial" font-size="11">Set thresholds for when LogSherlock should notify your team</text>
+  <!-- Form fields -->
+  <text x="80" y="200" fill="#e0e0e0" font-family="Arial" font-size="11">Alert on severity level:</text>
+  <rect x="80" y="210" width="300" height="35" rx="6" fill="#0f3460" stroke="#01a982"/>
+  <text x="100" y="232" fill="#01a982" font-family="Arial" font-size="11">Critical and High</text>
+  <text x="80" y="270" fill="#e0e0e0" font-family="Arial" font-size="11">Notification channel:</text>
+  <rect x="80" y="280" width="300" height="35" rx="6" fill="#0f3460" stroke="#2a2a4a"/>
+  <text x="100" y="302" fill="#e0e0e0" font-family="Arial" font-size="11">Slack #ops-alerts</text>
+  <text x="80" y="340" fill="#e0e0e0" font-family="Arial" font-size="11">Cooldown period:</text>
+  <rect x="80" y="350" width="300" height="35" rx="6" fill="#0f3460" stroke="#2a2a4a"/>
+  <text x="100" y="372" fill="#e0e0e0" font-family="Arial" font-size="11">15 minutes</text>
+  <!-- Tip box -->
+  <rect x="430" y="200" width="300" height="120" rx="8" fill="#01a982" opacity="0.1" stroke="#01a982"/>
+  <text x="450" y="225" fill="#01a982" font-family="Arial" font-size="11" font-weight="bold">Pro Tip</text>
+  <text x="450" y="250" fill="#e0e0e0" font-family="Arial" font-size="10">Start with Critical+High alerts</text>
+  <text x="450" y="270" fill="#e0e0e0" font-family="Arial" font-size="10">to avoid alert fatigue. You can</text>
+  <text x="450" y="290" fill="#e0e0e0" font-family="Arial" font-size="10">always add Medium later once</text>
+  <text x="450" y="310" fill="#e0e0e0" font-family="Arial" font-size="10">your team is comfortable.</text>
+  <!-- Navigation buttons -->
+  <rect x="250" y="420" width="120" height="40" rx="8" fill="#0f3460" stroke="#01a982"/>
+  <text x="310" y="444" text-anchor="middle" fill="#01a982" font-family="Arial" font-size="12">Back</text>
+  <rect x="400" y="420" width="160" height="40" rx="8" fill="#01a982"/>
+  <text x="480" y="444" text-anchor="middle" fill="#1a1a2e" font-family="Arial" font-size="12" font-weight="bold">Next: Integrations</text>
+</svg>

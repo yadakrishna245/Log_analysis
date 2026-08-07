@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500">
+  <rect width="800" height="500" fill="#1a1a2e"/>
+  <text x="400" y="40" text-anchor="middle" fill="#01a982" font-family="Arial" font-size="20" font-weight="bold">License Activation</text>
+  <rect x="100" y="60" width="600" height="420" rx="8" fill="#16213e" stroke="#01a982" stroke-width="1"/>
+  <!-- Logo area -->
+  <circle cx="400" cy="110" r="30" fill="#01a982" opacity="0.2" stroke="#01a982"/>
+  <text x="400" y="116" text-anchor="middle" fill="#01a982" font-family="Arial" font-size="14" font-weight="bold">LS</text>
+  <text x="400" y="155" text-anchor="middle" fill="#e0e0e0" font-family="Arial" font-size="14">LogSherlock Pro</text>
+  <!-- License key input -->
+  <text x="150" y="195" fill="#e0e0e0" font-family="Arial" font-size="12" font-weight="bold">License Key</text>
+  <rect x="150" y="205" width="500" height="40" rx="6" fill="#0f3460" stroke="#01a982"/>
+  <text x="170" y="230" fill="#01a982" font-family="monospace" font-size="12">LSPRO-XXXX-XXXX-XXXX-XXXX</text>
+  <!-- Machine fingerprint -->
+  <text x="150" y="275" fill="#e0e0e0" font-family="Arial" font-size="12" font-weight="bold">Machine Fingerprint</text>
+  <rect x="150" y="285" width="500" height="40" rx="6" fill="#0f3460" stroke="#2a2a4a"/>
+  <text x="170" y="310" fill="#e0e0e0" font-family="monospace" font-size="10">FP:a4b2c9d1-e5f8-4a2b-9c3d-7e1f6a8b0c2d</text>
+  <text x="150" y="342" fill="#e0e0e0" font-family="Arial" font-size="9" opacity="0.7">This fingerprint uniquely identifies your machine for license binding</text>
+  <!-- License details -->
+  <rect x="150" y="360" width="500" height="60" rx="6" fill="#0f3460"/>
+  <text x="170" y="382" fill="#e0e0e0" font-family="Arial" font-size="10">Plan: Pro (Team) | Seats: 10 | Expires: Jan 15, 2025</text>
+  <text x="170" y="402" fill="#2ed573" font-family="Arial" font-size="10">Status: Valid | Features: All Pro features + Priority support</text>
+  <!-- Activate button -->
+  <rect x="250" y="435" width="200" height="40" rx="8" fill="#01a982"/>
+  <text x="350" y="460" text-anchor="middle" fill="#1a1a2e" font-family="Arial" font-size="13" font-weight="bold">Activate License</text>
+  <!-- Offline option -->
+  <text x="400" y="490" text-anchor="middle" fill="#70a1ff" font-family="Arial" font-size="10">Need offline activation? Click here</text>
+</svg>

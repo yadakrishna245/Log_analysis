@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500">
+  <rect width="800" height="500" fill="#1a1a2e"/>
+  <text x="400" y="40" text-anchor="middle" fill="#01a982" font-family="Arial" font-size="20" font-weight="bold">Pattern Dictionary</text>
+  <rect x="30" y="60" width="740" height="420" rx="8" fill="#16213e" stroke="#01a982" stroke-width="1"/>
+  <!-- Search bar -->
+  <rect x="50" y="80" width="600" height="35" rx="8" fill="#0f3460" stroke="#2a2a4a"/>
+  <text x="70" y="102" fill="#e0e0e0" opacity="0.5" font-family="Arial" font-size="11">Search patterns...</text>
+  <rect x="660" y="80" width="90" height="35" rx="8" fill="#01a982"/>
+  <text x="705" y="102" text-anchor="middle" fill="#1a1a2e" font-family="Arial" font-size="11" font-weight="bold">Search</text>
+  <!-- Category tabs -->
+  <rect x="50" y="130" width="80" height="25" rx="4" fill="#01a982"/>
+  <text x="90" y="146" text-anchor="middle" fill="#1a1a2e" font-family="Arial" font-size="10">All (247)</text>
+  <rect x="140" y="130" width="90" height="25" rx="4" fill="#0f3460"/>
+  <text x="185" y="146" text-anchor="middle" fill="#ff4757" font-family="Arial" font-size="10">Security (42)</text>
+  <rect x="240" y="130" width="100" height="25" rx="4" fill="#0f3460"/>
+  <text x="290" y="146" text-anchor="middle" fill="#ffa502" font-family="Arial" font-size="10">Performance (63)</text>
+  <rect x="350" y="130" width="80" height="25" rx="4" fill="#0f3460"/>
+  <text x="390" y="146" text-anchor="middle" fill="#70a1ff" font-family="Arial" font-size="10">System (89)</text>
+  <!-- Pattern list -->
+  <rect x="50" y="170" width="700" height="50" rx="6" fill="#0f3460" stroke="#ff4757" stroke-width="0.5"/>
+  <circle cx="75" cy="195" r="10" fill="#ff4757" opacity="0.3"/>
+  <text x="95" y="190" fill="#e0e0e0" font-family="Arial" font-size="11" font-weight="bold">BRUTE_FORCE_SSH</text>
+  <text x="95" y="207" fill="#e0e0e0" font-family="Arial" font-size="9">Multiple failed auth attempts from single IP</text>
+  <text x="650" y="195" fill="#ff4757" font-family="Arial" font-size="10">Critical</text>
+  <rect x="50" y="230" width="700" height="50" rx="6" fill="#0f3460" stroke="#ffa502" stroke-width="0.5"/>
+  <circle cx="75" cy="255" r="10" fill="#ffa502" opacity="0.3"/>
+  <text x="95" y="250" fill="#e0e0e0" font-family="Arial" font-size="11" font-weight="bold">MEMORY_LEAK_JAVA</text>
+  <text x="95" y="267" fill="#e0e0e0" font-family="Arial" font-size="9">Steady heap growth without GC recovery</text>
+  <text x="650" y="255" fill="#ffa502" font-family="Arial" font-size="10">High</text>
+  <rect x="50" y="290" width="700" height="50" rx="6" fill="#0f3460" stroke="#2ed573" stroke-width="0.5"/>
+  <circle cx="75" cy="315" r="10" fill="#2ed573" opacity="0.3"/>
+  <text x="95" y="310" fill="#e0e0e0" font-family="Arial" font-size="11" font-weight="bold">DISK_SPACE_WARNING</text>
+  <text x="95" y="327" fill="#e0e0e0" font-family="Arial" font-size="9">Filesystem usage exceeding threshold</text>
+  <text x="650" y="315" fill="#2ed573" font-family="Arial" font-size="10">Medium</text>
+  <rect x="50" y="350" width="700" height="50" rx="6" fill="#0f3460" stroke="#70a1ff" stroke-width="0.5"/>
+  <circle cx="75" cy="375" r="10" fill="#70a1ff" opacity="0.3"/>
+  <text x="95" y="370" fill="#e0e0e0" font-family="Arial" font-size="11" font-weight="bold">LOG_ROTATION_FAIL</text>
+  <text x="95" y="387" fill="#e0e0e0" font-family="Arial" font-size="9">Logrotate did not complete successfully</text>
+  <text x="650" y="375" fill="#70a1ff" font-family="Arial" font-size="10">Low</text>
+  <!-- Footer -->
+  <text x="400" y="440" text-anchor="middle" fill="#e0e0e0" font-family="Arial" font-size="10">Showing 4 of 247 patterns | Page 1 of 62</text>
+  <rect x="350" y="450" width="30" height="20" rx="4" fill="#01a982"/>
+  <text x="365" y="464" text-anchor="middle" fill="#1a1a2e" font-family="Arial" font-size="9">1</text>
+  <rect x="385" y="450" width="30" height="20" rx="4" fill="#0f3460"/>
+  <text x="400" y="464" text-anchor="middle" fill="#e0e0e0" font-family="Arial" font-size="9">2</text>
+  <rect x="420" y="450" width="30" height="20" rx="4" fill="#0f3460"/>
+  <text x="435" y="464" text-anchor="middle" fill="#e0e0e0" font-family="Arial" font-size="9">3</text>
+</svg>

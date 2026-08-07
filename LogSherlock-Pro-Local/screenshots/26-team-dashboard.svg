@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500">
+  <rect width="800" height="500" fill="#1a1a2e"/>
+  <text x="400" y="40" text-anchor="middle" fill="#01a982" font-family="Arial" font-size="20" font-weight="bold">Team Dashboard</text>
+  <rect x="30" y="60" width="740" height="420" rx="8" fill="#16213e" stroke="#01a982" stroke-width="1"/>
+  <!-- Leaderboard -->
+  <rect x="50" y="80" width="340" height="280" rx="8" fill="#0f3460"/>
+  <text x="70" y="105" fill="#e0e0e0" font-family="Arial" font-size="12" font-weight="bold">Resolution Leaderboard</text>
+  <!-- #1 -->
+  <rect x="70" y="115" width="300" height="40" rx="6" fill="#01a982" opacity="0.1" stroke="#01a982"/>
+  <circle cx="95" cy="135" r="12" fill="#ffa502"/>
+  <text x="95" y="139" text-anchor="middle" fill="#1a1a2e" font-family="Arial" font-size="9" font-weight="bold">1</text>
+  <text x="115" y="130" fill="#e0e0e0" font-family="Arial" font-size="11" font-weight="bold">Sarah Chen</text>
+  <text x="115" y="147" fill="#e0e0e0" font-family="Arial" font-size="9">47 incidents resolved | Avg 3.1 min</text>
+  <text x="340" y="139" fill="#01a982" font-family="Arial" font-size="11" font-weight="bold">1,250 pts</text>
+  <!-- #2 -->
+  <rect x="70" y="165" width="300" height="40" rx="6" fill="#0f3460"/>
+  <circle cx="95" cy="185" r="12" fill="#e0e0e0"/>
+  <text x="95" y="189" text-anchor="middle" fill="#1a1a2e" font-family="Arial" font-size="9" font-weight="bold">2</text>
+  <text x="115" y="180" fill="#e0e0e0" font-family="Arial" font-size="11" font-weight="bold">John Doe</text>
+  <text x="115" y="197" fill="#e0e0e0" font-family="Arial" font-size="9">38 incidents resolved | Avg 4.8 min</text>
+  <text x="340" y="189" fill="#e0e0e0" font-family="Arial" font-size="11" font-weight="bold">980 pts</text>
+  <!-- #3 -->
+  <rect x="70" y="215" width="300" height="40" rx="6" fill="#0f3460"/>
+  <circle cx="95" cy="235" r="12" fill="#ffa502" opacity="0.5"/>
+  <text x="95" y="239" text-anchor="middle" fill="#1a1a2e" font-family="Arial" font-size="9" font-weight="bold">3</text>
+  <text x="115" y="230" fill="#e0e0e0" font-family="Arial" font-size="11" font-weight="bold">Mike Rodriguez</text>
+  <text x="115" y="247" fill="#e0e0e0" font-family="Arial" font-size="9">31 incidents resolved | Avg 5.2 min</text>
+  <text x="340" y="239" fill="#e0e0e0" font-family="Arial" font-size="11" font-weight="bold">820 pts</text>
+  <!-- #4 -->
+  <rect x="70" y="265" width="300" height="40" rx="6" fill="#0f3460"/>
+  <circle cx="95" cy="285" r="12" fill="#2a2a4a"/>
+  <text x="95" y="289" text-anchor="middle" fill="#e0e0e0" font-family="Arial" font-size="9">4</text>
+  <text x="115" y="280" fill="#e0e0e0" font-family="Arial" font-size="11">Alex Kumar</text>
+  <text x="115" y="297" fill="#e0e0e0" font-family="Arial" font-size="9">28 incidents | Avg 6.1 min</text>
+  <text x="340" y="289" fill="#e0e0e0" font-family="Arial" font-size="11">710 pts</text>
+  <!-- #5 -->
+  <rect x="70" y="315" width="300" height="40" rx="6" fill="#0f3460"/>
+  <circle cx="95" cy="335" r="12" fill="#2a2a4a"/>
+  <text x="95" y="339" text-anchor="middle" fill="#e0e0e0" font-family="Arial" font-size="9">5</text>
+  <text x="115" y="330" fill="#e0e0e0" font-family="Arial" font-size="11">Lisa Park</text>
+  <text x="115" y="347" fill="#e0e0e0" font-family="Arial" font-size="9">22 incidents | Avg 7.3 min</text>
+  <text x="340" y="339" fill="#e0e0e0" font-family="Arial" font-size="11">590 pts</text>
+  <!-- Team stats -->
+  <rect x="410" y="80" width="340" height="280" rx="8" fill="#0f3460"/>
+  <text x="430" y="105" fill="#e0e0e0" font-family="Arial" font-size="12" font-weight="bold">Team Statistics</text>
+  <text x="430" y="135" fill="#e0e0e0" font-family="Arial" font-size="10">Active Members</text>
+  <text x="700" y="135" text-anchor="end" fill="#01a982" font-family="Arial" font-size="14" font-weight="bold">14</text>
+  <text x="430" y="165" fill="#e0e0e0" font-family="Arial" font-size="10">Total Resolutions (Jan)</text>
+  <text x="700" y="165" text-anchor="end" fill="#01a982" font-family="Arial" font-size="14" font-weight="bold">247</text>
+  <text x="430" y="195" fill="#e0e0e0" font-family="Arial" font-size="10">Avg Team MTTR</text>
+  <text x="700" y="195" text-anchor="end" fill="#2ed573" font-family="Arial" font-size="14" font-weight="bold">5.4 min</text>
+  <text x="430" y="225" fill="#e0e0e0" font-family="Arial" font-size="10">SLA Compliance</text>
+  <text x="700" y="225" text-anchor="end" fill="#2ed573" font-family="Arial" font-size="14" font-weight="bold">96.2%</text>
+  <text x="430" y="255" fill="#e0e0e0" font-family="Arial" font-size="10">Training Completion</text>
+  <text x="700" y="255" text-anchor="end" fill="#ffa502" font-family="Arial" font-size="14" font-weight="bold">78%</text>
+  <!-- Activity chart mini -->
+  <text x="430" y="290" fill="#e0e0e0" font-family="Arial" font-size="10">Weekly Activity</text>
+  <rect x="430" y="300" width="30" height="30" rx="2" fill="#01a982" opacity="0.8"/>
+  <rect x="465" y="300" width="30" height="40" rx="2" fill="#01a982"/>
+  <rect x="500" y="300" width="30" height="25" rx="2" fill="#01a982" opacity="0.6"/>
+  <rect x="535" y="300" width="30" height="35" rx="2" fill="#01a982" opacity="0.9"/>
+  <rect x="570" y="300" width="30" height="20" rx="2" fill="#01a982" opacity="0.5"/>
+  <!-- Footer -->
+  <rect x="50" y="375" width="700" height="85" rx="8" fill="#0f3460"/>
+  <text x="70" y="400" fill="#e0e0e0" font-family="Arial" font-size="11" font-weight="bold">Recent Activity</text>
+  <text x="70" y="420" fill="#2ed573" font-family="Arial" font-size="10">Sarah resolved SSH Brute Force — 2 min ago</text>
+  <text x="70" y="438" fill="#70a1ff" font-family="Arial" font-size="10">John exported weekly report — 15 min ago</text>
+  <text x="70" y="456" fill="#ffa502" font-family="Arial" font-size="10">Mike escalated DB issue to P1 — 32 min ago</text>
+</svg>

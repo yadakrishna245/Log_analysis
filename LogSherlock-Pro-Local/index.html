@@ -2624,6 +2624,75 @@ function render(data){
         }
         insightsContainer.innerHTML = renderAdvancedInsights(f);
     }
+    // Multi-Log Correlation Panel (🔗)
+    if (typeof renderCorrelationPanel === 'function' && f.length > 0) {
+        let corrContainer = document.getElementById('correlationPanelContainer');
+        if (!corrContainer) {
+            corrContainer = document.createElement('div');
+            corrContainer.id = 'correlationPanelContainer';
+            const findingsList = document.getElementById('findingsList');
+            if (findingsList && findingsList.parentNode) {
+                findingsList.parentNode.insertBefore(corrContainer, findingsList);
+            }
+        }
+        corrContainer.innerHTML = renderCorrelationPanel(f);
+    }
+    // Topology Map (🗺️)
+    if (typeof renderTopologyMap === 'function' && f.length > 0) {
+        let topoContainer = document.getElementById('topologyMapContainer');
+        if (!topoContainer) {
+            topoContainer = document.createElement('div');
+            topoContainer.id = 'topologyMapContainer';
+            const findingsList = document.getElementById('findingsList');
+            if (findingsList && findingsList.parentNode) {
+                findingsList.parentNode.insertBefore(topoContainer, findingsList);
+            }
+        }
+        topoContainer.innerHTML = renderTopologyMap(f);
+    }
+    // SLA Dashboard (📈)
+    if (typeof renderSLADashboard === 'function') {
+        let slaContainer = document.getElementById('slaDashboardContainer');
+        if (!slaContainer) {
+            slaContainer = document.createElement('div');
+            slaContainer.id = 'slaDashboardContainer';
+            const findingsList = document.getElementById('findingsList');
+            if (findingsList && findingsList.parentNode) {
+                findingsList.parentNode.insertBefore(slaContainer, findingsList);
+            }
+        }
+        slaContainer.innerHTML = renderSLADashboard();
+    }
+    // Audit Trail (📜)
+    if (typeof renderAuditTrailPanel === 'function') {
+        let auditContainer = document.getElementById('auditTrailContainer');
+        if (!auditContainer) {
+            auditContainer = document.createElement('div');
+            auditContainer.id = 'auditTrailContainer';
+            const findingsList = document.getElementById('findingsList');
+            if (findingsList && findingsList.parentNode) {
+                findingsList.parentNode.insertBefore(auditContainer, findingsList);
+            }
+        }
+        auditContainer.innerHTML = renderAuditTrailPanel();
+    }
+    // Pattern Updates (🔄)
+    if (typeof renderPatternUpdatesPanel === 'function') {
+        let puContainer = document.getElementById('patternUpdatesContainer');
+        if (!puContainer) {
+            puContainer = document.createElement('div');
+            puContainer.id = 'patternUpdatesContainer';
+            const findingsList = document.getElementById('findingsList');
+            if (findingsList && findingsList.parentNode) {
+                findingsList.parentNode.insertBefore(puContainer, findingsList);
+            }
+        }
+        puContainer.innerHTML = renderPatternUpdatesPanel();
+    }
+    // Log audit event for scan completion
+    if (typeof logAuditEvent === 'function') {
+        logAuditEvent('SCAN_COMPLETED', { findings_count: f.length, files_analyzed: data.files_analyzed || 0, scan_time: data.scan_time || '' });
+    }
     saveHistory(data);
 }
 
@@ -7235,6 +7304,21 @@ function generateLocalAdvisorResponse(text) {
 <script src="roi-calculator.js"></script>
 <script src="advanced-insights.js"></script>
 <script src="incident-cinema.js"></script>
+<script src="live-demo-mode.js"></script>
+<script src="pattern-dictionary.js"></script>
+<script src="audit-trail.js"></script>
+<script src="sla-dashboard.js"></script>
+<script src="guided-mode.js"></script>
+<script src="multi-log-correlation.js"></script>
+<script src="topology-map.js"></script>
+<script src="training-mode.js"></script>
+<script src="usage-reports.js"></script>
+<script src="changelog.js"></script>
+<script src="onboarding-flow.js"></script>
+<script src="social-proof.js"></script>
+<script src="comparison-page.js"></script>
+<script src="pattern-updates.js"></script>
+<script src="team-dashboard.js"></script>
 
 </body>
 </html>

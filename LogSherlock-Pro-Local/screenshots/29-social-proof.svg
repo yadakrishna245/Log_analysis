@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500">
+  <rect width="800" height="500" fill="#1a1a2e"/>
+  <text x="400" y="40" text-anchor="middle" fill="#01a982" font-family="Arial" font-size="20" font-weight="bold">Customer Testimonials</text>
+  <rect x="30" y="60" width="740" height="420" rx="8" fill="#16213e" stroke="#01a982" stroke-width="1"/>
+  <!-- Stats bar -->
+  <rect x="50" y="80" width="160" height="50" rx="8" fill="#0f3460"/>
+  <text x="130" y="100" text-anchor="middle" fill="#e0e0e0" font-family="Arial" font-size="10">Users</text>
+  <text x="130" y="120" text-anchor="middle" fill="#01a982" font-family="Arial" font-size="16" font-weight="bold">2,400+</text>
+  <rect x="230" y="80" width="160" height="50" rx="8" fill="#0f3460"/>
+  <text x="310" y="100" text-anchor="middle" fill="#e0e0e0" font-family="Arial" font-size="10">Companies</text>
+  <text x="310" y="120" text-anchor="middle" fill="#01a982" font-family="Arial" font-size="16" font-weight="bold">180+</text>
+  <rect x="410" y="80" width="160" height="50" rx="8" fill="#0f3460"/>
+  <text x="490" y="100" text-anchor="middle" fill="#e0e0e0" font-family="Arial" font-size="10">Avg Rating</text>
+  <text x="490" y="120" text-anchor="middle" fill="#ffa502" font-family="Arial" font-size="16" font-weight="bold">4.8/5.0</text>
+  <rect x="590" y="80" width="160" height="50" rx="8" fill="#0f3460"/>
+  <text x="670" y="100" text-anchor="middle" fill="#e0e0e0" font-family="Arial" font-size="10">NPS Score</text>
+  <text x="670" y="120" text-anchor="middle" fill="#2ed573" font-family="Arial" font-size="16" font-weight="bold">72</text>
+  <!-- Testimonial cards -->
+  <rect x="50" y="150" width="340" height="140" rx="8" fill="#0f3460" stroke="#01a982" stroke-width="0.5"/>
+  <circle cx="80" cy="180" r="15" fill="#01a982" opacity="0.3"/>
+  <text x="80" y="184" text-anchor="middle" fill="#01a982" font-family="Arial" font-size="10">SC</text>
+  <text x="105" y="175" fill="#e0e0e0" font-family="Arial" font-size="11" font-weight="bold">Sarah Chen</text>
+  <text x="105" y="192" fill="#e0e0e0" font-family="Arial" font-size="9">Sr. SRE, TechCorp</text>
+  <text x="70" y="220" fill="#e0e0e0" font-family="Arial" font-size="10" font-style="italic">"LogSherlock cut our MTTR from 45 min</text>
+  <text x="70" y="238" fill="#e0e0e0" font-family="Arial" font-size="10" font-style="italic">to under 5 min. The AI root cause</text>
+  <text x="70" y="256" fill="#e0e0e0" font-family="Arial" font-size="10" font-style="italic">analysis is genuinely magical."</text>
+  <text x="70" y="278" fill="#ffa502" font-family="Arial" font-size="10">★★★★★</text>
+  <rect x="410" y="150" width="340" height="140" rx="8" fill="#0f3460" stroke="#01a982" stroke-width="0.5"/>
+  <circle cx="440" cy="180" r="15" fill="#70a1ff" opacity="0.3"/>
+  <text x="440" y="184" text-anchor="middle" fill="#70a1ff" font-family="Arial" font-size="10">JD</text>
+  <text x="465" y="175" fill="#e0e0e0" font-family="Arial" font-size="11" font-weight="bold">James Davis</text>
+  <text x="465" y="192" fill="#e0e0e0" font-family="Arial" font-size="9">DevOps Lead, StartupXYZ</text>
+  <text x="430" y="220" fill="#e0e0e0" font-family="Arial" font-size="10" font-style="italic">"Best investment we made this year.</text>
+  <text x="430" y="238" fill="#e0e0e0" font-family="Arial" font-size="10" font-style="italic">The predictive warnings alone saved</text>
+  <text x="430" y="256" fill="#e0e0e0" font-family="Arial" font-size="10" font-style="italic">us from 3 potential outages."</text>
+  <text x="430" y="278" fill="#ffa502" font-family="Arial" font-size="10">★★★★★</text>
+  <!-- Third testimonial -->
+  <rect x="50" y="310" width="700" height="100" rx="8" fill="#0f3460" stroke="#01a982" stroke-width="0.5"/>
+  <circle cx="80" cy="340" r="15" fill="#2ed573" opacity="0.3"/>
+  <text x="80" y="344" text-anchor="middle" fill="#2ed573" font-family="Arial" font-size="10">MR</text>
+  <text x="105" y="335" fill="#e0e0e0" font-family="Arial" font-size="11" font-weight="bold">Maria Rodriguez</text>
+  <text x="105" y="352" fill="#e0e0e0" font-family="Arial" font-size="9">VP Engineering, EnterpriseCloud</text>
+  <text x="70" y="378" fill="#e0e0e0" font-family="Arial" font-size="10" font-style="italic">"Rolled out to 50 engineers in a day. Zero training needed — the guided mode got everyone productive instantly."</text>
+  <text x="70" y="398" fill="#ffa502" font-family="Arial" font-size="10">★★★★☆</text>
+  <!-- Carousel dots -->
+  <circle cx="370" cy="440" r="5" fill="#01a982"/>
+  <circle cx="390" cy="440" r="5" fill="#2a2a4a"/>
+  <circle cx="410" cy="440" r="5" fill="#2a2a4a"/>
+  <text x="370" y="465" fill="#e0e0e0" font-family="Arial" font-size="9">Page 1 of 3</text>
+</svg>
