@@ -531,10 +531,18 @@
 
                 <div class="context-area">
                     <div class="context-label">TICKET CONTEXT</div>
-                    <textarea class="context-textarea" id="ticketContext" placeholder="Paste full Jira ticket description here — mentions SFTP folder, HTTPS link, issue details..."></textarea>
-                    <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;">
+                    <textarea class="context-textarea" id="ticketContext" placeholder="Paste full Jira ticket description here — mentions SFTP folder, HTTPS link, issue details... (Ctrl+V to paste screenshots too!)"></textarea>
+                    <!-- Image preview area for ticket context -->
+                    <div id="ticketImagePreview" style="display:none;margin-top:8px;padding:8px;background:var(--bg-0);border:1px solid var(--border-subtle);border-radius:8px;">
+                        <div style="font-size:11px;color:var(--text-400);margin-bottom:6px;">📎 Attached Screenshots (sent to AI for analysis)</div>
+                        <div id="ticketImageList" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+                    </div>
+                    <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;align-items:center;">
                         <button class="btn-ghost" onclick="getAdvice()">🧭 Suggest where to look</button>
                         <button class="btn-ghost" style="border-color:#8b5cf6;color:#8b5cf6;" onclick="askOllamaTicket()">🤖 Ask AI for Solution</button>
+                        <button class="btn-ghost" style="border-color:#f59e0b;color:#f59e0b;" onclick="document.getElementById('ticketImageInput').click()" title="Attach screenshot for AI analysis">🖼️ Attach Image</button>
+                        <input type="file" id="ticketImageInput" accept="image/*" multiple style="display:none" onchange="handleTicketImageSelect(event)">
+                        <span style="font-size:10px;color:var(--text-500);">Ctrl+V to paste screenshots</span>
                     </div>
                 </div>
 
@@ -1248,7 +1256,7 @@ Try asking:
                     <button onclick="document.getElementById('chatImageInput').click()" title="Attach image (or paste with Ctrl+V)" style="padding:12px 14px;border-radius:10px;background:var(--bg-2);border:1px solid var(--border-default);color:var(--text-100);cursor:pointer;font-size:16px;">🖼️</button>
                     <button onclick="sendChat()" style="padding:12px 20px;border-radius:10px;background:var(--hpe-green);color:white;border:none;font-weight:600;cursor:pointer;font-size:14px;white-space:nowrap;">Send ➤</button>
                 </div>
-                <div style="text-align:center;font-size:10px;color:var(--text-500);margin-top:8px;">Shift+Enter for new line • Runs on local Ollama (qwen3.5) • No data leaves your machine</div>
+                <div style="text-align:center;font-size:10px;color:var(--text-500);margin-top:8px;">Shift+Enter for new line • Ctrl+V to paste screenshots • Supports Ollama + GitHub Copilot</div>
             </div>
         </div>
     </div>
@@ -4877,16 +4885,19 @@ Be specific, actionable, and concise. Use HPE VME terminology.`;
 // ═══ ASK AI FOR TICKET SOLUTION (No logs needed) ═══════════════════
 async function askOllamaTicket() {
     const desc = document.getElementById('ticketContext').value.trim();
-    if (!desc) { alert('Paste a Jira ticket description first'); return; }
-    if (!_ollamaAvailable) {
-        alert('Ollama not detected.\n\nSetup:\n1. Install Ollama: ollama.com/download\n2. Run: ollama pull qwen3.5:4b\n3. Enable in browser flags (click 🤖 icon in sidebar for instructions)');
+    if (!desc && _ticketImages.length === 0) { alert('Paste a Jira ticket description or attach a screenshot first'); return; }
+
+    const hasCopilot = !!localStorage.getItem('ls_copilot_api_key');
+    if (!_ollamaAvailable && !hasCopilot) {
+        alert('No AI available.\n\n• Ollama not detected (install: ollama.com/download)\n• Or sign in to GitHub Copilot in ⚙️ Settings');
         return;
     }
 
     const panel = document.getElementById('aiTicketPanel');
     const content = document.getElementById('aiTicketContent');
     panel.style.display = 'block';
-    content.innerHTML = '<div style="color:var(--text-400);display:flex;align-items:center;gap:8px"><div style="width:14px;height:14px;border:2px solid #8b5cf6;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite"></div> Analyzing ticket with local AI...</div>';
+    const providerLabel = hasCopilot && !_ollamaAvailable ? 'GitHub Copilot' : 'Local AI';
+    content.innerHTML = `<div style="color:var(--text-400);display:flex;align-items:center;gap:8px"><div style="width:14px;height:14px;border:2px solid #8b5cf6;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite"></div> Analyzing ticket with ${providerLabel}...${_ticketImages.length ? ` (+ ${_ticketImages.length} image${_ticketImages.length>1?'s':''})` : ''}</div>`;
 
     const prompt = `You are an expert HPE VM Essentials (VME) L4 support engineer with deep knowledge of:
 - Pacemaker/Corosync clusters
@@ -4899,8 +4910,9 @@ async function askOllamaTicket() {
 A support ticket has been raised with this description:
 
 """
-${desc}
+${desc || '(No text — see attached screenshot)'}
 """
+${_ticketImages.length ? '\nThe support engineer has also attached ' + _ticketImages.length + ' screenshot(s) showing the issue. Analyze them carefully.' : ''}
 
 Provide:
 1. **Most Likely Root Cause** (1-2 sentences, be specific)
@@ -4912,33 +4924,72 @@ Provide:
 Be concise, actionable, and use HPE VME terminology. Give exact Linux commands.`;
 
     try {
-        const endpoint = window._ollamaEndpoint || '/api/ollama';
-        const tagsResp = await fetch(endpoint + '/tags');
-        const tagsData = await tagsResp.json();
-        const models = tagsData.models || [];
-        let model = models.find(m => m.name.includes('qwen3.5'))?.name
-                 || models.find(m => m.name.includes('gemma4'))?.name
-                 || models.find(m => m.name.includes('qwen'))?.name
-                 || models.find(m => m.name.includes('llama3'))?.name
-                 || models.find(m => m.name.includes('mistral'))?.name
-                 || (models[0]?.name || 'qwen3.5:4b');
+        // Decide provider: prefer Copilot for images (better vision), fallback to Ollama
+        const useCopilot = hasCopilot && (_ticketImages.length > 0 || !_ollamaAvailable);
 
-        const response = await fetch(endpoint + '/generate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                model: model,
-                prompt: prompt,
-                stream: false,
-                options: { temperature: 0.3, num_predict: 800 }
-            })
-        });
+        if (useCopilot) {
+            const apiKey = localStorage.getItem('ls_copilot_api_key') || localStorage.getItem('ls_copilot_ghu_token');
+            const messages = [{ role: 'system', content: 'You are an HPE VME L4 support engineer. Be concise and actionable.' }];
+            
+            // Build user message with images (OpenAI vision format)
+            const userContent = [];
+            userContent.push({ type: 'text', text: prompt });
+            for (const img of _ticketImages) {
+                userContent.push({ type: 'image_url', image_url: { url: 'data:image/png;base64,' + img.base64 } });
+            }
+            messages.push({ role: 'user', content: userContent.length > 1 ? userContent : prompt });
 
-        if (!response.ok) throw new Error('Ollama returned error: ' + response.status);
-        const result = await response.json();
-        const aiText = result.response || 'No response from model.';
+            const response = await fetch('/api/copilot/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Copilot-Token': apiKey },
+                body: JSON.stringify({ model: 'gpt-4o', messages, stream: false, temperature: 0.3, max_tokens: 800 })
+            });
+            if (!response.ok) throw new Error('Copilot error: ' + response.status);
+            const result = await response.json();
+            const aiText = result.choices?.[0]?.message?.content || 'No response from model.';
+            content.innerHTML = `<div style="margin-bottom:8px;font-size:11px;color:var(--text-400)">Model: <strong>GPT-4o</strong> · GitHub Copilot${_ticketImages.length ? ' · 🖼️ '+_ticketImages.length+' image(s) analyzed' : ''}</div><div style="white-space:pre-wrap;line-height:1.8;">${escapeHtml(aiText)}</div><div style="margin-top:12px;display:flex;gap:8px;"><button class="btn-ghost" style="font-size:11px" onclick="navigator.clipboard.writeText(document.getElementById('aiTicketContent').innerText).then(()=>this.textContent='✓ Copied')">📋 Copy</button><button class="btn-ghost" style="font-size:11px" onclick="askOllamaTicket()">🔄 Regenerate</button></div>`;
+        } else {
+            // Ollama path
+            const endpoint = window._ollamaEndpoint || '/api/ollama';
+            const tagsResp = await fetch(endpoint + '/tags');
+            const tagsData = await tagsResp.json();
+            const models = tagsData.models || [];
+            
+            let model;
+            if (_ticketImages.length > 0) {
+                model = models.find(m => m.name.includes('llava'))?.name
+                     || models.find(m => m.name.includes('bakllava'))?.name;
+                if (!model) {
+                    content.innerHTML = `<div style="color:#f59e0b;">⚠️ No vision model found for image analysis. Install one:<br><code>ollama pull llava:7b</code><br><br>Or sign in to GitHub Copilot (⚙️ Settings) — GPT-4o supports images natively.</div>`;
+                    return;
+                }
+            }
+            if (!model) {
+                model = models.find(m => m.name.includes('qwen3.5'))?.name
+                     || models.find(m => m.name.includes('gemma4'))?.name
+                     || models.find(m => m.name.includes('qwen'))?.name
+                     || models.find(m => m.name.includes('llama3'))?.name
+                     || models.find(m => m.name.includes('mistral'))?.name
+                     || (models[0]?.name || 'qwen3.5:4b');
+            }
 
-        content.innerHTML = `<div style="margin-bottom:8px;font-size:11px;color:var(--text-400)">Model: <strong>${model}</strong> · ${(result.total_duration / 1e9).toFixed(1)}s · Local AI</div><div style="white-space:pre-wrap;line-height:1.8;">${escapeHtml(aiText)}</div><div style="margin-top:12px;display:flex;gap:8px;"><button class="btn-ghost" style="font-size:11px" onclick="navigator.clipboard.writeText(document.getElementById('aiTicketContent').innerText).then(()=>this.textContent='✓ Copied')">📋 Copy</button><button class="btn-ghost" style="font-size:11px" onclick="askOllamaTicket()">🔄 Regenerate</button></div>`;
+            const requestBody = { model, prompt, stream: false, options: { temperature: 0.3, num_predict: 800 } };
+            if (_ticketImages.length > 0) {
+                requestBody.images = _ticketImages.map(img => img.base64);
+            }
+
+            const response = await fetch(endpoint + '/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestBody)
+            });
+
+            if (!response.ok) throw new Error('Ollama returned error: ' + response.status);
+            const result = await response.json();
+            const aiText = result.response || 'No response from model.';
+
+            content.innerHTML = `<div style="margin-bottom:8px;font-size:11px;color:var(--text-400)">Model: <strong>${model}</strong> · ${(result.total_duration / 1e9).toFixed(1)}s · Local AI${_ticketImages.length ? ' · 🖼️ '+_ticketImages.length+' image(s)' : ''}</div><div style="white-space:pre-wrap;line-height:1.8;">${escapeHtml(aiText)}</div><div style="margin-top:12px;display:flex;gap:8px;"><button class="btn-ghost" style="font-size:11px" onclick="navigator.clipboard.writeText(document.getElementById('aiTicketContent').innerText).then(()=>this.textContent='✓ Copied')">📋 Copy</button><button class="btn-ghost" style="font-size:11px" onclick="askOllamaTicket()">🔄 Regenerate</button></div>`;
+        }
     } catch (err) {
         content.innerHTML = `<div style="color:#ef4444;">❌ Error: ${escapeHtml(err.message)}</div>`;
     }
@@ -5102,6 +5153,77 @@ function copyReply() {
 // ═══ AI CHAT ═══════════════════════════════════════════════
 let _chatHistory = [];
 let _pendingImage = null; // base64 image data (without data:... prefix)
+let _ticketImages = []; // Array of base64 images attached to ticket context
+
+// Vision models list (for auto-detection warning)
+const VISION_MODELS = ['llava','bakllava','llava-llama3','moondream','cogvlm','yi-vl','fuyu','internvl','minicpm-v','gpt-4o','gpt-4-turbo','gpt-4-vision','claude-sonnet','claude-opus','claude-haiku','gemini'];
+
+function isVisionModel(modelName) {
+    if (!modelName) return false;
+    const n = modelName.toLowerCase();
+    return VISION_MODELS.some(v => n.includes(v));
+}
+
+// Ticket context image paste handler
+document.addEventListener('DOMContentLoaded', () => {
+    const ticketCtx = document.getElementById('ticketContext');
+    if (ticketCtx) {
+        ticketCtx.addEventListener('paste', function(e) {
+            const items = e.clipboardData && e.clipboardData.items;
+            if (!items) return;
+            for (const item of items) {
+                if (item.type.startsWith('image/')) {
+                    e.preventDefault();
+                    const file = item.getAsFile();
+                    if (file) addTicketImage(file);
+                    return;
+                }
+            }
+        });
+    }
+});
+
+function handleTicketImageSelect(e) {
+    const files = e.target.files;
+    if (!files) return;
+    for (const file of files) {
+        if (file.type.startsWith('image/')) addTicketImage(file);
+    }
+    e.target.value = '';
+}
+
+function addTicketImage(file) {
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+        const dataUrl = ev.target.result;
+        const base64 = dataUrl.split(',')[1];
+        _ticketImages.push({ base64, dataUrl, name: file.name });
+        renderTicketImages();
+    };
+    reader.readAsDataURL(file);
+}
+
+function removeTicketImage(idx) {
+    _ticketImages.splice(idx, 1);
+    renderTicketImages();
+}
+
+function renderTicketImages() {
+    const preview = document.getElementById('ticketImagePreview');
+    const list = document.getElementById('ticketImageList');
+    if (_ticketImages.length === 0) {
+        preview.style.display = 'none';
+        list.innerHTML = '';
+        return;
+    }
+    preview.style.display = 'block';
+    list.innerHTML = _ticketImages.map((img, i) => `
+        <div style="position:relative;display:inline-block;">
+            <img src="${img.dataUrl}" alt="${img.name}" style="width:80px;height:60px;object-fit:cover;border-radius:6px;border:1px solid var(--border-default);">
+            <div onclick="removeTicketImage(${i})" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;background:#ef4444;color:white;border-radius:50%;font-size:11px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-weight:bold;">✕</div>
+        </div>
+    `).join('');
+}
 
 // Image paste handler — attach to chatInput after DOM ready
 document.addEventListener('DOMContentLoaded', () => {
@@ -5240,11 +5362,34 @@ async function sendChat() {
     const input = document.getElementById('chatInput');
     const msg = input.value.trim();
     if (!msg && !_pendingImage) return;
-    if (!_ollamaAvailable) {
-        alert('Ollama not detected. Install it first (click 🤖 icon in sidebar for instructions).');
+
+    const selectedModel = document.getElementById('chatModelSelect')?.value || 'auto';
+    const isCopilotModel = selectedModel.startsWith('copilot:');
+
+    // Check if we have any AI available
+    if (!_ollamaAvailable && !isCopilotModel) {
+        alert('No AI available.\n\n• Ollama not detected (install: ollama.com/download)\n• Or select a GitHub Copilot model from the dropdown (requires Copilot OAuth sign-in)');
         return;
     }
-    trackEvent('ai_chat', { query_length: msg.length });
+
+    // Vision model warning
+    if (_pendingImage && !isCopilotModel) {
+        const ollamaEndpoint = window._ollamaEndpoint || '/api/ollama';
+        try {
+            const tr = await fetch(ollamaEndpoint + '/tags');
+            const td = await tr.json();
+            const models = td.models || [];
+            let currentModel = selectedModel === 'auto' 
+                ? (models.find(m => m.name.includes('llava'))?.name || models[0]?.name || '')
+                : selectedModel;
+            if (!isVisionModel(currentModel)) {
+                const proceed = confirm(`⚠️ Vision Warning\n\nThe model "${currentModel}" may not support image analysis.\n\nFor best results with images, use:\n• llava:7b (ollama pull llava:7b)\n• bakllava\n• Or select a Copilot model (GPT-4o, Claude, Gemini — all support images)\n\nContinue anyway?`);
+                if (!proceed) return;
+            }
+        } catch(e) {}
+    }
+
+    trackEvent('ai_chat', { query_length: msg.length, has_image: !!_pendingImage, provider: isCopilotModel ? 'copilot' : 'ollama' });
     
     // Add user message to UI
     const displayMsg = msg || '[Image attached]';
@@ -5256,7 +5401,7 @@ async function sendChat() {
     _chatHistory.push({ role: 'user', content: msg || 'Analyze this image' });
     
     // Show typing indicator
-    const typingId = appendChatMessage('assistant', '<div style="display:flex;align-items:center;gap:8px;color:var(--text-400)"><div style="width:12px;height:12px;border:2px solid var(--hpe-green);border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite"></div> Thinking...</div>', true);
+    const typingId = appendChatMessage('assistant', '<div style="display:flex;align-items:center;gap:8px;color:var(--text-400)"><div style="width:14px;height:14px;border:2px solid var(--hpe-green);border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite"></div> Thinking...</div>', true);
     
     // Build system prompt
     const systemPrompt = `You are an expert HPE VM Essentials (VME) L4 support engineer. You have deep knowledge of:
@@ -5269,117 +5414,227 @@ async function sendChat() {
 - Networking (iptables, bonds, netplan, VLANs)
 - Windows Server troubleshooting
 
-Be concise and actionable. Give exact commands when possible. Use code blocks for commands. If you're unsure, say so.`;
+Be concise and actionable. Give exact commands when possible. Use code blocks for commands. If you're unsure, say so.${_pendingImage ? '\n\nThe user has attached a screenshot/image. Analyze it carefully and provide relevant troubleshooting guidance.' : ''}`;
     
-    // Build messages for /api/chat
+    try {
+        if (isCopilotModel) {
+            // ═══ GITHUB COPILOT / OPENAI PATH ═══
+            await sendChatCopilot(msg, systemPrompt, selectedModel, typingId);
+        } else {
+            // ═══ OLLAMA PATH ═══
+            await sendChatOllama(msg, systemPrompt, selectedModel, typingId);
+        }
+    } catch (err) {
+        document.getElementById(typingId)?.remove();
+        appendChatMessage('assistant', '❌ Error: ' + err.message + '\n\nTips:\n• For Ollama: Make sure it\'s running (ollama serve)\n• For Copilot: Click ⚙️ Settings → sign in with GitHub OAuth\n• Try a different model from the dropdown');
+    }
+}
+
+// ═══ OLLAMA CHAT HANDLER ═══
+async function sendChatOllama(msg, systemPrompt, selectedModel, typingId) {
     const chatMessages = [
         { role: 'system', content: systemPrompt },
         ..._chatHistory
     ];
+
+    const endpoint = window._ollamaEndpoint || '/api/ollama';
+    const tagsResp = await fetch(endpoint + '/tags');
+    const tagsData = await tagsResp.json();
+    const models = tagsData.models || [];
     
-    try {
-        const endpoint = window._ollamaEndpoint || '/api/ollama';
-        const tagsResp = await fetch(endpoint + '/tags');
-        const tagsData = await tagsResp.json();
-        const models = tagsData.models || [];
-        
-        // Use user-selected model or auto-detect best
-        const selectedModel = document.getElementById('chatModelSelect')?.value || 'auto';
-        let model;
-        if (selectedModel !== 'auto') {
-            model = selectedModel;
-        } else {
+    let model;
+    if (selectedModel !== 'auto') {
+        model = selectedModel;
+    } else {
+        // If image attached, prefer vision model
+        if (_pendingImage) {
+            model = models.find(m => m.name.includes('llava'))?.name
+                 || models.find(m => m.name.includes('bakllava'))?.name
+                 || models.find(m => m.name.includes('moondream'))?.name;
+        }
+        if (!model) {
             model = models.find(m => m.name.includes('qwen3.5'))?.name
                  || models.find(m => m.name.includes('gemma4'))?.name
                  || models.find(m => m.name.includes('qwen'))?.name
                  || models.find(m => m.name.includes('llama3'))?.name
                  || (models[0]?.name || 'qwen3.5:4b');
         }
-        
-        // Build request body — include image if attached
-        const requestBody = {
-            model: model,
-            messages: chatMessages,
-            stream: true,
-            think: false,
-            options: { temperature: 0.4, num_predict: 800, num_ctx: 2048 }
-        };
-        if (_pendingImage) {
-            // Ollama vision models accept images array in the last message
-            requestBody.messages[requestBody.messages.length - 1].images = [_pendingImage];
-            _pendingImage = null;
-            removePendingImage();
-        }
-
-        const response = await fetch(endpoint + '/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(requestBody)
-        });
-        
-        if (!response.ok) throw new Error('Ollama error: ' + response.status);
-        
-        // Remove typing indicator
-        document.getElementById(typingId)?.remove();
-        
-        // Stream the response word by word
-        const reader = response.body.getReader();
-        const textDecoder = new TextDecoder();
-        let aiText = '';
-        let inThink = false;
-        const msgId = appendChatMessage('assistant', '', true);
-        const bubble = document.getElementById(msgId)?.querySelector('.chat-bubble');
-        
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            const chunk = textDecoder.decode(value, { stream: true });
-            for (const line of chunk.split('\n').filter(l => l.trim())) {
-                try {
-                    const json = JSON.parse(line);
-                    const token = json.message?.content || json.response || '';
-                    if (token) {
-                        // Filter out <think>...</think> blocks (qwen3.5 thinking mode fallback)
-                        let t = token;
-                        if (t.includes('<think>')) { inThink = true; t = t.split('<think>')[0]; }
-                        if (inThink) { if (t.includes('</think>')) { inThink = false; t = t.split('</think>').slice(1).join(''); } else { continue; } }
-                        if (!t) continue;
-                        aiText += t;
-                        if (bubble) {
-                            let formatted = escapeHtml(aiText);
-                            formatted = formatted.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
-                            formatted = formatted.replace(/`([^`]+)`/g, '<code>$1</code>');
-                            formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-                            bubble.innerHTML = formatted + '<span style="opacity:0.4">▊</span>';
-                            bubble.parentElement.parentElement.parentElement.scrollTop = bubble.parentElement.parentElement.parentElement.scrollHeight;
-                        }
-                    }
-                } catch(e) {}
-            }
-        }
-        
-        // Final render without cursor
-        if (bubble) {
-            let formatted = escapeHtml(aiText);
-            formatted = formatted.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
-            formatted = formatted.replace(/`([^`]+)`/g, '<code>$1</code>');
-            formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-            formatted = formatted.replace(/^[•\-]\s(.+)$/gm, '• $1');
-            bubble.innerHTML = formatted;
-            // Add copy button
-            const copyBtn = document.createElement('div');
-            copyBtn.className = 'chat-copy-btn';
-            copyBtn.onclick = () => { navigator.clipboard.writeText(aiText).then(() => copyBtn.textContent = '✓ Copied'); };
-            copyBtn.textContent = '📋 Copy';
-            bubble.parentElement.appendChild(copyBtn);
-        }
-        
-        _chatHistory.push({ role: 'assistant', content: aiText });
-        
-    } catch (err) {
-        document.getElementById(typingId)?.remove();
-        appendChatMessage('assistant', '❌ Error: ' + err.message + '\n\nMake sure Ollama is running.');
     }
+    
+    const requestBody = {
+        model: model,
+        messages: chatMessages,
+        stream: true,
+        think: false,
+        options: { temperature: 0.4, num_predict: 800, num_ctx: 2048 }
+    };
+    
+    // Ollama image format: images array on the last user message
+    if (_pendingImage) {
+        requestBody.messages[requestBody.messages.length - 1].images = [_pendingImage];
+        _pendingImage = null;
+        removePendingImage();
+    }
+
+    const response = await fetch(endpoint + '/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody)
+    });
+    
+    if (!response.ok) throw new Error('Ollama error: ' + response.status);
+    
+    document.getElementById(typingId)?.remove();
+    await streamOllamaResponse(response);
+}
+
+// ═══ GITHUB COPILOT / OPENAI CHAT HANDLER ═══
+async function sendChatCopilot(msg, systemPrompt, selectedModel, typingId) {
+    const modelName = selectedModel.replace('copilot:', '');
+    const apiKey = localStorage.getItem('ls_copilot_api_key') || localStorage.getItem('ls_copilot_ghu_token');
+    if (!apiKey) {
+        throw new Error('GitHub Copilot not signed in. Go to ⚙️ Settings → Sign in with GitHub OAuth.');
+    }
+
+    // Build messages in OpenAI format (Copilot uses same format)
+    const messages = [{ role: 'system', content: systemPrompt }];
+    
+    // Add chat history
+    for (const h of _chatHistory) {
+        messages.push({ role: h.role, content: h.content });
+    }
+
+    // If image attached, modify the LAST user message to include image (OpenAI vision format)
+    if (_pendingImage) {
+        const lastMsg = messages[messages.length - 1];
+        lastMsg.content = [
+            { type: 'text', text: lastMsg.content || 'Analyze this image' },
+            { type: 'image_url', image_url: { url: 'data:image/png;base64,' + _pendingImage } }
+        ];
+        _pendingImage = null;
+        removePendingImage();
+    }
+
+    // Call via proxy (server.py handles CORS + auth headers)
+    const proxyUrl = '/api/copilot/chat';
+    const response = await fetch(proxyUrl, {
+        method: 'POST',
+        headers: { 
+            'Content-Type': 'application/json',
+            'X-Copilot-Token': apiKey
+        },
+        body: JSON.stringify({
+            model: modelName,
+            messages: messages,
+            stream: true,
+            temperature: 0.4,
+            max_tokens: 800
+        })
+    });
+
+    if (!response.ok) {
+        const errText = await response.text().catch(() => '');
+        throw new Error(`Copilot API error ${response.status}: ${errText.substring(0, 100)}`);
+    }
+
+    document.getElementById(typingId)?.remove();
+    await streamOpenAIResponse(response);
+}
+
+// ═══ STREAM OLLAMA RESPONSE ═══
+async function streamOllamaResponse(response) {
+    const reader = response.body.getReader();
+    const textDecoder = new TextDecoder();
+    let aiText = '';
+    let inThink = false;
+    const msgId = appendChatMessage('assistant', '', true);
+    const bubble = document.getElementById(msgId)?.querySelector('.chat-bubble');
+    
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = textDecoder.decode(value, { stream: true });
+        for (const line of chunk.split('\n').filter(l => l.trim())) {
+            try {
+                const json = JSON.parse(line);
+                const token = json.message?.content || json.response || '';
+                if (token) {
+                    let t = token;
+                    if (t.includes('<think>')) { inThink = true; t = t.split('<think>')[0]; }
+                    if (inThink) { if (t.includes('</think>')) { inThink = false; t = t.split('</think>').slice(1).join(''); } else { continue; } }
+                    if (!t) continue;
+                    aiText += t;
+                    if (bubble) {
+                        bubble.innerHTML = formatChatMarkdown(aiText) + '<span style="opacity:0.4">▊</span>';
+                        bubble.parentElement.parentElement.parentElement.scrollTop = bubble.parentElement.parentElement.parentElement.scrollHeight;
+                    }
+                }
+            } catch(e) {}
+        }
+    }
+    
+    finalizeChatMessage(bubble, aiText);
+}
+
+// ═══ STREAM OPENAI/COPILOT RESPONSE (SSE format) ═══
+async function streamOpenAIResponse(response) {
+    const reader = response.body.getReader();
+    const textDecoder = new TextDecoder();
+    let aiText = '';
+    const msgId = appendChatMessage('assistant', '', true);
+    const bubble = document.getElementById(msgId)?.querySelector('.chat-bubble');
+    let buffer = '';
+    
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += textDecoder.decode(value, { stream: true });
+        
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+        
+        for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            const data = line.slice(6).trim();
+            if (data === '[DONE]') break;
+            try {
+                const json = JSON.parse(data);
+                const token = json.choices?.[0]?.delta?.content || '';
+                if (token) {
+                    aiText += token;
+                    if (bubble) {
+                        bubble.innerHTML = formatChatMarkdown(aiText) + '<span style="opacity:0.4">▊</span>';
+                        bubble.parentElement.parentElement.parentElement.scrollTop = bubble.parentElement.parentElement.parentElement.scrollHeight;
+                    }
+                }
+            } catch(e) {}
+        }
+    }
+    
+    finalizeChatMessage(bubble, aiText);
+}
+
+// ═══ SHARED CHAT HELPERS ═══
+function formatChatMarkdown(text) {
+    let formatted = escapeHtml(text);
+    formatted = formatted.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+    formatted = formatted.replace(/`([^`]+)`/g, '<code>$1</code>');
+    formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    return formatted;
+}
+
+function finalizeChatMessage(bubble, aiText) {
+    if (bubble) {
+        let formatted = formatChatMarkdown(aiText);
+        formatted = formatted.replace(/^[•\-]\s(.+)$/gm, '• $1');
+        bubble.innerHTML = formatted;
+        const copyBtn = document.createElement('div');
+        copyBtn.className = 'chat-copy-btn';
+        copyBtn.onclick = () => { navigator.clipboard.writeText(aiText).then(() => copyBtn.textContent = '✓ Copied'); };
+        copyBtn.textContent = '📋 Copy';
+        bubble.parentElement.appendChild(copyBtn);
+    }
+    _chatHistory.push({ role: 'assistant', content: aiText });
 }
 
 function appendChatMessage(role, content, isHTML = false) {

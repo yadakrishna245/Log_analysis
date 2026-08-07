@@ -499,10 +499,18 @@
 
                 <div class="context-area">
                     <div class="context-label">TICKET CONTEXT</div>
-                    <textarea class="context-textarea" id="ticketContext" placeholder="Paste full Jira ticket description here — mentions SFTP folder, HTTPS link, issue details..."></textarea>
-                    <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;">
+                    <textarea class="context-textarea" id="ticketContext" placeholder="Paste full Jira ticket description here — mentions SFTP folder, HTTPS link, issue details... (Ctrl+V to paste screenshots too!)"></textarea>
+                    <!-- Image preview area for ticket context -->
+                    <div id="ticketImagePreview" style="display:none;margin-top:8px;padding:8px;background:var(--bg-0);border:1px solid var(--border-subtle);border-radius:8px;">
+                        <div style="font-size:11px;color:var(--text-400);margin-bottom:6px;">📎 Attached Screenshots (sent to AI for analysis)</div>
+                        <div id="ticketImageList" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+                    </div>
+                    <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;align-items:center;">
                         <button class="btn-ghost" onclick="getAdvice()">🧭 Suggest where to look</button>
                         <button class="btn-ghost" style="border-color:#8b5cf6;color:#8b5cf6;" onclick="askOllamaTicket()">🤖 Ask AI for Solution</button>
+                        <button class="btn-ghost" style="border-color:#f59e0b;color:#f59e0b;" onclick="document.getElementById('ticketImageInput').click()" title="Attach screenshot for AI analysis">🖼️ Attach Image</button>
+                        <input type="file" id="ticketImageInput" accept="image/*" multiple style="display:none" onchange="handleTicketImageSelect(event)">
+                        <span style="font-size:10px;color:var(--text-500);">Ctrl+V to paste screenshots</span>
                     </div>
                 </div>
 
@@ -1135,12 +1143,16 @@ Try asking:
                     </div>
                 </div>
                 
+                <!-- Image Preview -->
+                <div id="chatImagePreview" style="display:none;position:relative;margin-bottom:8px;"></div>
                 <!-- Input Area -->
                 <div style="display:flex;gap:10px;align-items:flex-end;">
-                    <textarea id="chatInput" placeholder="Ask anything about HPE VME, Linux, clusters, storage, networking..." style="flex:1;resize:none;height:50px;padding:12px 16px;border-radius:10px;border:1px solid var(--border-default);background:var(--bg-2);color:var(--text-100);font-size:14px;font-family:var(--sans);outline:none;transition:border-color 0.2s;" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat()}"></textarea>
+                    <textarea id="chatInput" placeholder="Ask anything about HPE VME, Linux, clusters, storage, networking... (Ctrl+V to paste screenshots)" style="flex:1;resize:none;height:50px;padding:12px 16px;border-radius:10px;border:1px solid var(--border-default);background:var(--bg-2);color:var(--text-100);font-size:14px;font-family:var(--sans);outline:none;transition:border-color 0.2s;" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat()}"></textarea>
+                    <input type="file" id="chatImageInput" accept="image/*" style="display:none" onchange="if(this.files[0])processImageFile(this.files[0]);this.value='';">
+                    <button onclick="document.getElementById('chatImageInput').click()" style="padding:12px;border-radius:10px;background:var(--bg-2);border:1px solid var(--border-default);cursor:pointer;font-size:16px;" title="Attach image (or Ctrl+V to paste)">🖼️</button>
                     <button onclick="sendChat()" style="padding:12px 20px;border-radius:10px;background:var(--hpe-green);color:white;border:none;font-weight:600;cursor:pointer;font-size:14px;white-space:nowrap;">Send ➤</button>
                 </div>
-                <div style="text-align:center;font-size:10px;color:var(--text-500);margin-top:8px;">Shift+Enter for new line • Runs on local Ollama (qwen3.5) • No data leaves your machine</div>
+                <div style="text-align:center;font-size:10px;color:var(--text-500);margin-top:8px;">Shift+Enter for new line • Ctrl+V to paste screenshots • Supports Ollama + GitHub Copilot</div>
             </div>
         </div>
     </div>
@@ -4503,6 +4515,85 @@ function copyReply() {
 
 // ═══ AI CHAT ═══════════════════════════════════════════════
 let _chatHistory = [];
+let _pendingImage = null;
+let _ticketImages = [];
+
+const VISION_MODELS = ['llava','bakllava','llava-llama3','moondream','cogvlm','yi-vl','fuyu','internvl','minicpm-v','gpt-4o','gpt-4-turbo','gpt-4-vision','claude-sonnet','claude-opus','claude-haiku','gemini'];
+function isVisionModel(n) { return n ? VISION_MODELS.some(v => n.toLowerCase().includes(v)) : false; }
+
+// Ticket context image paste handler
+document.addEventListener('DOMContentLoaded', () => {
+    const ticketCtx = document.getElementById('ticketContext');
+    if (ticketCtx) {
+        ticketCtx.addEventListener('paste', function(e) {
+            const items = e.clipboardData && e.clipboardData.items;
+            if (!items) return;
+            for (const item of items) {
+                if (item.type.startsWith('image/')) {
+                    e.preventDefault();
+                    const file = item.getAsFile();
+                    if (file) addTicketImage(file);
+                    return;
+                }
+            }
+        });
+    }
+    // Chat input paste handler
+    const chatInput = document.getElementById('chatInput');
+    if (chatInput) {
+        chatInput.addEventListener('paste', function(e) {
+            const items = e.clipboardData && e.clipboardData.items;
+            if (!items) return;
+            for (const item of items) {
+                if (item.type.startsWith('image/')) {
+                    e.preventDefault();
+                    const file = item.getAsFile();
+                    if (file) processImageFile(file);
+                    return;
+                }
+            }
+        });
+    }
+});
+
+function handleTicketImageSelect(e) {
+    const files = e.target.files;
+    if (!files) return;
+    for (const file of files) { if (file.type.startsWith('image/')) addTicketImage(file); }
+    e.target.value = '';
+}
+function addTicketImage(file) {
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+        const dataUrl = ev.target.result;
+        _ticketImages.push({ base64: dataUrl.split(',')[1], dataUrl, name: file.name });
+        renderTicketImages();
+    };
+    reader.readAsDataURL(file);
+}
+function removeTicketImage(idx) { _ticketImages.splice(idx, 1); renderTicketImages(); }
+function renderTicketImages() {
+    const preview = document.getElementById('ticketImagePreview');
+    const list = document.getElementById('ticketImageList');
+    if (_ticketImages.length === 0) { preview.style.display = 'none'; list.innerHTML = ''; return; }
+    preview.style.display = 'block';
+    list.innerHTML = _ticketImages.map((img, i) => `<div style="position:relative;display:inline-block;"><img src="${img.dataUrl}" style="width:80px;height:60px;object-fit:cover;border-radius:6px;border:1px solid var(--border-default);"><div onclick="removeTicketImage(${i})" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;background:#ef4444;color:white;border-radius:50%;font-size:11px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-weight:bold;">✕</div></div>`).join('');
+}
+function processImageFile(file) {
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+        const dataUrl = ev.target.result;
+        _pendingImage = dataUrl.split(',')[1];
+        const preview = document.getElementById('chatImagePreview');
+        if (preview) { preview.style.display = 'inline-block'; preview.innerHTML = `<img src="${dataUrl}" alt="attached" style="max-width:120px;max-height:80px;border-radius:8px;border:1px solid var(--border-default);"><div onclick="removePendingImage()" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;background:#ef4444;color:white;border-radius:50%;font-size:11px;display:flex;align-items:center;justify-content:center;cursor:pointer;">✕</div>`; }
+    };
+    reader.readAsDataURL(file);
+}
+function removePendingImage() {
+    _pendingImage = null;
+    const preview = document.getElementById('chatImagePreview');
+    if (preview) { preview.style.display = 'none'; preview.innerHTML = ''; }
+}
 
 function showChat() {
     // Hide all pages, show chat
@@ -4542,25 +4633,39 @@ function clearChatHistory() {
 async function sendChat() {
     const input = document.getElementById('chatInput');
     const msg = input.value.trim();
-    if (!msg) return;
-    if (!_ollamaAvailable) {
-        alert('Ollama not detected. Install it first (click 🤖 icon in sidebar for instructions).');
+    if (!msg && !_pendingImage) return;
+    
+    const selectedModel = document.getElementById('chatModelSelect')?.value || 'auto';
+    const isCopilotModel = selectedModel.startsWith('copilot:');
+    
+    if (!_ollamaAvailable && !isCopilotModel) {
+        alert('No AI available.\n\n• Ollama not detected (install: ollama.com/download)\n• Or select a GitHub Copilot model from the dropdown');
         return;
     }
-    trackEvent('ai_chat', { query_length: msg.length });
     
-    // Add user message to UI
-    appendChatMessage('user', msg);
+    // Vision warning for Ollama text-only models
+    if (_pendingImage && !isCopilotModel) {
+        const ollamaEndpoint = window._ollamaEndpoint || '/api/ollama';
+        try {
+            const tr = await fetch(ollamaEndpoint + '/tags');
+            const td = await tr.json();
+            const models = td.models || [];
+            let currentModel = selectedModel === 'auto' ? (models.find(m => m.name.includes('llava'))?.name || models[0]?.name || '') : selectedModel;
+            if (!isVisionModel(currentModel)) {
+                if (!confirm(`⚠️ Vision Warning\n\n"${currentModel}" may not support images.\n\nFor images use: llava:7b, bakllava, or a Copilot model.\n\nContinue anyway?`)) return;
+            }
+        } catch(e) {}
+    }
+    
+    trackEvent('ai_chat', { query_length: msg.length, has_image: !!_pendingImage });
+    const displayMsg = msg || '[Image attached]';
+    appendChatMessage('user', _pendingImage ? '🖼️ ' + displayMsg : displayMsg);
     input.value = '';
     input.style.height = '50px';
+    _chatHistory.push({ role: 'user', content: msg || 'Analyze this image' });
     
-    // Add to history
-    _chatHistory.push({ role: 'user', content: msg });
-    
-    // Show typing indicator
     const typingId = appendChatMessage('assistant', '<div style="display:flex;align-items:center;gap:8px;color:var(--text-400)"><div style="width:12px;height:12px;border:2px solid var(--hpe-green);border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite"></div> Thinking...</div>', true);
     
-    // Build system prompt
     const systemPrompt = `You are an expert HPE VM Essentials (VME) L4 support engineer. You have deep knowledge of:
 - Pacemaker/Corosync clusters (fencing, quorum, resources)
 - GFS2 shared filesystems & DLM lock management
@@ -4571,108 +4676,98 @@ async function sendChat() {
 - Networking (iptables, bonds, netplan, VLANs)
 - Windows Server troubleshooting
 
-Be concise and actionable. Give exact commands when possible. Use code blocks for commands. If you're unsure, say so.`;
+Be concise and actionable. Give exact commands when possible. Use code blocks for commands.${_pendingImage ? '\n\nThe user has attached a screenshot. Analyze it carefully.' : ''}`;
     
-    // Build messages for /api/chat
-    const chatMessages = [
-        { role: 'system', content: systemPrompt },
-        ..._chatHistory
-    ];
+    const chatMessages = [{ role: 'system', content: systemPrompt }, ..._chatHistory];
     
     try {
-        const endpoint = window._ollamaEndpoint || '/api/ollama';
-        const tagsResp = await fetch(endpoint + '/tags');
-        const tagsData = await tagsResp.json();
-        const models = tagsData.models || [];
-        
-        // Use user-selected model or auto-detect best
-        const selectedModel = document.getElementById('chatModelSelect')?.value || 'auto';
-        let model;
-        if (selectedModel !== 'auto') {
-            model = selectedModel;
-        } else {
-            model = models.find(m => m.name.includes('qwen3.5'))?.name
-                 || models.find(m => m.name.includes('gemma4'))?.name
-                 || models.find(m => m.name.includes('qwen'))?.name
-                 || models.find(m => m.name.includes('llama3'))?.name
-                 || (models[0]?.name || 'qwen3.5:4b');
-        }
-        
-        const response = await fetch(endpoint + '/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                model: model,
-                messages: chatMessages,
-                stream: true,
-                think: false,
-                options: { temperature: 0.4, num_predict: 800, num_ctx: 2048 }
-            })
-        });
-        
-        if (!response.ok) throw new Error('Ollama error: ' + response.status);
-        
-        // Remove typing indicator
-        document.getElementById(typingId)?.remove();
-        
-        // Stream the response word by word
-        const reader = response.body.getReader();
-        const textDecoder = new TextDecoder();
-        let aiText = '';
-        let inThink = false;
-        const msgId = appendChatMessage('assistant', '', true);
-        const bubble = document.getElementById(msgId)?.querySelector('.chat-bubble');
-        
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            const chunk = textDecoder.decode(value, { stream: true });
-            for (const line of chunk.split('\n').filter(l => l.trim())) {
-                try {
-                    const json = JSON.parse(line);
-                    const token = json.message?.content || json.response || '';
-                    if (token) {
-                        // Filter out <think>...</think> blocks (qwen3.5 thinking mode fallback)
-                        let t = token;
-                        if (t.includes('<think>')) { inThink = true; t = t.split('<think>')[0]; }
-                        if (inThink) { if (t.includes('</think>')) { inThink = false; t = t.split('</think>').slice(1).join(''); } else { continue; } }
-                        if (!t) continue;
-                        aiText += t;
-                        if (bubble) {
-                            let formatted = escapeHtml(aiText);
-                            formatted = formatted.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
-                            formatted = formatted.replace(/`([^`]+)`/g, '<code>$1</code>');
-                            formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-                            bubble.innerHTML = formatted + '<span style="opacity:0.4">▊</span>';
-                            bubble.parentElement.parentElement.parentElement.scrollTop = bubble.parentElement.parentElement.parentElement.scrollHeight;
-                        }
-                    }
-                } catch(e) {}
+        if (isCopilotModel) {
+            // GitHub Copilot path (OpenAI format)
+            const modelName = selectedModel.replace('copilot:', '');
+            const apiKey = localStorage.getItem('ls_copilot_api_key') || localStorage.getItem('ls_copilot_ghu_token');
+            if (!apiKey) throw new Error('Copilot not signed in. Go to ⚙️ Settings → GitHub OAuth.');
+            
+            if (_pendingImage) {
+                const lastMsg = chatMessages[chatMessages.length - 1];
+                lastMsg.content = [
+                    { type: 'text', text: lastMsg.content || 'Analyze this image' },
+                    { type: 'image_url', image_url: { url: 'data:image/png;base64,' + _pendingImage } }
+                ];
+                _pendingImage = null; removePendingImage();
             }
+            
+            const resp = await fetch('/api/copilot/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Copilot-Token': apiKey },
+                body: JSON.stringify({ model: modelName, messages: chatMessages, stream: false, temperature: 0.4, max_tokens: 800 })
+            });
+            if (!resp.ok) throw new Error('Copilot error: ' + resp.status);
+            document.getElementById(typingId)?.remove();
+            const result = await resp.json();
+            const aiText = result.choices?.[0]?.message?.content || 'No response';
+            const msgId = appendChatMessage('assistant', '', true);
+            const bubble = document.getElementById(msgId)?.querySelector('.chat-bubble');
+            if (bubble) { bubble.innerHTML = formatChatMd(aiText); const cb = document.createElement('div'); cb.className='chat-copy-btn'; cb.onclick=()=>{navigator.clipboard.writeText(aiText).then(()=>cb.textContent='✓ Copied')}; cb.textContent='📋 Copy'; bubble.parentElement.appendChild(cb); }
+            _chatHistory.push({ role: 'assistant', content: aiText });
+        } else {
+            // Ollama path
+            const endpoint = window._ollamaEndpoint || '/api/ollama';
+            const tagsResp = await fetch(endpoint + '/tags');
+            const tagsData = await tagsResp.json();
+            const models = tagsData.models || [];
+            let model;
+            if (selectedModel !== 'auto') { model = selectedModel; }
+            else {
+                if (_pendingImage) model = models.find(m => m.name.includes('llava'))?.name || models.find(m => m.name.includes('bakllava'))?.name;
+                if (!model) model = models.find(m => m.name.includes('qwen3.5'))?.name || models.find(m => m.name.includes('gemma4'))?.name || models.find(m => m.name.includes('qwen'))?.name || models.find(m => m.name.includes('llama3'))?.name || (models[0]?.name || 'qwen3.5:4b');
+            }
+            const requestBody = { model, messages: chatMessages, stream: true, think: false, options: { temperature: 0.4, num_predict: 800, num_ctx: 2048 } };
+            if (_pendingImage) { requestBody.messages[requestBody.messages.length - 1].images = [_pendingImage]; _pendingImage = null; removePendingImage(); }
+            
+            const response = await fetch(endpoint + '/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(requestBody) });
+            if (!response.ok) throw new Error('Ollama error: ' + response.status);
+            document.getElementById(typingId)?.remove();
+            
+            const reader = response.body.getReader();
+            const textDecoder = new TextDecoder();
+            let aiText = '', inThink = false;
+            const msgId = appendChatMessage('assistant', '', true);
+            const bubble = document.getElementById(msgId)?.querySelector('.chat-bubble');
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                const chunk = textDecoder.decode(value, { stream: true });
+                for (const line of chunk.split('\n').filter(l => l.trim())) {
+                    try {
+                        const json = JSON.parse(line);
+                        const token = json.message?.content || json.response || '';
+                        if (token) {
+                            let t = token;
+                            if (t.includes('<think>')) { inThink = true; t = t.split('<think>')[0]; }
+                            if (inThink) { if (t.includes('</think>')) { inThink = false; t = t.split('</think>').slice(1).join(''); } else { continue; } }
+                            if (!t) continue;
+                            aiText += t;
+                            if (bubble) { bubble.innerHTML = formatChatMd(aiText) + '<span style="opacity:0.4">▊</span>'; bubble.parentElement.parentElement.parentElement.scrollTop = bubble.parentElement.parentElement.parentElement.scrollHeight; }
+                        }
+                    } catch(e) {}
+                }
+            }
+            if (bubble) { bubble.innerHTML = formatChatMd(aiText); const cb = document.createElement('div'); cb.className='chat-copy-btn'; cb.onclick=()=>{navigator.clipboard.writeText(aiText).then(()=>cb.textContent='✓ Copied')}; cb.textContent='📋 Copy'; bubble.parentElement.appendChild(cb); }
+            _chatHistory.push({ role: 'assistant', content: aiText });
         }
-        
-        // Final render without cursor
-        if (bubble) {
-            let formatted = escapeHtml(aiText);
-            formatted = formatted.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
-            formatted = formatted.replace(/`([^`]+)`/g, '<code>$1</code>');
-            formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-            formatted = formatted.replace(/^[•\-]\s(.+)$/gm, '• $1');
-            bubble.innerHTML = formatted;
-            // Add copy button
-            const copyBtn = document.createElement('div');
-            copyBtn.className = 'chat-copy-btn';
-            copyBtn.onclick = () => { navigator.clipboard.writeText(aiText).then(() => copyBtn.textContent = '✓ Copied'); };
-            copyBtn.textContent = '📋 Copy';
-            bubble.parentElement.appendChild(copyBtn);
-        }
-        
-        _chatHistory.push({ role: 'assistant', content: aiText });
-        
     } catch (err) {
         document.getElementById(typingId)?.remove();
-        appendChatMessage('assistant', '❌ Error: ' + err.message + '\n\nMake sure Ollama is running.');
+        appendChatMessage('assistant', '❌ Error: ' + err.message + '\n\nTips:\n• Ollama: make sure it\'s running\n• Copilot: sign in via ⚙️ Settings');
     }
+}
+
+function formatChatMd(text) {
+    let f = escapeHtml(text);
+    f = f.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+    f = f.replace(/`([^`]+)`/g, '<code>$1</code>');
+    f = f.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    f = f.replace(/^[•\-]\s(.+)$/gm, '• $1');
+    return f;
 }
 
 function appendChatMessage(role, content, isHTML = false) {

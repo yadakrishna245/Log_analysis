@@ -29,6 +29,8 @@ class LogSherlockHandler(http.server.SimpleHTTPRequestHandler):
             self._proxy_poll_token()
         elif self.path == '/api/copilot/exchange':
             self._proxy_exchange_token()
+        elif self.path == '/api/copilot/chat':
+            self._proxy_copilot_chat()
         else:
             self.send_error(404)
 
@@ -105,6 +107,57 @@ class LogSherlockHandler(http.server.SimpleHTTPRequestHandler):
         except Exception as e:
             self._json_response({'error': str(e)}, 500)
 
+    def _proxy_copilot_chat(self):
+        """Proxy chat completions to GitHub Copilot API (handles CORS + auth headers)."""
+        content_length = int(self.headers.get('Content-Length', 0))
+        body = self.rfile.read(content_length) if content_length else b'{}'
+        copilot_token = self.headers.get('X-Copilot-Token', '')
+
+        if not copilot_token:
+            self._json_response({'error': 'Missing X-Copilot-Token header'}, 401)
+            return
+
+        # Parse request to check if streaming
+        request_data = json.loads(body)
+        is_stream = request_data.get('stream', False)
+
+        req = urllib.request.Request(
+            'https://api.githubcopilot.com/chat/completions',
+            data=body,
+            headers={
+                'Authorization': f'Bearer {copilot_token}',
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'Editor-Version': 'vscode/1.92.0',
+                'Editor-Plugin-Version': 'copilot/1.200.0',
+                'Openai-Intent': 'conversation-panel',
+                'User-Agent': 'LogSherlock-Pro/1.0'
+            }
+        )
+        try:
+            resp = urllib.request.urlopen(req, timeout=60)
+            if is_stream:
+                # Stream response back to client
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/event-stream')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.send_header('Cache-Control', 'no-cache')
+                self.end_headers()
+                while True:
+                    chunk = resp.read(4096)
+                    if not chunk:
+                        break
+                    self.wfile.write(chunk)
+                    self.wfile.flush()
+            else:
+                result = json.loads(resp.read().decode())
+                self._json_response(result)
+        except urllib.error.HTTPError as e:
+            error_body = e.read().decode() if e.fp else ''
+            self._json_response({'error': f'Copilot API error {e.code}: {error_body}'}, e.code)
+        except Exception as e:
+            self._json_response({'error': str(e)}, 500)
+
     def _json_response(self, data, code=200):
         body = json.dumps(data).encode()
         self.send_response(code)
@@ -119,7 +172,7 @@ class LogSherlockHandler(http.server.SimpleHTTPRequestHandler):
         self.send_response(204)
         self.send_header('Access-Control-Allow-Origin', '*')
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Copilot-Token')
         self.end_headers()
 
     def log_message(self, format, *args):
