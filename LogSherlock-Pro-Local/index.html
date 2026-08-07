@@ -1039,6 +1039,12 @@
                             <button class="btn-ghost" onclick="testCopilotConnection()">🔌 Test Connection</button>
                             <button class="btn-ghost" style="border-color:#ef4444;color:#ef4444;" onclick="clearCopilotSettings()">🗑️ Clear</button>
                         </div>
+                        <div style="margin-top:16px;padding:12px;background:var(--bg-3);border:1px solid var(--accent);border-radius:10px;">
+                            <div style="font-size:12px;font-weight:600;color:var(--accent);margin-bottom:8px;">🔐 GitHub Copilot (One-Click Sign In)</div>
+                            <div style="font-size:11px;color:var(--text-400);margin-bottom:8px;">Sign in with your GitHub account that has an active Copilot subscription. No PAT needed — uses official OAuth device flow.</div>
+                            <button class="btn" onclick="signInWithCopilot()" style="background:#8b5cf6;width:100%;">🚀 Sign in with GitHub Copilot</button>
+                            <div id="copilotDeviceFlow" style="display:none;margin-top:10px;padding:10px;background:var(--bg-0);border-radius:8px;text-align:center;"></div>
+                        </div>
                         <div id="copilotSettingsStatus" style="font-size:12px;color:var(--text-400);margin-top:4px;display:none;"></div>
                     </div>
                 </div>
@@ -5530,6 +5536,34 @@ function updateEndpointFromProvider() {
     const epField = document.getElementById('copilotEndpoint');
     if (sel.value !== 'custom') {
         epField.value = sel.value;
+    }
+}
+
+async function signInWithCopilot() {
+    const flowDiv = document.getElementById('copilotDeviceFlow');
+    flowDiv.style.display = 'block';
+    flowDiv.innerHTML = '<div style="color:var(--text-400);">🔄 Starting GitHub authentication...</div>';
+    
+    try {
+        const auth = await copilot.authenticateCopilot();
+        flowDiv.innerHTML = `
+            <div style="font-size:14px;font-weight:700;color:var(--accent);margin-bottom:8px;">Enter this code on GitHub:</div>
+            <div style="font-size:28px;font-weight:700;color:var(--text-100);letter-spacing:4px;font-family:var(--mono);margin-bottom:8px;">${auth.userCode}</div>
+            <div style="font-size:11px;color:var(--text-400);margin-bottom:8px;">A browser tab opened to: ${auth.verificationUrl}</div>
+            <div style="font-size:11px;color:var(--text-300);">⏳ Waiting for you to enter the code and authorize...</div>
+        `;
+        
+        // Poll for token
+        const result = await auth.pollForToken();
+        flowDiv.innerHTML = '<div style="color:var(--hpe-green);font-weight:600;">✅ Signed in with GitHub Copilot! AI features are now active.</div>';
+        
+        // Update UI
+        document.getElementById('copilotProvider').value = 'https://api.githubcopilot.com/chat/completions';
+        document.getElementById('copilotEndpoint').value = 'https://api.githubcopilot.com/chat/completions';
+        showCopilotStatus('✅ GitHub Copilot authenticated! Using your Copilot subscription.', 'var(--hpe-green)');
+        updateCopilotStatusDot(true);
+    } catch (err) {
+        flowDiv.innerHTML = `<div style="color:#ef4444;">❌ ${err.message}</div>`;
     }
 }
 

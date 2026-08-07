@@ -24,6 +24,117 @@ class CopilotIntegration {
         this.enabled = !!this.apiKey;
         this.maxTokens = 2048;
         this.temperature = 0.3; // Low temperature for factual analysis
+        this._copilotToken = localStorage.getItem('ls_copilot_ghu_token') || '';
+        this._copilotTokenExpiry = parseInt(localStorage.getItem('ls_copilot_ghu_expiry') || '0');
+    }
+
+    /**
+     * GitHub Copilot OAuth Device Flow
+     * Uses the VS Code Copilot client ID to get a ghu_ token
+     * This is the ONLY way to authenticate with api.githubcopilot.com
+     */
+    async authenticateCopilot() {
+        const CLIENT_ID = 'Iv1.b507a08c87ecfe98'; // VS Code Copilot client ID
+
+        // Step 1: Request device code
+        const codeResp = await fetch('https://github.com/login/device/code', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify({ client_id: CLIENT_ID, scope: 'read:user' })
+        });
+        const codeData = await codeResp.json();
+        
+        // Show user the code to enter
+        const userCode = codeData.user_code;
+        const verificationUrl = codeData.verification_uri;
+        const deviceCode = codeData.device_code;
+        const interval = (codeData.interval || 5) * 1000;
+
+        // Open the verification URL
+        window.open(verificationUrl, '_blank');
+
+        return {
+            userCode,
+            verificationUrl,
+            deviceCode,
+            interval,
+            pollForToken: () => this._pollForToken(CLIENT_ID, deviceCode, interval)
+        };
+    }
+
+    async _pollForToken(clientId, deviceCode, interval) {
+        // Poll for up to 5 minutes
+        const maxAttempts = 60;
+        for (let i = 0; i < maxAttempts; i++) {
+            await new Promise(r => setTimeout(r, interval));
+            
+            const resp = await fetch('https://github.com/login/oauth/access_token', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                body: JSON.stringify({
+                    client_id: clientId,
+                    device_code: deviceCode,
+                    grant_type: 'urn:ietf:params:oauth:grant-type:device_code'
+                })
+            });
+            const data = await resp.json();
+
+            if (data.access_token) {
+                // Got the token! Now exchange for Copilot token
+                const copilotToken = await this._getCopilotToken(data.access_token);
+                return copilotToken;
+            }
+            if (data.error === 'authorization_pending') continue;
+            if (data.error === 'slow_down') { await new Promise(r => setTimeout(r, 5000)); continue; }
+            if (data.error === 'expired_token') throw new Error('Code expired. Try again.');
+            if (data.error === 'access_denied') throw new Error('Access denied by user.');
+        }
+        throw new Error('Timeout waiting for authorization.');
+    }
+
+    async _getCopilotToken(oauthToken) {
+        // Exchange OAuth token for Copilot API token
+        const resp = await fetch('https://api.github.com/copilot_internal/v2/token', {
+            headers: {
+                'Authorization': `token ${oauthToken}`,
+                'Accept': 'application/json'
+            }
+        });
+        if (!resp.ok) {
+            throw new Error(`Copilot token exchange failed: ${resp.status}. Make sure you have an active Copilot subscription.`);
+        }
+        const data = await resp.json();
+        this._copilotToken = data.token;
+        this._copilotTokenExpiry = data.expires_at ? new Date(data.expires_at * 1000).getTime() : Date.now() + 1800000;
+        
+        // Store for reuse
+        localStorage.setItem('ls_copilot_ghu_token', this._copilotToken);
+        localStorage.setItem('ls_copilot_ghu_expiry', String(this._copilotTokenExpiry));
+        localStorage.setItem('ls_copilot_oauth_token', oauthToken);
+        
+        // Configure the integration
+        this.apiKey = this._copilotToken;
+        this.endpoint = 'https://api.githubcopilot.com/chat/completions';
+        this.enabled = true;
+        localStorage.setItem('ls_copilot_api_key', this._copilotToken);
+        localStorage.setItem('ls_copilot_endpoint', this.endpoint);
+
+        return { success: true, expiresAt: this._copilotTokenExpiry };
+    }
+
+    async _refreshCopilotTokenIfNeeded() {
+        if (this.endpoint !== 'https://api.githubcopilot.com/chat/completions') return;
+        if (this._copilotTokenExpiry && Date.now() < this._copilotTokenExpiry - 60000) return;
+        
+        // Token expired or about to expire, try refresh
+        const oauthToken = localStorage.getItem('ls_copilot_oauth_token');
+        if (oauthToken) {
+            try {
+                await this._getCopilotToken(oauthToken);
+            } catch(e) {
+                console.warn('Copilot token refresh failed:', e.message);
+            }
+        }
     }
 
     /**
@@ -250,6 +361,9 @@ Be actionable and specific to HPE VME/Morpheus environment.`;
      * Call the Copilot/OpenAI-compatible API
      */
     async _callAPI(systemPrompt, userPrompt) {
+        // Refresh Copilot token if needed
+        await this._refreshCopilotTokenIfNeeded();
+        
         const response = await fetch(this.endpoint, {
             method: 'POST',
             headers: {
