@@ -27,6 +27,52 @@ flowchart LR
 
 ---
 
+### 🐍 Install Python (If Not Already Installed)
+
+**🪟 Windows:**
+```powershell
+# Option 1: Download from python.org
+# Go to https://www.python.org/downloads/ → Download Python 3.11.x → Run installer
+# ⚠️ IMPORTANT: Check "Add Python to PATH" during installation!
+
+# Option 2: Using winget (Windows Package Manager)
+winget install Python.Python.3.11
+
+# Verify installation:
+python --version
+# Should show: Python 3.11.x
+```
+
+**🐧 Ubuntu / Debian:**
+```bash
+sudo apt update
+sudo apt install python3 -y
+
+# Verify:
+python3 --version
+```
+
+**🐧 RHEL / CentOS / Fedora:**
+```bash
+sudo dnf install python3 -y
+
+# Verify:
+python3 --version
+```
+
+**🍎 macOS:**
+```bash
+# Using Homebrew:
+brew install python@3.11
+
+# Verify:
+python3 --version
+```
+
+> ✅ Minimum version: **Python 3.10** | Recommended: **Python 3.11**
+
+---
+
 ## 🚀 Quick Start — Step-by-Step
 
 ```mermaid
