@@ -15,9 +15,29 @@
 **Zero-upload log analysis — your data never leaves the browser.**  
 Drop tar.gz files (up to 3GB+) → Get instant root cause analysis with actionable solutions. Streaming engine — no file size limits.
 
-### 🌐 [Live Demo → https://d3tv1czat55yad.cloudfront.net](https://d3tv1czat55yad.cloudfront.net)
+---
 
-[How to Demo](#-how-to-demo) • [Features](#-features-23) • [Architecture](#-architecture) • [How It Works](#-how-it-works) • [Getting Started](#-getting-started) • [API](#-api-endpoints) • [Security](#-security--privacy) • [Project Structure](#-project-structure)
+## 🚀 Quick Start
+
+### Option 1: Local Edition (Recommended — No cloud, fully offline)
+
+```
+1. Clone/download this repo
+2. Go to: LogSherlock-Pro-Local/
+3. Double-click: LogSherlock.bat
+4. Browser opens → http://localhost:8888
+5. Enter license key → Start analyzing logs
+```
+
+> **That's it.** No install, no cloud, no internet needed for scanning. Python 3.10+ required (already on HPE laptops).
+
+### Option 2: Cloud Edition (AWS)
+
+```
+URL: https://d3tv1czat55yad.cloudfront.net
+```
+
+> ⚠️ Hosted on personal AWS — pending security approval for team use.
 
 ---
 

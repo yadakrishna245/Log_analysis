@@ -2,20 +2,28 @@
 
 **HPE VME L4 Support Engineering Tool** — Fully offline log analysis with AI-powered root cause detection.
 
-> Zero install. Zero data upload. Just double-click and analyze.
+> Zero install. Zero data upload. One URL: `http://localhost:8888`
 
 ---
 
 ## 🚀 Quick Start (30 seconds)
 
 ```
-1. Clone this folder (or copy it to your machine)
-2. Double-click `index.html`
-3. Enter your name → Enter license key → Done!
-4. Paste ticket → Drop logs → Get results
+1. Double-click: LogSherlock.bat
+2. Browser opens → http://localhost:8888
+3. Enter license key → Start analyzing!
 ```
 
-**That's it.** No server, no cloud, no dependencies.
+**That's it.** One URL, one click. Python 3.10+ required.
+
+### Enable GitHub Copilot AI (Optional)
+
+```
+1. Go to ⚙️ Settings in the app
+2. Click "🚀 Sign in with GitHub Copilot"
+3. Enter the code shown on GitHub → Authorize
+4. ✅ AI features active (uses your HPE Copilot license)
+```
 
 ---
 
