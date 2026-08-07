@@ -115,9 +115,11 @@ class CopilotIntegration {
         // Configure the integration
         this.apiKey = this._copilotToken;
         this.endpoint = 'https://api.githubcopilot.com/chat/completions';
+        this.model = 'gpt-4o';
         this.enabled = true;
         localStorage.setItem('ls_copilot_api_key', this._copilotToken);
         localStorage.setItem('ls_copilot_endpoint', this.endpoint);
+        localStorage.setItem('ls_copilot_model', this.model);
 
         return { success: true, expiresAt: this._copilotTokenExpiry };
     }
@@ -162,13 +164,15 @@ class CopilotIntegration {
      * Check if Copilot is configured and ready
      */
     isReady() {
-        return this.enabled && this.apiKey.length > 10;
+        // Check either API key OR OAuth Copilot token
+        return (this.enabled && this.apiKey.length > 10) || (!!this._copilotToken && this._copilotToken.length > 10);
     }
 
     /**
      * Get connection status
      */
     getStatus() {
+        if (this._copilotToken) return { status: 'ready', message: `GitHub Copilot connected (${this.model})`, model: this.model };
         if (!this.apiKey) return { status: 'not_configured', message: 'API key not set' };
         return { status: 'ready', message: `Connected (${this.model})`, model: this.model };
     }
@@ -364,12 +368,26 @@ Be actionable and specific to HPE VME/Morpheus environment.`;
         // Refresh Copilot token if needed
         await this._refreshCopilotTokenIfNeeded();
         
+        // Use copilot token if available, fallback to apiKey
+        const token = this._copilotToken || this.apiKey;
+        const isCopilot = this.endpoint.includes('githubcopilot.com');
+        
+        const headers = {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+        };
+        
+        // Copilot API requires these additional headers
+        if (isCopilot) {
+            headers['Editor-Version'] = 'vscode/1.92.0';
+            headers['Editor-Plugin-Version'] = 'copilot/1.200.0';
+            headers['Openai-Intent'] = 'conversation-panel';
+            headers['Copilot-Integration-Id'] = 'vscode-chat';
+        }
+        
         const response = await fetch(this.endpoint, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${this.apiKey}`,
-            },
+            headers: headers,
             body: JSON.stringify({
                 model: this.model,
                 messages: [
