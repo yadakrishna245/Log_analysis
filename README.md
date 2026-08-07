@@ -541,6 +541,40 @@ flowchart LR
 
 ---
 
+## 🎯 Best Practice — Maximum Accuracy Workflow
+
+For the most accurate root cause analysis, provide **all three inputs**:
+
+```mermaid
+flowchart LR
+    A[📝 Ticket Description] --> D[🔍 LogSherlock Pro]
+    B[🖼️ Screenshot] --> D
+    C[📦 Log Archive] --> D
+    D --> E[⚖️ Smart Verdict<br/>94% confidence]
+    D --> F[🟢 Health Score<br/>34/100]
+    D --> G[🔮 Predictions<br/>3 warnings]
+    D --> H[📧 Customer Email<br/>Ready to send]
+```
+
+| Input | What It Does | Accuracy Impact |
+|-------|-------------|-----------------|
+| **📝 Ticket Description** | Verdict Engine matches findings to your ticket → Ticket Alignment % | +30-40% — narrows 10 possible causes to THE one matching your ticket |
+| **🖼️ Screenshot (Ctrl+V)** | Sent to AI (Ollama/Copilot) for visual error analysis | Helps AI give context-aware suggestions |
+| **📦 Log Archive (.tar.gz/.zip)** | Scanned against 455 regex patterns → produces findings with file:line evidence | **Core engine** — this is what drives all analysis |
+
+### Recommended Steps (Every Ticket):
+1. **Paste** Jira ticket description into TICKET CONTEXT box
+2. **Attach** screenshot if available (Ctrl+V or 🖼️ button)
+3. **Drop** the `collect_*.tar.gz` or `.zip` bundle
+4. **Click** ▶ Run Scan
+5. **Read** the ⚖️ Verdict Panel → one-sentence root cause + evidence chain
+6. **Copy** to Jira with 📋 button → done in seconds
+
+> **Without ticket description:** You still get findings + verdict + health score, but no alignment scoring and weaker customer email generation.  
+> **With all three:** Maximum accuracy — the tool cross-references your ticket keywords against detected patterns for precision diagnosis.
+
+---
+
 ## 📊 Scan Results — Understanding the Dashboard
 
 After a scan completes, you see multiple visualization panels. Here's what each one tells you:
