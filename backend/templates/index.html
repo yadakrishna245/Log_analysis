@@ -2433,10 +2433,18 @@ function render(data){
     }
 
     // Findings
+    // Findings (DEDUPLICATED — same pattern + file + line shown only once)
     const ord={CRITICAL:0,HIGH:1,MEDIUM:2,LOW:3,INFO:4};
     f.sort((a,b)=>(ord[a.severity]||5)-(ord[b.severity]||5));
-    $('#findingsCount').textContent=f.length+' findings';
-    $('#findingsList').innerHTML=f.map(x=>`
+    const seenFindings = new Set();
+    const dedupFindings = f.filter(x => {
+        const key = `${x.pattern_name}|${x.file}|${x.line_number}`;
+        if (seenFindings.has(key)) return false;
+        seenFindings.add(key);
+        return true;
+    });
+    $('#findingsCount').textContent=dedupFindings.length+' findings';
+    $('#findingsList').innerHTML=dedupFindings.map(x=>`
         <div class="finding">
             <div><span class="badge badge-${x.severity.toLowerCase()}">${x.severity}</span></div>
             <div class="finding-content">
@@ -2936,10 +2944,14 @@ function showTicketRelevantFindings() {
         `<strong>Patterns:</strong> ${topPatterns.map(p => `<span style="color:var(--accent);font-size:11px;">${esc(p)}</span>`).join(', ')}<br>` +
         `<strong>Matched keywords:</strong> <span style="color:var(--text-300);font-size:11px;">${matchedKws.join(', ')}</span>`;
 
-    // File suggestions with line numbers
+    // File suggestions with line numbers (DEDUPLICATED by file:line)
     const fileLines = {};
+    const seenFileLines = new Set();
     scored.slice(0, 30).forEach(f => {
         const fname = f.file || 'unknown';
+        const key = `${fname}:${f.line_number}`;
+        if (seenFileLines.has(key)) return;
+        seenFileLines.add(key);
         if (!fileLines[fname]) fileLines[fname] = [];
         fileLines[fname].push({ line: f.line_number, pattern: f.pattern_name, severity: f.severity, content: f.line_content });
     });
@@ -2959,9 +2971,16 @@ function showTicketRelevantFindings() {
     });
     document.getElementById('ticketRelevantFiles').innerHTML = filesHtml;
 
-    // Top findings list
+    // Top findings list (DEDUPLICATED by file:line)
+    const seenTopFindings = new Set();
+    const dedupedTop = topFindings.filter(f => {
+        const key = `${f.file}:${f.line_number}`;
+        if (seenTopFindings.has(key)) return false;
+        seenTopFindings.add(key);
+        return true;
+    });
     let findingsHtml = '<div style="font-size:11px;color:var(--text-400);text-transform:uppercase;margin-bottom:6px;font-weight:500;">Top Matched Findings</div>';
-    topFindings.slice(0, 10).forEach(f => {
+    dedupedTop.slice(0, 10).forEach(f => {
         const sevColor = f.severity === 'CRITICAL' ? '#ef4444' : f.severity === 'HIGH' ? '#f59e0b' : '#3b82f6';
         findingsHtml += `<div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:6px;padding:6px 8px;border-radius:6px;background:var(--bg-0);">`;
         findingsHtml += `<span style="font-size:9px;padding:2px 6px;border-radius:3px;background:${sevColor}20;color:${sevColor};font-weight:600;white-space:nowrap;">${f.severity}</span>`;
