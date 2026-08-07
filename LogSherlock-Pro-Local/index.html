@@ -977,7 +977,13 @@
                         <div>
                             <label style="font-size:11px;font-weight:500;color:var(--text-400);text-transform:uppercase;letter-spacing:0.05em;">Model</label>
                             <select id="copilotModel" style="width:100%;margin-top:4px;padding:10px 14px;background:var(--bg-0);border:1px solid var(--border-default);border-radius:8px;font-size:13px;color:var(--text-200);">
-                                <optgroup label="General Purpose">
+                                <optgroup label="Ollama Local (Offline)">
+                                    <option value="qwen3.5:4b" selected>Qwen 3.5 4B (Recommended — fast, 4GB RAM)</option>
+                                    <option value="llama3.2:3b">Llama 3.2 3B (Lightweight, 3GB RAM)</option>
+                                    <option value="qwen3.5:9b">Qwen 3.5 9B (Better quality, 16GB RAM)</option>
+                                    <option value="gemma4:12b">Gemma 4 12B (High quality, 16GB RAM)</option>
+                                </optgroup>
+                                <optgroup label="General Purpose (Cloud)">
                                     <option value="gpt-5-mini">GPT-5 mini (Fast, accurate — recommended default)</option>
                                     <option value="gpt-5.6-terra">GPT-5.6 Terra (Balanced everyday coding)</option>
                                     <option value="claude-sonnet-4.5">Claude Sonnet 4.5 (Complex problem-solving)</option>
@@ -1012,8 +1018,20 @@
                             <div style="font-size:10px;color:var(--text-500);margin-top:4px;">All models available with GitHub Copilot Business/Enterprise license. Source: docs.github.com</div>
                         </div>
 
-                        <!-- Hidden endpoint (fixed for GitHub Copilot) -->
-                        <input type="hidden" id="copilotEndpoint" value="https://api.githubcopilot.com/chat/completions">
+                        <!-- API Provider Selection -->
+                        <div style="margin-bottom:16px;">
+                            <label style="font-size:11px;font-weight:600;color:var(--text-300);text-transform:uppercase;letter-spacing:0.05em;">API PROVIDER</label>
+                            <select id="copilotProvider" onchange="updateEndpointFromProvider()" style="width:100%;margin-top:4px;padding:10px 14px;background:var(--bg-0);border:1px solid var(--border-default);border-radius:8px;font-size:13px;color:var(--text-200);">
+                                <option value="http://localhost:11434/v1/chat/completions">Ollama Local (Recommended — No internet needed)</option>
+                                <option value="https://api.openai.com/v1/chat/completions">OpenAI API — Use OpenAI API key (sk-...)</option>
+                                <option value="https://api.githubcopilot.com/chat/completions">GitHub Copilot — Requires Copilot OAuth token</option>
+                                <option value="custom">Custom Endpoint</option>
+                            </select>
+                            <div style="font-size:10px;color:var(--text-500);margin-top:4px;">Ollama works offline with your local qwen3.5 model. For Ollama, use "ollama" as the API key.</div>
+                        </div>
+
+                        <!-- Hidden endpoint (updated by provider selector) -->
+                        <input type="hidden" id="copilotEndpoint" value="http://localhost:11434/v1/chat/completions">
 
                         <!-- Action Buttons -->
                         <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;">
@@ -5507,10 +5525,21 @@ setTimeout(function(){ try { loadRunbooks(); } catch(e){} }, 600);
 // AI / COPILOT SETTINGS FUNCTIONS (GitHub Copilot Only)
 // ═══════════════════════════════════════════════════════════════════
 
+function updateEndpointFromProvider() {
+    const sel = document.getElementById('copilotProvider');
+    const epField = document.getElementById('copilotEndpoint');
+    if (sel.value !== 'custom') {
+        epField.value = sel.value;
+    }
+}
+
 function saveCopilotSettings() {
     const apiKey = document.getElementById('copilotApiKey').value.trim();
     const model = document.getElementById('copilotModel').value.trim();
-    const endpoint = 'https://api.githubcopilot.com/chat/completions';
+    const providerSelect = document.getElementById('copilotProvider');
+    const endpoint = providerSelect.value === 'custom' 
+        ? prompt('Enter custom API endpoint:', 'https://api.openai.com/v1/chat/completions') || 'https://models.inference.ai.azure.com/chat/completions'
+        : providerSelect.value;
 
     if (!apiKey) {
         showCopilotStatus('❌ API Token is required.', '#ef4444');
@@ -5562,7 +5591,10 @@ function loadCopilotSettings() {
 async function testCopilotConnection() {
     const apiKey = document.getElementById('copilotApiKey').value.trim();
     const model = document.getElementById('copilotModel').value.trim();
-    const endpoint = 'https://api.githubcopilot.com/chat/completions';
+    const providerSelect = document.getElementById('copilotProvider');
+    const endpoint = providerSelect.value === 'custom' 
+        ? prompt('Enter custom API endpoint:', 'https://api.openai.com/v1/chat/completions') || 'https://models.inference.ai.azure.com/chat/completions'
+        : providerSelect.value;
 
     if (!apiKey) {
         showCopilotStatus('❌ Enter your GitHub Copilot API token first.', '#ef4444');

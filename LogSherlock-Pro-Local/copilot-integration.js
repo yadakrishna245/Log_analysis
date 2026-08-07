@@ -19,7 +19,7 @@
 class CopilotIntegration {
     constructor() {
         this.apiKey = localStorage.getItem('ls_copilot_api_key') || '';
-        this.endpoint = localStorage.getItem('ls_copilot_endpoint') || 'https://api.githubcopilot.com/chat/completions';
+        this.endpoint = localStorage.getItem('ls_copilot_endpoint') || 'http://localhost:11434/v1/chat/completions';
         this.model = localStorage.getItem('ls_copilot_model') || 'gpt-4o';
         this.enabled = !!this.apiKey;
         this.maxTokens = 2048;
