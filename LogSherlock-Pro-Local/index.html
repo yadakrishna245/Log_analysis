@@ -384,6 +384,24 @@
     </style>
 </head>
 <body>
+<script>
+// ═══ HARD AUTH GATE — Runs FIRST before any HTML renders ═══
+// This blocks the entire app until name + license key are validated
+(function hardAuthGate() {
+    var hasName = false;
+    var hasLicense = false;
+    try {
+        hasName = !!localStorage.getItem('ls_username');
+        hasLicense = !!localStorage.getItem('ls_license_validated');
+    } catch(e) {} // localStorage may be blocked on file://
+    
+    if (!hasName || !hasLicense) {
+        // HIDE EVERYTHING — inject style that hides all content
+        document.write('<style id="authGateStyle">body > *:not(#authGateContainer) { display:none !important; }</style>');
+        document.write('<div id="authGateContainer" style="position:fixed;top:0;left:0;width:100%;height:100%;background:#0d0d1a;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:Segoe UI,sans-serif;"></div>');
+    }
+})();
+</script>
 <!-- Keyboard Shortcuts Hint -->
 <div class="shortcuts-hint" id="shortcutsHint" onclick="showShortcutsModal()">⌨ Shortcuts</div>
 
@@ -4106,87 +4124,84 @@ function trackEvent(eventType, eventData) {
 
 // ═══ MANDATORY NAME ENTRY — blocks app until name is entered ═══
 (function enforceNameEntry() {
+    var gateContainer = document.getElementById('authGateContainer');
+    var gateStyle = document.getElementById('authGateStyle');
+    
+    // If gate didn't activate (both name + license exist), just show app
+    if (!gateContainer) {
+        document.getElementById('appShell').style.display = '';
+        return;
+    }
+    
     if (localStorage.getItem('ls_username')) {
-        // Name exists — but still check license
+        // Name exists — but license missing, show license overlay
         if (!localStorage.getItem('ls_license_validated')) {
-            showLicenseOverlay();
-        } else {
-            // Both name and license valid — show app
-            document.getElementById('appShell').style.display = '';
+            showLicenseOverlayInGate(gateContainer);
         }
         return;
     }
-    // Create blocking overlay
-    const overlay = document.createElement('div');
-    overlay.id = 'nameOverlay';
-    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.92);z-index:99999;display:flex;align-items:center;justify-content:center;';
-    overlay.innerHTML = `
-        <div style="background:var(--bg-1,#1a1a2e);border:1px solid var(--hpe-green,#01a982);border-radius:16px;padding:40px;max-width:400px;width:90%;text-align:center;">
-            <div style="font-size:40px;margin-bottom:12px;">🔒</div>
-            <h2 style="color:#fff;margin:0 0 8px 0;font-size:20px;">Welcome to LogSherlock Pro</h2>
-            <p style="color:#aaa;margin:0 0 20px 0;font-size:13px;">Enter your name to continue. This helps your team track usage.</p>
-            <input id="nameInput" type="text" placeholder="Your full name (e.g., Krishna Yada)" style="width:100%;padding:12px 16px;border-radius:8px;border:1px solid #333;background:#0d0d1a;color:#fff;font-size:14px;margin-bottom:12px;outline:none;box-sizing:border-box;" autofocus>
-            <div id="nameError" style="color:#ef4444;font-size:12px;margin-bottom:12px;display:none;">Please enter your name to continue</div>
-            <button onclick="submitName()" style="width:100%;padding:12px;border-radius:8px;border:none;background:#01a982;color:#fff;font-size:14px;font-weight:600;cursor:pointer;">Continue →</button>
-        </div>`;
-    document.body.appendChild(overlay);
-    // Enter key support
-    setTimeout(() => {
-        const inp = document.getElementById('nameInput');
-        if (inp) inp.addEventListener('keydown', e => { if (e.key === 'Enter') submitName(); });
-        if (inp) inp.focus();
+    
+    // Show name entry in the gate container
+    gateContainer.innerHTML = '<div style="background:#1a1a2e;border:1px solid #01a982;border-radius:16px;padding:40px;max-width:400px;width:90%;text-align:center;">' +
+        '<div style="font-size:40px;margin-bottom:12px;">🔒</div>' +
+        '<h2 style="color:#fff;margin:0 0 8px 0;font-size:20px;">Welcome to LogSherlock Pro</h2>' +
+        '<p style="color:#aaa;margin:0 0 20px 0;font-size:13px;">Enter your name to continue. This helps your team track usage.</p>' +
+        '<input id="nameInput" type="text" placeholder="Your full name (e.g., Krishna Yada)" style="width:100%;padding:12px 16px;border-radius:8px;border:1px solid #333;background:#0d0d1a;color:#fff;font-size:14px;margin-bottom:12px;outline:none;box-sizing:border-box;" autofocus>' +
+        '<div id="nameError" style="color:#ef4444;font-size:12px;margin-bottom:12px;display:none;">Please enter your name (min 2 characters)</div>' +
+        '<button id="nameSubmitBtn" style="width:100%;padding:12px;border-radius:8px;border:none;background:#01a982;color:#fff;font-size:14px;font-weight:600;cursor:pointer;">Continue →</button>' +
+        '</div>';
+    
+    setTimeout(function() {
+        var inp = document.getElementById('nameInput');
+        var btn = document.getElementById('nameSubmitBtn');
+        if (inp) {
+            inp.addEventListener('keydown', function(e) { if (e.key === 'Enter') submitNameGate(); });
+            inp.focus();
+        }
+        if (btn) btn.addEventListener('click', submitNameGate);
     }, 100);
 })();
 
-function submitName() {
-    const inp = document.getElementById('nameInput');
-    const name = inp ? inp.value.trim() : '';
+function submitNameGate() {
+    var inp = document.getElementById('nameInput');
+    var name = inp ? inp.value.trim() : '';
     if (!name || name.length < 2) {
         document.getElementById('nameError').style.display = 'block';
-        inp.focus();
+        if (inp) inp.focus();
         return;
     }
     localStorage.setItem('ls_username', name);
-    document.getElementById('nameOverlay').remove();
     
-    // Check if license is already validated
+    // Now show license overlay
+    var gateContainer = document.getElementById('authGateContainer');
     if (!localStorage.getItem('ls_license_validated')) {
-        showLicenseOverlay();
+        showLicenseOverlayInGate(gateContainer);
     } else {
-        document.getElementById('appShell').style.display = '';
-        trackEvent('page_view', { url: location.href });
+        unlockApp();
     }
 }
 
-// ═══ LICENSE KEY VALIDATION ═══
-function showLicenseOverlay() {
-    const overlay = document.createElement('div');
-    overlay.id = 'licenseOverlay';
-    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.92);z-index:99999;display:flex;align-items:center;justify-content:center;';
-    overlay.innerHTML = `
-        <div style="background:var(--bg-1,#1a1a2e);border:1px solid var(--hpe-green,#01a982);border-radius:16px;padding:40px;max-width:440px;width:90%;text-align:center;">
-            <div style="font-size:40px;margin-bottom:12px;">🔑</div>
-            <h2 style="color:#fff;margin:0 0 8px 0;font-size:20px;">License Activation</h2>
-            <p style="color:#aaa;margin:0 0 6px 0;font-size:13px;">Enter your LogSherlock Pro license key to activate.</p>
-            <p style="color:#666;margin:0 0 20px 0;font-size:11px;">Contact Krishna Yada (yadakrishna245@gmail.com) for a license key.</p>
-            <input id="licenseInput" type="text" placeholder="XXXX-XXXX-XXXX-XXXX" style="width:100%;padding:12px 16px;border-radius:8px;border:1px solid #333;background:#0d0d1a;color:#fff;font-size:14px;margin-bottom:8px;outline:none;box-sizing:border-box;font-family:monospace;text-transform:uppercase;letter-spacing:2px;text-align:center;" maxlength="19" autofocus>
-            <div id="licenseError" style="color:#ef4444;font-size:12px;margin-bottom:12px;display:none;"></div>
-            <button onclick="validateLicense()" style="width:100%;padding:12px;border-radius:8px;border:none;background:#01a982;color:#fff;font-size:14px;font-weight:600;cursor:pointer;margin-bottom:12px;">Activate License →</button>
-            <div style="font-size:10px;color:#555;line-height:1.6;">
-                HPE VM Essentials L4 Support Engineering<br>
-                Licensed for internal HPE use only
-            </div>
-        </div>`;
-    document.body.appendChild(overlay);
-    setTimeout(() => {
-        const inp = document.getElementById('licenseInput');
+function showLicenseOverlayInGate(container) {
+    container.innerHTML = '<div style="background:#1a1a2e;border:1px solid #01a982;border-radius:16px;padding:40px;max-width:440px;width:90%;text-align:center;">' +
+        '<div style="font-size:40px;margin-bottom:12px;">🔑</div>' +
+        '<h2 style="color:#fff;margin:0 0 8px 0;font-size:20px;">License Activation</h2>' +
+        '<p style="color:#aaa;margin:0 0 6px 0;font-size:13px;">Enter your LogSherlock Pro license key to activate.</p>' +
+        '<p style="color:#666;margin:0 0 20px 0;font-size:11px;">Contact your admin for a license key.</p>' +
+        '<input id="licenseInputGate" type="text" placeholder="XXXX-XXXX-XXXX-XXXX" style="width:100%;padding:12px 16px;border-radius:8px;border:1px solid #333;background:#0d0d1a;color:#fff;font-size:14px;margin-bottom:8px;outline:none;box-sizing:border-box;font-family:monospace;text-transform:uppercase;letter-spacing:2px;text-align:center;" maxlength="19" autofocus>' +
+        '<div id="licenseErrorGate" style="color:#ef4444;font-size:12px;margin-bottom:12px;display:none;"></div>' +
+        '<button id="licenseSubmitBtn" style="width:100%;padding:12px;border-radius:8px;border:none;background:#01a982;color:#fff;font-size:14px;font-weight:600;cursor:pointer;margin-bottom:12px;">Activate License →</button>' +
+        '<div style="font-size:10px;color:#555;line-height:1.6;">HPE VM Essentials L4 Support Engineering<br>Licensed for internal use only</div>' +
+        '</div>';
+    
+    setTimeout(function() {
+        var inp = document.getElementById('licenseInputGate');
+        var btn = document.getElementById('licenseSubmitBtn');
         if (inp) {
-            inp.addEventListener('keydown', e => { if (e.key === 'Enter') validateLicense(); });
+            inp.addEventListener('keydown', function(e) { if (e.key === 'Enter') validateLicenseGate(); });
             inp.addEventListener('input', function() {
-                // Auto-format with dashes
-                let val = this.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-                let formatted = '';
-                for (let i = 0; i < val.length && i < 16; i++) {
+                var val = this.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+                var formatted = '';
+                for (var i = 0; i < val.length && i < 16; i++) {
                     if (i > 0 && i % 4 === 0) formatted += '-';
                     formatted += val[i];
                 }
@@ -4194,7 +4209,104 @@ function showLicenseOverlay() {
             });
             inp.focus();
         }
+        if (btn) btn.addEventListener('click', validateLicenseGate);
     }, 100);
+}
+
+function validateLicenseGate() {
+    var inp = document.getElementById('licenseInputGate');
+    var errDiv = document.getElementById('licenseErrorGate');
+    var key = inp ? inp.value.trim().toUpperCase() : '';
+    
+    if (!key || key.length < 10) {
+        errDiv.textContent = 'Please enter a valid license key.';
+        errDiv.style.display = 'block';
+        inp.style.borderColor = '#ef4444';
+        return;
+    }
+    
+    // Decode license key: format XXXX-DDDD-SSSS-CCCC
+    var parts = key.split('-');
+    if (parts.length !== 4) {
+        errDiv.textContent = 'Invalid key format. Expected: XXXX-XXXX-XXXX-XXXX';
+        errDiv.style.display = 'block';
+        inp.style.borderColor = '#ef4444';
+        return;
+    }
+    
+    var daysHex = parts[1];
+    var sig = parts[2];
+    
+    // Decode days from hex: (hex_value - 42) / 7
+    var encodedVal = parseInt(daysHex, 16);
+    if (isNaN(encodedVal) || encodedVal < 42) {
+        errDiv.textContent = '❌ Invalid license key.';
+        errDiv.style.display = 'block';
+        inp.style.borderColor = '#ef4444';
+        return;
+    }
+    
+    var days = Math.round((encodedVal - 42) / 7);
+    
+    // Verify checksum (XOR of first 3 parts chars)
+    var allChars = parts[0] + daysHex + sig;
+    var xorVal = 0;
+    for (var i = 0; i < allChars.length; i++) {
+        xorVal = xorVal ^ allChars.charCodeAt(i);
+    }
+    var expectedChecksum = xorVal.toString(16).toUpperCase().padStart(2, '0');
+    var actualChecksum = parts[3].substring(0, 2);
+    
+    if (expectedChecksum !== actualChecksum) {
+        errDiv.textContent = '❌ Invalid license key. Verification failed.';
+        errDiv.style.display = 'block';
+        inp.style.borderColor = '#ef4444';
+        return;
+    }
+    
+    var isLifetime = days >= 9999;
+    var userName = localStorage.getItem('ls_username') || 'Unknown';
+    
+    // Store license
+    localStorage.setItem('ls_license_validated', 'true');
+    localStorage.setItem('ls_license_key', key);
+    localStorage.setItem('ls_license_date', new Date().toISOString());
+    localStorage.setItem('ls_license_days', isLifetime ? 'lifetime' : days.toString());
+    
+    // Track activation to Google Forms
+    try {
+        var formUrl = 'https://docs.google.com/forms/d/e/1FAIpQLSe_FORM_ID_HERE/formResponse';
+        var trackData = new FormData();
+        trackData.append('entry.0', key);
+        trackData.append('entry.1', userName);
+        trackData.append('entry.2', navigator.userAgent.substring(0, 80));
+        trackData.append('entry.3', isLifetime ? 'Lifetime' : days + ' days');
+        trackData.append('entry.4', new Date().toISOString());
+        trackData.append('entry.5', navigator.platform);
+        fetch(formUrl, { method: 'POST', body: trackData, mode: 'no-cors' }).catch(function(){});
+    } catch(e) {}
+    
+    unlockApp();
+}
+
+function unlockApp() {
+    // Remove the gate
+    var gateStyle = document.getElementById('authGateStyle');
+    var gateContainer = document.getElementById('authGateContainer');
+    if (gateStyle) gateStyle.remove();
+    if (gateContainer) gateContainer.remove();
+    // Show app shell
+    var shell = document.getElementById('appShell');
+    if (shell) shell.style.display = '';
+}
+
+// ═══ LICENSE KEY VALIDATION ═══
+function showLicenseOverlay() {
+    // Legacy: redirect to gate system
+    var gateContainer = document.getElementById('authGateContainer');
+    if (gateContainer) {
+        showLicenseOverlayInGate(gateContainer);
+    }
 }
 
 // ═══ MACHINE FINGERPRINT (Unique per device) ═══
@@ -4294,30 +4406,15 @@ function validateLicense() {
         return;
     }
     
-    // ═══ MACHINE-LOCK CHECK ═══
-    const machineId = getMachineFingerprint();
-    const storedMachine = localStorage.getItem('ls_license_machine_' + key);
-    
-    if (storedMachine && storedMachine !== machineId) {
-        // Key was already activated on a DIFFERENT machine
-        errDiv.style.display = 'block';
-        errDiv.innerHTML = '❌ This key is already activated on another device.<br><span style="font-size:11px;color:#888;">Contact Krishna Yada (yadakrishna245@gmail.com) for a new key.</span>';
-        inp.focus();
-        inp.style.borderColor = '#ef4444';
-        return;
-    }
-    
-    // ═══ ACTIVATE: Bind key to this machine ═══
+    // ═══ ACTIVATE (same key works on multiple machines for team sharing) ═══
     const isLifetime = days >= 9999;
     const userName = localStorage.getItem('ls_username') || 'Unknown';
     
-    // Store license + machine binding
+    // Store license
     localStorage.setItem('ls_license_validated', 'true');
     localStorage.setItem('ls_license_key', key);
     localStorage.setItem('ls_license_date', new Date().toISOString());
     localStorage.setItem('ls_license_days', isLifetime ? 'lifetime' : days.toString());
-    localStorage.setItem('ls_license_machine', machineId);
-    localStorage.setItem('ls_license_machine_' + key, machineId); // Bind key to machine
     
     // ═══ SEND ACTIVATION DATA TO GOOGLE FORM (for tracking) ═══
     try {
@@ -4326,16 +4423,17 @@ function validateLicense() {
         const trackData = new FormData();
         trackData.append('entry.0', key);
         trackData.append('entry.1', userName);
-        trackData.append('entry.2', machineId);
+        trackData.append('entry.2', navigator.platform + ' | ' + navigator.userAgent.substring(0, 50));
         trackData.append('entry.3', isLifetime ? 'Lifetime' : days + ' days');
-        trackData.append('entry.4', navigator.userAgent.substring(0, 50));
-        trackData.append('entry.5', navigator.platform);
+        trackData.append('entry.4', new Date().toISOString());
+        trackData.append('entry.5', location.protocol + '//' + location.host);
         fetch(formUrl, { method: 'POST', body: trackData, mode: 'no-cors' }).catch(() => {});
     } catch(e) {} // Tracking is optional — don't block if it fails
     
-    document.getElementById('licenseOverlay').remove();
-    document.getElementById('appShell').style.display = '';
-    trackEvent('page_view', { url: location.href });
+    // Remove overlay and show app
+    var lo = document.getElementById('licenseOverlay');
+    if (lo) lo.remove();
+    unlockApp();
 }
 
 // Check license expiry on every page load
@@ -4347,18 +4445,7 @@ function validateLicense() {
     
     if (!validated || !licenseDate) return; // Will be caught by enforceNameEntry flow
     
-    // ═══ MACHINE FINGERPRINT VERIFICATION ═══
-    if (typeof getMachineFingerprint === 'function' && licenseKey) {
-        const currentMachine = getMachineFingerprint();
-        const storedMachine = localStorage.getItem('ls_license_machine');
-        if (storedMachine && storedMachine !== currentMachine) {
-            // Machine changed! Invalidate license
-            localStorage.removeItem('ls_license_validated');
-            document.getElementById('appShell').style.display = 'none';
-            showLicenseExpiredOverlay(0);
-            return;
-        }
-    }
+    // License keys work on multiple machines (team sharing)
     
     if (licenseDays === 'lifetime') return; // Never expires
     
