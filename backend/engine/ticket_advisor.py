@@ -25,6 +25,15 @@ import re
 import time
 from typing import Dict, List, Optional, Tuple
 
+# Intelligence enhancement layer
+try:
+    from engine.intelligence_layer import enhance_results
+except (ImportError, ModuleNotFoundError):
+    try:
+        from .intelligence_layer import enhance_results
+    except (ImportError, ModuleNotFoundError):
+        enhance_results = None
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # FOLLOW-UP PATTERN DEFINITIONS
@@ -289,6 +298,10 @@ class TicketAdvisor:
             'patterns_referenced': len(response.get('related_patterns', [])),
         }
 
+        # Intelligence layer enhancement
+        if enhance_results:
+            response = enhance_results(response, f"{summary}\n{description}")
+
         return response
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -355,6 +368,10 @@ class TicketAdvisor:
 
         # Remove internal key
         followup_result.pop('_context_detected', None)
+
+        # Intelligence layer enhancement
+        if enhance_results:
+            followup_result = enhance_results(followup_result, f"{original_ticket}\n{current_message}")
 
         return followup_result
 

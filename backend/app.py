@@ -154,13 +154,16 @@ def create_app(config_class=Config):
             return jsonify({'error': 'Rate limit exceeded. Max 100 requests per minute.'}), 429
         _rate_limit_store[ip].append(now)
 
-    # Security headers
+    # Security headers + CORS
     @app.after_request
     def add_security_headers(response):
         response.headers['X-Content-Type-Options'] = 'nosniff'
         response.headers['X-Frame-Options'] = 'SAMEORIGIN'
         response.headers['X-XSS-Protection'] = '1; mode=block'
         response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-API-Key, X-Requested-With'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
         if not app.config.get('DEBUG'):
             response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://raw.githubusercontent.com http://localhost:11434;"
         return response

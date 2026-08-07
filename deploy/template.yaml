@@ -41,21 +41,6 @@ Resources:
     Type: AWS::Serverless::HttpApi
     Properties:
       StageName: prod
-      CorsConfiguration:
-        AllowOrigins:
-          - "*"
-        AllowHeaders:
-          - Content-Type
-          - Authorization
-          - X-API-Key
-          - X-Requested-With
-        AllowMethods:
-          - GET
-          - POST
-          - PUT
-          - DELETE
-          - OPTIONS
-        MaxAge: 600
 
   # ============================================================
   # Lambda Function - LogSherlock Pro Application
@@ -228,55 +213,55 @@ Resources:
           Properties:
             ApiId: !Ref LogSherlockApi
             Path: /api/license/activate
-            Method: POST
+            Method: ANY
         Validate:
           Type: HttpApi
           Properties:
             ApiId: !Ref LogSherlockApi
             Path: /api/license/validate
-            Method: POST
+            Method: ANY
         Reset:
           Type: HttpApi
           Properties:
             ApiId: !Ref LogSherlockApi
             Path: /api/license/reset
-            Method: POST
+            Method: ANY
         Status:
           Type: HttpApi
           Properties:
             ApiId: !Ref LogSherlockApi
             Path: /api/license/status
-            Method: POST
+            Method: ANY
         ListAll:
           Type: HttpApi
           Properties:
             ApiId: !Ref LogSherlockApi
             Path: /api/license/list-all
-            Method: POST
+            Method: ANY
         BulkRevoke:
           Type: HttpApi
           Properties:
             ApiId: !Ref LogSherlockApi
             Path: /api/license/bulk-revoke
-            Method: POST
+            Method: ANY
         Analytics:
           Type: HttpApi
           Properties:
             ApiId: !Ref LogSherlockApi
             Path: /api/license/analytics
-            Method: POST
+            Method: ANY
         WebhookConfig:
           Type: HttpApi
           Properties:
             ApiId: !Ref LogSherlockApi
             Path: /api/license/webhook-config
-            Method: POST
+            Method: ANY
         AdminUsers:
           Type: HttpApi
           Properties:
             ApiId: !Ref LogSherlockApi
             Path: /api/license/admin-users
-            Method: POST
+            Method: ANY
 
   # ============================================================
   # S3 Bucket - Log File Storage
