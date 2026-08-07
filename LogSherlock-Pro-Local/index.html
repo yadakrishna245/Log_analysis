@@ -2362,10 +2362,12 @@ function analyzeFolder(){
 }
 
 let _allFindings = []; // Global for filtering
+window._allFindings = _allFindings; // Expose for cinema/insights
 function render(data){
     hideProgress();
     const f=data.findings||[];
     _allFindings = f; // Store for filter functions
+    window._allFindings = f; // Expose for cinema/insights
     // Sort findings by recency (newest first, no-timestamp at bottom)
     _allFindings.sort((a, b) => {
         const tsA = a.log_timestamp || '';
@@ -7143,6 +7145,7 @@ function generateLocalAdvisorResponse(text) {
 
 </script>
 <script src="advanced-insights.js"></script>
+<script src="incident-cinema.js"></script>
 
 </body>
 </html>
