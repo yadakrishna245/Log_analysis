@@ -6,37 +6,78 @@
 
 ---
 
-## 🚀 Quick Start (30 seconds)
+## 🚀 Quick Start — Step-by-Step
 
-### Step 1: Start the server
+```mermaid
+flowchart LR
+    A[📥 Download ZIP] --> B[📂 Extract]
+    B --> C[💻 Open Terminal]
+    C --> D[▶️ python server.py]
+    D --> E[🌐 localhost:8888]
+    E --> F[🔑 Enter License]
+    F --> G[📁 Drop Logs]
+    G --> H[✅ Get RCA!]
+```
+
+---
+
+### Step 1: Download & Extract
+
+```
+Download the LogSherlock-Pro-Local folder (ZIP or Git clone)
+Extract to any location, e.g.: C:\Tools\LogSherlock-Pro-Local
+```
+
+### Step 2: Open a terminal and start the server
 
 **PowerShell:**
 ```powershell
-cd "C:\path\to\LogSherlock-Pro-Local"
+cd "C:\Tools\LogSherlock-Pro-Local"
 python server.py
 ```
 
 **CMD:**
 ```cmd
-cd C:\path\to\LogSherlock-Pro-Local
+cd C:\Tools\LogSherlock-Pro-Local
 python server.py
 ```
 
-**VS Code Terminal:**
+**VS Code Terminal (Ctrl+`):**
 ```
-cd "C:\path\to\LogSherlock-Pro-Local"
+cd "C:\Tools\LogSherlock-Pro-Local"
 python server.py
 ```
 
-### Step 2: Open in browser
+> ✅ You should see: `Serving LogSherlock Pro on http://localhost:8888`  
+> ❌ If error: Make sure Python 3.10+ is installed → `python --version`
+
+### Step 3: Open browser
 
 ```
 http://localhost:8888
 ```
 
-### Step 3: Enter license key → Start analyzing!
+### Step 4: Activate with license key
 
-> Press `Ctrl+C` in terminal to stop the server.
+```
+1. Enter your full name → Click "Continue"
+2. Enter the license key (e.g., XXXX-XXXX-XXXX-XXXX) → Click "Activate"
+3. ✅ App unlocks!
+```
+
+> Ask your team lead/admin for a license key.
+
+### Step 5: Analyze logs!
+
+```
+1. Drop a .tar.gz / .zip log bundle into the app
+2. Click "Run Scan"
+3. View findings → Copy RCA report → Paste in Jira
+```
+
+### Stop the server
+
+Press `Ctrl+C` in the terminal.
 
 ---
 

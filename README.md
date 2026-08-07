@@ -17,18 +17,53 @@ Drop tar.gz files (up to 3GB+) → Get instant root cause analysis with actionab
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Quick Start — Step-by-Step Setup
 
 ### Option 1: Local Edition (Recommended — No cloud, fully offline)
 
-**PowerShell / CMD / VS Code Terminal:**
+```mermaid
+flowchart LR
+    A[📥 Step 1<br/>Download ZIP] --> B[📂 Step 2<br/>Extract Folder]
+    B --> C[🔑 Step 3<br/>Get License Key]
+    C --> D[💻 Step 4<br/>Run Server]
+    D --> E[🌐 Step 5<br/>Open Browser]
+    E --> F[✅ Step 6<br/>Activate & Scan!]
+```
+
+| Step | Action | Command / Detail |
+|:---:|--------|-----------------|
+| 1️⃣ | **Download** the ZIP from GitHub | Go to [Releases](https://github.com/yadakrishna245/Log_analysis) → Download `LogSherlock-Pro-Local` folder |
+| 2️⃣ | **Extract** the ZIP to any folder | Right-click → Extract All → Choose location (e.g., `C:\Tools\LogSherlock-Pro-Local`) |
+| 3️⃣ | **Get a License Key** from your admin | Ask your team lead for a key (format: `XXXX-XXXX-XXXX-XXXX`) |
+| 4️⃣ | **Open Terminal** and run the server | See commands below ⬇️ |
+| 5️⃣ | **Open Browser** | Go to **http://localhost:8888** |
+| 6️⃣ | **Enter your name + license key** | App unlocks → Drop log files → Get RCA! |
+
+#### Step 4 — Run the server (pick any terminal):
+
+**PowerShell:**
 ```powershell
-cd "LogSherlock-Pro-Local"
+cd "C:\Tools\LogSherlock-Pro-Local"
 python server.py
 ```
-Then open: **http://localhost:8888**
 
-> No install, no cloud, no internet needed for scanning. Python 3.10+ required.
+**CMD:**
+```cmd
+cd C:\Tools\LogSherlock-Pro-Local
+python server.py
+```
+
+**VS Code Terminal (Ctrl+`):**
+```
+cd "C:\Tools\LogSherlock-Pro-Local"
+python server.py
+```
+
+> ✅ You should see: `Serving LogSherlock Pro on http://localhost:8888`  
+> ❌ If error: Make sure Python 3.10+ is installed (`python --version`)  
+> 🛑 To stop: Press `Ctrl+C` in the terminal
+
+---
 
 ### Option 2: Cloud Edition (AWS)
 
