@@ -2743,6 +2743,39 @@ function render(data){
     if (typeof logAuditEvent === 'function') {
         logAuditEvent('SCAN_COMPLETED', { findings_count: f.length, files_analyzed: data.files_analyzed || 0, scan_time: data.scan_time || '' });
     }
+
+    // Enterprise Features v2 — Panel Injection
+    if (typeof renderRootCauseChainPanel === 'function' && f.length >= 2) {
+        renderRootCauseChainPanel(f);
+    }
+    if (typeof renderComplianceExportPanel === 'function' && f.length > 0) {
+        renderComplianceExportPanel(f);
+    }
+    if (typeof renderShiftHandoffPanel === 'function') {
+        renderShiftHandoffPanel(f);
+    }
+    if (typeof renderRunbookExecutorPanel === 'function' && f.length > 0) {
+        renderRunbookExecutorPanel(f);
+    }
+    if (typeof renderLogDiffPanel === 'function') {
+        renderLogDiffPanel(f);
+    }
+    if (typeof renderBlastRadiusPanel === 'function' && f.length > 0) {
+        renderBlastRadiusPanel(f);
+    }
+    if (typeof renderExecutiveSummaryPanel === 'function' && f.length > 0) {
+        renderExecutiveSummaryPanel(f);
+    }
+    if (typeof renderPatternConfidencePanel === 'function' && f.length > 0) {
+        renderPatternConfidencePanel(f);
+    }
+    if (typeof renderKnowledgeBasePanel === 'function') {
+        renderKnowledgeBasePanel(f);
+    }
+    if (typeof renderMultiTenantPanel === 'function') {
+        renderMultiTenantPanel(f);
+    }
+
     saveHistory(data);
 }
 
@@ -7379,6 +7412,17 @@ function generateLocalAdvisorResponse(text) {
 <script src="comparison-page.js"></script>
 <script src="pattern-updates.js"></script>
 <script src="team-dashboard.js"></script>
+<!-- Enterprise Features v2 (10 new) -->
+<script src="root-cause-chain.js"></script>
+<script src="compliance-export.js"></script>
+<script src="shift-handoff.js"></script>
+<script src="runbook-executor.js"></script>
+<script src="log-diff-analyzer.js"></script>
+<script src="blast-radius.js"></script>
+<script src="executive-summary.js"></script>
+<script src="pattern-confidence.js"></script>
+<script src="knowledge-base.js"></script>
+<script src="multi-tenant.js"></script>
 
 </body>
 </html>
