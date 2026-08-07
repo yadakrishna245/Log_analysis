@@ -65,6 +65,8 @@ def handler(event, context):
             result = validate(data)
         elif '/reset' in path:
             result = reset(data)
+        elif '/list-all' in path:
+            result = list_all(data)
         elif '/status' in path:
             result = status(data)
         else:
@@ -144,7 +146,18 @@ def activate(data):
             }
     else:
         # First activation — register this machine
-        ttl = int(time.time()) + (365 * 24 * 60 * 60)  # 1 year TTL
+        # Decode expiry days from the key itself
+        parts = license_key.split('-')
+        encoded_val = int(parts[1], 16)
+        expiry_days = round((encoded_val - 42) / 7)
+        is_lifetime = expiry_days >= 9999
+        
+        ttl = int(time.time()) + (expiry_days * 24 * 60 * 60) if not is_lifetime else int(time.time()) + (10 * 365 * 24 * 60 * 60)
+        
+        # Calculate expiry date
+        from datetime import timedelta
+        expiry_date = (datetime.now(timezone.utc) + timedelta(days=expiry_days)).isoformat() if not is_lifetime else 'LIFETIME'
+        
         table.put_item(Item={
             'license_key': license_key,
             'fingerprint': fp_hash,
@@ -152,12 +165,17 @@ def activate(data):
             'last_seen': now,
             'user_name': user_name,
             'user_agent': user_agent[:200],
+            'expiry_days': expiry_days,
+            'expiry_date': expiry_date,
+            'is_lifetime': is_lifetime,
             'ttl': ttl
         })
         return {
             'activated': True,
             'message': f'License activated successfully! Locked to this device.',
             'activated_at': now,
+            'expiry_date': expiry_date,
+            'expiry_days': expiry_days,
             'first_activation': True
         }
 
@@ -250,6 +268,82 @@ def status(data):
         }
     except Exception as e:
         return {'error': str(e), 'status': 500}
+
+
+def list_all(data):
+    """Admin list ALL activated licenses — full dashboard view."""
+    admin_secret = data.get('admin_secret', '').strip()
+
+    if admin_secret != ADMIN_SECRET:
+        return {'error': 'Invalid admin credentials', 'status': 401}
+
+    try:
+        # Scan entire table (fine for small datasets <1000 licenses)
+        response = table.scan()
+        items = response.get('Items', [])
+        
+        # Handle pagination for larger datasets
+        while 'LastEvaluatedKey' in response:
+            response = table.scan(ExclusiveStartKey=response['LastEvaluatedKey'])
+            items.extend(response.get('Items', []))
+
+        # Sort by last_seen (most recently active first)
+        items.sort(key=lambda x: x.get('last_seen', ''), reverse=True)
+
+        # Build summary
+        now = datetime.now(timezone.utc)
+        licenses = []
+        active_count = 0
+        expired_count = 0
+
+        for item in items:
+            # Calculate if expired
+            expiry_days = int(item.get('expiry_days', 365))
+            is_lifetime = item.get('is_lifetime', False)
+            activated_at = item.get('activated_at', '')
+            
+            days_since_activation = 0
+            is_expired = False
+            days_remaining = 0
+            
+            if activated_at and not is_lifetime:
+                try:
+                    act_date = datetime.fromisoformat(activated_at.replace('Z', '+00:00'))
+                    days_since_activation = (now - act_date).days
+                    days_remaining = expiry_days - days_since_activation
+                    is_expired = days_remaining <= 0
+                except (ValueError, TypeError):
+                    days_remaining = expiry_days
+            
+            if is_lifetime:
+                days_remaining = 99999
+                
+            if is_expired:
+                expired_count += 1
+            else:
+                active_count += 1
+
+            licenses.append({
+                'license_key': item.get('license_key', ''),
+                'user_name': item.get('user_name', 'Unknown'),
+                'activated_at': activated_at,
+                'last_seen': item.get('last_seen', ''),
+                'expiry_days': expiry_days,
+                'expiry_date': item.get('expiry_date', ''),
+                'is_lifetime': is_lifetime,
+                'days_remaining': days_remaining if not is_lifetime else 'LIFETIME',
+                'is_expired': is_expired,
+                'user_agent': item.get('user_agent', '')[:80],
+            })
+
+        return {
+            'total_licenses': len(licenses),
+            'active_count': active_count,
+            'expired_count': expired_count,
+            'licenses': licenses
+        }
+    except Exception as e:
+        return {'error': f'List failed: {str(e)}', 'status': 500}
 
 
 def validate_key_format(key):

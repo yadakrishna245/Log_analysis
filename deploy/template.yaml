@@ -241,6 +241,12 @@ Resources:
             ApiId: !Ref LogSherlockApi
             Path: /api/license/status
             Method: POST
+        ListAll:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref LogSherlockApi
+            Path: /api/license/list-all
+            Method: POST
 
   # ============================================================
   # S3 Bucket - Log File Storage
