@@ -2541,6 +2541,76 @@ function render(data){
         }
         verdictContainer.innerHTML = getVerdictHTML();
     }
+    // Health Score (0-100 gauge)
+    if (typeof renderHealthScore === 'function' && f.length > 0) {
+        let healthContainer = document.getElementById('healthScoreContainer');
+        if (!healthContainer) {
+            healthContainer = document.createElement('div');
+            healthContainer.id = 'healthScoreContainer';
+            const findingsList = document.getElementById('findingsList');
+            if (findingsList && findingsList.parentNode) {
+                findingsList.parentNode.insertBefore(healthContainer, findingsList);
+            }
+        }
+        healthContainer.innerHTML = renderHealthScore(f);
+    }
+    // Predictive Failure Warnings (🔮)
+    if (typeof renderPredictivePanel === 'function' && f.length > 0) {
+        let predictContainer = document.getElementById('predictivePanelContainer');
+        if (!predictContainer) {
+            predictContainer = document.createElement('div');
+            predictContainer.id = 'predictivePanelContainer';
+            const findingsList = document.getElementById('findingsList');
+            if (findingsList && findingsList.parentNode) {
+                findingsList.parentNode.insertBefore(predictContainer, findingsList);
+            }
+        }
+        predictContainer.innerHTML = renderPredictivePanel(f);
+    }
+    // Before/After Comparison Buttons
+    if (typeof renderBeforeAfterButtons === 'function') {
+        let baContainer = document.getElementById('beforeAfterContainer');
+        if (!baContainer) {
+            baContainer = document.createElement('div');
+            baContainer.id = 'beforeAfterContainer';
+            const findingsList = document.getElementById('findingsList');
+            if (findingsList && findingsList.parentNode) {
+                findingsList.parentNode.insertBefore(baContainer, findingsList);
+            }
+        }
+        let baHtml = renderBeforeAfterButtons();
+        if (typeof renderBeforeAfterComparison === 'function' && window._beforeSnapshot && window._afterSnapshot) {
+            baHtml += renderBeforeAfterComparison();
+        }
+        baContainer.innerHTML = baHtml;
+    }
+    // Customer Email Generator (📧)
+    if (typeof renderCustomerEmailPanel === 'function' && f.length > 0) {
+        let emailContainer = document.getElementById('customerEmailContainer');
+        if (!emailContainer) {
+            emailContainer = document.createElement('div');
+            emailContainer.id = 'customerEmailContainer';
+            const findingsList = document.getElementById('findingsList');
+            if (findingsList && findingsList.parentNode) {
+                findingsList.parentNode.insertBefore(emailContainer, findingsList);
+            }
+        }
+        const ticketText = (document.getElementById('ticketContext') || {}).value || '';
+        emailContainer.innerHTML = renderCustomerEmailPanel(f, ticketText);
+    }
+    // ROI Calculator (📊)
+    if (typeof renderROIPanel === 'function') {
+        let roiContainer = document.getElementById('roiPanelContainer');
+        if (!roiContainer) {
+            roiContainer = document.createElement('div');
+            roiContainer.id = 'roiPanelContainer';
+            const findingsList = document.getElementById('findingsList');
+            if (findingsList && findingsList.parentNode) {
+                findingsList.parentNode.insertBefore(roiContainer, findingsList);
+            }
+        }
+        roiContainer.innerHTML = renderROIPanel();
+    }
     // Advanced Insights (Root Cause Graph + Timeline + Log Memory)
     if (typeof renderAdvancedInsights === 'function' && f.length > 0) {
         let insightsContainer = document.getElementById('advancedInsightsPanel');
@@ -7158,6 +7228,11 @@ function generateLocalAdvisorResponse(text) {
 
 </script>
 <script src="verdict-engine.js"></script>
+<script src="health-score.js"></script>
+<script src="predictive-engine.js"></script>
+<script src="before-after.js"></script>
+<script src="customer-email.js"></script>
+<script src="roi-calculator.js"></script>
 <script src="advanced-insights.js"></script>
 <script src="incident-cinema.js"></script>
 
