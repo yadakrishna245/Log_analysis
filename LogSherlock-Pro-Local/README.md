@@ -8,13 +8,37 @@
 
 ## 🚀 Quick Start (30 seconds)
 
-```
-1. Double-click: LogSherlock.bat
-2. Browser opens → http://localhost:8888
-3. Enter license key → Start analyzing!
+### Step 1: Start the server
+
+**PowerShell:**
+```powershell
+cd "C:\path\to\LogSherlock-Pro-Local"
+python server.py
 ```
 
-**That's it.** One URL, one click. Python 3.10+ required.
+**CMD:**
+```cmd
+cd C:\path\to\LogSherlock-Pro-Local
+python server.py
+```
+
+**VS Code Terminal:**
+```
+cd "C:\path\to\LogSherlock-Pro-Local"
+python server.py
+```
+
+### Step 2: Open in browser
+
+```
+http://localhost:8888
+```
+
+### Step 3: Enter license key → Start analyzing!
+
+> Press `Ctrl+C` in terminal to stop the server.
+
+---
 
 ### Enable GitHub Copilot AI (Optional)
 

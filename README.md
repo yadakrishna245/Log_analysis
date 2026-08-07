@@ -21,15 +21,14 @@ Drop tar.gz files (up to 3GB+) → Get instant root cause analysis with actionab
 
 ### Option 1: Local Edition (Recommended — No cloud, fully offline)
 
+**PowerShell / CMD / VS Code Terminal:**
+```powershell
+cd "LogSherlock-Pro-Local"
+python server.py
 ```
-1. Clone/download this repo
-2. Go to: LogSherlock-Pro-Local/
-3. Double-click: LogSherlock.bat
-4. Browser opens → http://localhost:8888
-5. Enter license key → Start analyzing logs
-```
+Then open: **http://localhost:8888**
 
-> **That's it.** No install, no cloud, no internet needed for scanning. Python 3.10+ required (already on HPE laptops).
+> No install, no cloud, no internet needed for scanning. Python 3.10+ required.
 
 ### Option 2: Cloud Edition (AWS)
 
