@@ -2528,6 +2528,19 @@ function render(data){
     if(!j){ j = buildProfessionalRCA(f, c, h, m, l, data); }
     $('#jiraReportRaw').value=j;
     $('#jiraReportRendered').innerHTML=renderJiraMarkup(j);
+    // Smart Verdict Panel (⚖️ one-glance root cause verdict)
+    if (typeof getVerdictHTML === 'function' && f.length > 0) {
+        let verdictContainer = document.getElementById('verdictPanelContainer');
+        if (!verdictContainer) {
+            verdictContainer = document.createElement('div');
+            verdictContainer.id = 'verdictPanelContainer';
+            const findingsList = document.getElementById('findingsList');
+            if (findingsList && findingsList.parentNode) {
+                findingsList.parentNode.insertBefore(verdictContainer, findingsList);
+            }
+        }
+        verdictContainer.innerHTML = getVerdictHTML();
+    }
     // Advanced Insights (Root Cause Graph + Timeline + Log Memory)
     if (typeof renderAdvancedInsights === 'function' && f.length > 0) {
         let insightsContainer = document.getElementById('advancedInsightsPanel');
@@ -7144,6 +7157,7 @@ function generateLocalAdvisorResponse(text) {
 }
 
 </script>
+<script src="verdict-engine.js"></script>
 <script src="advanced-insights.js"></script>
 <script src="incident-cinema.js"></script>
 

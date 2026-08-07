@@ -2411,6 +2411,19 @@ function render(data){
     if(!j){ j = buildProfessionalRCA(f, c, h, m, l, data); }
     $('#jiraReportRaw').value=j;
     $('#jiraReportRendered').innerHTML=renderJiraMarkup(j);
+    // Smart Verdict Panel (⚖️ one-glance root cause verdict)
+    if (typeof getVerdictHTML === 'function' && f.length > 0) {
+        let verdictContainer = document.getElementById('verdictPanelContainer');
+        if (!verdictContainer) {
+            verdictContainer = document.createElement('div');
+            verdictContainer.id = 'verdictPanelContainer';
+            const findingsList = document.getElementById('findingsList');
+            if (findingsList && findingsList.parentNode) {
+                findingsList.parentNode.insertBefore(verdictContainer, findingsList);
+            }
+        }
+        verdictContainer.innerHTML = getVerdictHTML();
+    }
     // Advanced Insights (Root Cause Graph + Timeline + Log Memory + Cinema)
     if (typeof renderAdvancedInsights === 'function' && f.length > 0) {
         let insightsContainer = document.getElementById('advancedInsightsPanel');
@@ -5637,6 +5650,7 @@ function askOllamaTicket() {
 
 </script>
 <script src='/static/copilot-integration.js'></script>
+<script src='/static/verdict-engine.js'></script>
 <script src='/static/advanced-insights.js'></script>
 <script src='/static/incident-cinema.js'></script>
 </body>
