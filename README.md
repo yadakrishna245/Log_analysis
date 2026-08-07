@@ -8,7 +8,7 @@
 [![Flask](https://img.shields.io/badge/Flask-3.0-000000?style=for-the-badge&logo=flask&logoColor=white)](https://flask.palletsprojects.com)
 [![AWS](https://img.shields.io/badge/AWS-Serverless-FF9900?style=for-the-badge&logo=amazonaws&logoColor=white)](https://aws.amazon.com)
 [![Patterns](https://img.shields.io/badge/Patterns-455-01A982?style=for-the-badge)](docs/USER_GUIDE.md)
-[![Features](https://img.shields.io/badge/Features-100+-8b5cf6?style=for-the-badge)](#-features-95)
+[![Features](https://img.shields.io/badge/Features-127-8b5cf6?style=for-the-badge)](#-features-127)
 [![Known Issues](https://img.shields.io/badge/Known_Issues-120-01A982?style=for-the-badge)](docs/USER_GUIDE.md)
 [![Runbooks](https://img.shields.io/badge/Runbooks-12-01A982?style=for-the-badge)](docs/USER_GUIDE.md)
 [![Privacy](https://img.shields.io/badge/Privacy-Zero_Upload-01A982?style=for-the-badge&logo=shieldsdotio&logoColor=white)](#-security--privacy)
@@ -275,7 +275,7 @@ flowchart TD
 
 ---
 
-## ✨ Features (95+)
+## ✨ Features (127)
 
 ### Core Analysis
 | # | Feature | Description |
@@ -468,6 +468,39 @@ flowchart TD
 | 100 | **Money Saved** | Hours × $150/hr engineer rate = total dollar savings |
 | 101 | **Monthly Projection** | Projects savings for the month based on current usage rate |
 | 102 | **ROI Percentage** | (Saved - License Cost) / License Cost × 100% — justifies the tool to any manager |
+
+### 🚀 Sellable Feature Pack (NEW — Aug 7)
+| # | Feature | Description |
+|---|---------|-------------|
+| 103 | **⚡ Live Demo Mode** | One-click animated demo for sales presentations — shows all features in action |
+| 104 | **📚 Pattern Dictionary** | 50 searchable patterns with explanations, severity, and solution hints |
+| 105 | **📜 Audit Trail** | ISO/SOC compliance event logging — tracks every scan, export, and action |
+| 106 | **📈 SLA Dashboard** | MTTR/SLA tracking from REAL resolved tickets (no fake data) |
+| 107 | **🧭 Guided Mode** | 7-step wizard for junior engineers — guided investigation flow |
+| 108 | **🔗 Multi-Log Correlation** | Cross-file correlation engine with 8 pre-built correlation chains |
+| 109 | **🗺️ Topology Map** | 13-node visual infrastructure topology showing where findings hit |
+| 110 | **🎓 Training Mode** | 10 gamified challenges to train engineers on log analysis |
+| 111 | **📊 Usage Reports** | Monthly PDF-ready reports showing tool usage and value delivered |
+| 112 | **📋 Changelog** | Version history with notification badge for new features |
+| 113 | **👋 Onboarding Flow** | First-time 10-step tour showing all capabilities |
+| 114 | **⭐ Social Proof** | Real usage stats from localStorage (scans completed, hours saved) |
+| 115 | **⚔️ Comparison Page** | LogSherlock vs Splunk/Datadog/ELK side-by-side feature matrix |
+| 116 | **🔄 Pattern Updates** | Pattern signature update timeline — shows when new patterns were added |
+| 117 | **👥 Team Dashboard** | Team leaderboard/analytics — who scans most, fastest resolution |
+
+### 🏆 Enterprise Features v2 (NEW — Aug 7)
+| # | Feature | Description |
+|---|---------|-------------|
+| 118 | **⛓️ Root Cause Chain Visualizer** | Interactive cause→effect timeline across 7 infrastructure domains (28 causality rules) |
+| 119 | **📋 Compliance Export Engine** | One-click SOC2/ISO27001/HIPAA/PCI-DSS audit-ready reports with finding evidence |
+| 120 | **🔄 Shift Handoff Generator** | Auto-summarize investigation state for next shift — actions, blockers, next steps |
+| 121 | **📖 Runbook Executor** | Step-by-step guided remediation (6 runbooks, 45+ steps) with pass/fail/skip tracking |
+| 122 | **🔀 Log Diff Analyzer** | Compare two scan results — before/after change, good node vs bad node |
+| 123 | **💥 Blast Radius Calculator** | Infrastructure dependency BFS → concentric impact rings visualization |
+| 124 | **📄 Executive Summary** | C-level one-pager in business language — situation, impact, actions, ETA |
+| 125 | **🎯 Pattern Confidence** | 5-factor evidence strength scoring per finding — false-positive likelihood |
+| 126 | **📚 Knowledge Base Builder** | Save resolved cases as searchable playbooks — institutional memory |
+| 127 | **👥 Multi-Tenant Workspace** | Team-shared findings with role-based access + export/import JSON sharing |
 
 ---
 
@@ -782,6 +815,16 @@ graph TB
 | **Customer data in logs** | ❌ Never leaves browser | ⚠️ Indexed in cloud | ⚠️ Indexed in cloud | ✅ Local only |
 | **SOC2 / ISO 27001 risk** | ✅ No risk (no data sent) | ⚠️ Vendor audit needed | ⚠️ Vendor audit needed | ✅ |
 | **Compliance approval time** | 0 days | Weeks–Months | Weeks–Months | 0 days |
+| **Cause→Effect Chain** | ✅ Visual timeline | ❌ | ❌ | ❌ |
+| **Compliance Reports** | ✅ SOC2/ISO/HIPAA/PCI | ❌ | ❌ | ❌ |
+| **Shift Handoff** | ✅ One-click | ❌ | ❌ | ❌ |
+| **Guided Runbooks** | ✅ Step-by-step | ❌ | ❌ | ❌ |
+| **Log Diff (A vs B)** | ✅ Built-in | Plugin | ❌ | ❌ diff |
+| **Blast Radius** | ✅ Dependency BFS | ❌ | Partial | ❌ |
+| **Executive Summary** | ✅ C-level language | ❌ | ❌ | ❌ |
+| **Pattern Confidence** | ✅ 5-factor scoring | ❌ | ❌ | ❌ |
+| **Knowledge Base** | ✅ Playbook builder | ❌ Wiki | ❌ Wiki | ❌ |
+| **Team Workspace** | ✅ Export/Import | ✅ Cloud | ✅ Cloud | ❌ |
 
 ---
 
