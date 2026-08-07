@@ -2526,6 +2526,19 @@ function render(data){
     if(!j){ j = buildProfessionalRCA(f, c, h, m, l, data); }
     $('#jiraReportRaw').value=j;
     $('#jiraReportRendered').innerHTML=renderJiraMarkup(j);
+    // Advanced Insights (Root Cause Graph + Timeline + Log Memory)
+    if (typeof renderAdvancedInsights === 'function' && f.length > 0) {
+        let insightsContainer = document.getElementById('advancedInsightsPanel');
+        if (!insightsContainer) {
+            insightsContainer = document.createElement('div');
+            insightsContainer.id = 'advancedInsightsPanel';
+            const findingsList = document.getElementById('findingsList');
+            if (findingsList && findingsList.parentNode) {
+                findingsList.parentNode.insertBefore(insightsContainer, findingsList);
+            }
+        }
+        insightsContainer.innerHTML = renderAdvancedInsights(f);
+    }
     saveHistory(data);
 }
 
@@ -7129,6 +7142,7 @@ function generateLocalAdvisorResponse(text) {
 }
 
 </script>
+<script src="advanced-insights.js"></script>
 
 </body>
 </html>
