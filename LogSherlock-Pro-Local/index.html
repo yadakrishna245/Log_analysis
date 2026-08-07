@@ -1586,21 +1586,20 @@ function showUploadingIndicator() {
 function stageFiles(files) {
     if (!files || !files.length) { hideUploadingIndicator(); return; }
     for (const f of files) {
-        // Accept ALL files — no extension filter. Skip only obvious non-text above 50MB
-        if (f.size > 50 * 1024 * 1024) {
-            const ext = f.name.split('.').pop().toLowerCase();
-            // Only skip very large binary files
-            if (['vmdk','qcow2','iso','img','rpm','deb'].includes(ext)) continue;
-        }
+        // Accept ALL files — skip only known large binary formats
+        const ext = (f.name.split('.').pop() || '').toLowerCase();
+        if (['vmdk','qcow2','iso','img','rpm','deb'].includes(ext) && f.size > 100 * 1024 * 1024) continue;
         _stagedFiles.push(f);
     }
     const totalMB = (_stagedFiles.reduce((s,f) => s + f.size, 0) / 1024 / 1024).toFixed(0);
+    const totalGB = (totalMB / 1024).toFixed(1);
+    const sizeDisplay = totalMB > 1024 ? totalGB + 'GB' : totalMB + 'MB';
     const names = _stagedFiles.map(f => f.relativePath || f.name);
     const display = names.length <= 3 ? names.join(', ') : names.slice(0,3).join(', ') + ` +${names.length-3} more`;
-    setStatus('staged', `📁 ${_stagedFiles.length} file(s) staged (${totalMB}MB): ${display}`);
+    setStatus('staged', `📁 ${_stagedFiles.length} file(s) staged (${sizeDisplay}): ${display}`);
     updateRunScanBtn();
     hideUploadingIndicator();
-    showUploadNotification(_stagedFiles.length, totalMB);
+    showUploadNotification(_stagedFiles.length, sizeDisplay);
 }
 
 function hideUploadingIndicator() {
@@ -1608,7 +1607,7 @@ function hideUploadingIndicator() {
     if (ind) ind.style.display = 'none';
 }
 
-function showUploadNotification(count, sizeMB) {
+function showUploadNotification(count, sizeDisplay) {
     let notif = document.getElementById('uploadNotif');
     if (!notif) {
         notif = document.createElement('div');
@@ -1616,7 +1615,7 @@ function showUploadNotification(count, sizeMB) {
         notif.style.cssText = 'position:fixed;top:20px;right:20px;background:#1a7a3a;color:white;padding:14px 24px;border-radius:10px;font-size:14px;font-weight:600;z-index:9999;box-shadow:0 4px 20px rgba(0,200,100,0.4);display:flex;align-items:center;gap:10px;animation:slideIn 0.3s ease;';
         document.body.appendChild(notif);
     }
-    notif.innerHTML = '✅ ' + count + ' file(s) ready (' + sizeMB + 'MB) — Click <b>▶ Run Scan</b> to analyze';
+    notif.innerHTML = '✅ ' + count + ' file(s) ready (' + sizeDisplay + ') — Click <b>▶ Run Scan</b> to analyze';
     notif.style.display = 'flex';
     clearTimeout(notif._timer);
     notif._timer = setTimeout(() => { notif.style.display = 'none'; }, 4000);

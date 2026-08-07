@@ -32,7 +32,7 @@ self.onmessage = async function(e) {
         if (n.endsWith('/')) return 'skip';
         const binExts = ['.png','.jpg','.gif','.pdf','.rpm','.deb','.bin','.exe','.so','.ko','.pyc','.class','.sqlite','.db','.vmdk','.qcow2','.iso','.img','.jar','.war'];
         for (const ext of binExts) { if (n.endsWith(ext)) return 'skip'; }
-        if (size > 50 * 1024 * 1024) return 'skip'; // Skip files > 50MB
+        if (size > 100 * 1024 * 1024) return 'skip'; // Skip files > 100MB inside archives
         if (HIGH_PRI_RE.test(n)) return 'high';
         const textExts = ['.log','.err','.out','.txt','.conf','.cfg','.yaml','.yml','.xml','.json','.sh','.py','.pl'];
         for (const ext of textExts) { if (n.endsWith(ext)) return 'medium'; }
