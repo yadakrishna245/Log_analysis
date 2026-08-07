@@ -71,7 +71,7 @@ Open browser DevTools (F12) → Console tab:
 // Configure Copilot
 copilot.configure({
     apiKey: 'ghp_YOUR_TOKEN_HERE',
-    endpoint: 'https://api.githubcopilot.com/chat/completions',
+    endpoint: 'http://localhost:11434/v1/chat/completions',
     model: 'gpt-4o'
 });
 
@@ -83,7 +83,7 @@ copilot.askQuestion('What causes GFS2 withdraw?').then(r => console.log(r));
 
 ```javascript
 localStorage.setItem('ls_copilot_api_key', 'ghp_YOUR_TOKEN_HERE');
-localStorage.setItem('ls_copilot_endpoint', 'https://api.githubcopilot.com/chat/completions');
+localStorage.setItem('ls_copilot_endpoint', 'http://localhost:11434/v1/chat/completions');
 localStorage.setItem('ls_copilot_model', 'gpt-4o');
 // Reload the page
 location.reload();

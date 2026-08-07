@@ -70,7 +70,7 @@ Key is auto-copied to clipboard. Share with your team.
 │   2. You drop a .tar.gz log bundle into it                        │
 │   3. The browser DECOMPRESSES the .tar.gz in memory               │
 │   4. A background thread (Web Worker) reads every log file        │
-│   5. Each line is matched against 66 known error patterns         │
+│   5. Each line is matched against 455 known error patterns        │
 │   6. Matches = "Findings" (with severity + solution)              │
 │   7. Findings are grouped into a Root Cause Analysis              │
 │   8. You copy the RCA report and paste it into Jira               │
@@ -139,7 +139,7 @@ AI features are **optional** — the app works fully without them. But with Copi
 
 ## 📚 Knowledge Base & Runbooks
 
-The app includes a **built-in Knowledge Base** with 66 known issues across:
+The app includes a **built-in Knowledge Base** with 120 known issues + 48 VME guide entries across:
 - Morpheus, KVM, Alletra, GFS2, VME, Pacemaker, DLM, Multipath
 
 **Features:**
