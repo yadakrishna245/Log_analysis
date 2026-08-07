@@ -255,9 +255,11 @@ def status(data):
 def validate_key_format(key):
     """Validate license key using same algorithm as client-side.
     
-    Format: XXXX-XXXX-XXXX-XXXX
+    Format: XXXX-DDDD-SSSS-CCXX
+    Parts[0] = random prefix (4 chars)
     Parts[1] = hex encoded days: (days * 7) + 42
-    Parts[3] = XOR checksum
+    Parts[2] = MD5 signature of days + secret (4 chars)
+    Parts[3] = XOR checksum (2 chars) + random suffix (2 chars)
     """
     parts = key.split('-')
     if len(parts) != 4:
@@ -265,22 +267,26 @@ def validate_key_format(key):
     if not all(len(p) == 4 for p in parts):
         return False
     
-    # Verify checksum (parts[3])
     try:
-        # XOR of first 3 parts' char codes
-        xor_val = 0
-        for p in parts[:3]:
-            for ch in p:
-                xor_val ^= ord(ch)
-        
-        # parts[3] should encode this checksum
-        expected = format(xor_val, '02X').zfill(4)[-4:]
-        # Simplified: just check the key matches known valid format
-        # The real validation is: parts[1] hex decode -> (val - 42) / 7 = days > 0
+        # Step 1: Decode days from parts[1]
         val = int(parts[1], 16)
         days = (val - 42) / 7
-        if days <= 0 or days > 3650:  # Max 10 years
+        if days <= 0 or days > 10000:  # Max ~27 years (9999 = lifetime)
             return False
+        
+        # Step 2: Verify XOR checksum (first 2 chars of parts[3])
+        # XOR all chars of parts[0] + parts[1] + parts[2]
+        all_chars = parts[0] + parts[1] + parts[2]
+        xor_val = 0
+        for ch in all_chars:
+            xor_val ^= ord(ch)
+        
+        expected_checksum = format(xor_val, '02X').upper()
+        actual_checksum = parts[3][:2].upper()
+        
+        if expected_checksum != actual_checksum:
+            return False
+        
         return True
-    except (ValueError, ZeroDivisionError):
+    except (ValueError, ZeroDivisionError, IndexError):
         return False
