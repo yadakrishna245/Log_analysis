@@ -1,99 +1,120 @@
-# 📊 LogSherlock Pro — User Tracking Guide
+# 📊 LogSherlock Pro — User & License Tracking
 
-## How Machine-Lock Works
+## How It Works
 
-When a user activates a license key:
-1. App generates a **Machine Fingerprint** (unique per device)
-2. Key gets **bound** to that fingerprint
-3. Same key on different device → ❌ BLOCKED
+Every license activation is tracked in **AWS DynamoDB** (cloud database). When a user enters their license key:
 
 ```
-Key: IEAZ-00FC-0BC1-12RQ
-    ↓
-Machine Fingerprint: M-4A8F2C01 (based on screen, browser, hardware)
-    ↓
-Stored: ls_license_machine_IEAZ-00FC-0BC1-12RQ = M-4A8F2C01
-    ↓
-Another machine tries same key → fingerprint = M-7D3E9B02 → MISMATCH → BLOCKED
+User enters key → App generates Machine Fingerprint → Calls AWS API
+                                                           ↓
+                                               DynamoDB: stores key + user + machine + time
+                                                           ↓
+                                               You can query ALL users anytime!
 ```
 
 ---
 
-## How to Check Who's Using Your Keys
+## 🔍 Check Who's Using Your Product
 
-### Option 1: Ask user to run in console (F12)
-
-Ask the user to open browser console (F12) and run:
-
-```javascript
-console.table({
-  Name: localStorage.getItem('ls_username'),
-  Key: localStorage.getItem('ls_license_key'),
-  Machine: localStorage.getItem('ls_license_machine'),
-  Activated: localStorage.getItem('ls_license_date'),
-  Expiry: localStorage.getItem('ls_license_days') + ' days'
-});
-```
-
-### Option 2: Check on their machine directly
-
-Open LogSherlock Pro on their machine → F12 → Console → paste above command.
-
----
-
-## How to Revoke a Key
-
-Since keys are validated client-side, you can't remotely revoke them. But you can:
-
-1. **Let it expire** — Give short-expiry keys (7 days). After expiry, they need a new one from you.
-2. **Change the SECRET** — If you change `LSPRO2026KRISHNA` in both `Generate-License.ps1` and `index.html`, all old keys become invalid.
-3. **New version** — Release a new version of the app with updated validation. Old keys won't work.
-
----
-
-## Tracking Data Stored (per user, in their browser)
-
-| localStorage Key | What it stores |
-|-----------------|----------------|
-| `ls_username` | User's full name |
-| `ls_license_key` | The license key they entered |
-| `ls_license_date` | ISO date when they activated |
-| `ls_license_days` | How many days the key is valid |
-| `ls_license_machine` | Their machine fingerprint |
-| `ls_license_validated` | "true" if active |
-| `ls_license_machine_{KEY}` | Binds specific key to specific machine |
-
----
-
-## Future: Google Sheets Live Tracking
-
-When Google Apps Script access is available, the app will automatically send activation data to a Google Sheet.
-
-### 🔗 Google Links (DON'T LOSE THESE)
-
-| Service | URL |
-|---------|-----|
-| **Google Form** (collects data) | https://docs.google.com/forms/d/164urwFBv2B2KEAKxAocZ_8lgt7z2d3nrj0X-XiFmFlQ |
-| **Google Sheet** (stores responses) | https://docs.google.com/spreadsheets/d/1clqwHt2FEsK1JA_0ZlMFaB_qLrP39zluCLVhDxgzM_c |
-| **Form ID** | `164urwFBv2B2KEAKxAocZ_8lgt7z2d3nrj0X-XiFmFlQ` |
-| **Sheet ID** | `1clqwHt2FEsK1JA_0ZlMFaB_qLrP39zluCLVhDxgzM_c` |
-
-### Sheet Headers:
-| Key | Name | Machine_ID | Activation_Date | Expiry_Days | Browser | OS | Status |
-|-----|------|-----------|-----------------|-------------|---------|-----|--------|
-| IEAZ-00FC-0BC1-12RQ | Bob Smith | M-4A8F2C01 | 2026-08-05 | 30 | Chrome | Win11 | ACTIVE |
-
-### Status:
-- ⚠️ Google Apps Script integration blocked (multi-account issue on Krishna's browser)
-- Code is already in `index.html` — just needs the publishable form URL updated
-- To fix later: log into single Google account → Forms → get the `/formResponse` URL → update `index.html`
-
----
-
-## Admin Commands (Quick Reference)
+### Quick Command — List ALL Users
 
 ```powershell
-# Generate keys
+.\Check-Licenses.ps1
+```
+
+**Output:**
+```
+═══════════════════════════════════════════════════════════════
+  LogSherlock Pro — License Dashboard
+═══════════════════════════════════════════════════════════════
+
+  📊 Total Activated:  5
+  ✅ Active:           4
+  ❌ Expired:          1
+
+───────────────────────────────────────────────────────────────
+
+  [1] ✅ ACTIVE
+      User:       Krishna Yada
+      Key:        HTRO-0A25-5B44-00FJ
+      Activated:  2026-08-07T08:30:00Z
+      Last Seen:  2026-08-07T14:00:00Z
+      Expiry:     365 days left
+      Device:     Mozilla/5.0 (Windows NT 10.0; Win64; x64)
+
+  [2] ✅ ACTIVE
+      User:       Rahul Singh
+      Key:        X9QP-00FC-0BC1-2ANR
+      Activated:  2026-08-07T09:15:00Z
+      Last Seen:  2026-08-07T13:45:00Z
+      Expiry:     30 days left
+      Device:     Mozilla/5.0 (Windows NT 10.0; Win64; x64)
+
+  [3] ❌ EXPIRED
+      User:       Test User
+      Key:        ABCD-0033-1234-07XY
+      Activated:  2026-07-01T10:00:00Z
+      Last Seen:  2026-07-08T16:20:00Z
+      Expiry:     0 days left
+      Device:     Mozilla/5.0 (X11; Linux x86_64)
+```
+
+### Check Single Key
+
+```powershell
+.\Check-Licenses.ps1 -Action status -Key "HTRO-0A25-5B44-00FJ"
+```
+
+### Reset Key (Transfer to New Machine)
+
+```powershell
+.\Check-Licenses.ps1 -Action reset -Key "HTRO-0A25-5B44-00FJ"
+```
+
+---
+
+## 📋 What's Tracked Per User
+
+| Field | Description | Example |
+|-------|-------------|---------|
+| **license_key** | The key they used | `HTRO-0A25-5B44-00FJ` |
+| **user_name** | Name they entered | `Krishna Yada` |
+| **activated_at** | When they first activated | `2026-08-07T08:30:00Z` |
+| **last_seen** | Last time they opened the app | `2026-08-07T14:00:00Z` |
+| **expiry_days** | How many days the key is valid | `365` |
+| **expiry_date** | Exact expiry date | `2027-08-07T08:30:00Z` |
+| **days_remaining** | Days left before expiry | `365` |
+| **is_expired** | Whether key has expired | `false` |
+| **is_lifetime** | Whether it's a lifetime key | `false` |
+| **user_agent** | Their browser + OS | `Chrome/Windows 10` |
+| **fingerprint** | Machine hash (privacy-safe) | `a8f2c01b...` |
+
+---
+
+## 🔐 Per-Machine Lock
+
+| Scenario | Result |
+|----------|--------|
+| User A activates on Laptop 1 | ✅ Works! Registered. |
+| User A opens again on Laptop 1 | ✅ Welcome back! |
+| User B copies key to Laptop 2 | ❌ BLOCKED — "already activated on another device" |
+| Admin resets key | ✅ Key can now be used on new device |
+
+---
+
+## 🛠️ Admin Commands Summary
+
+```powershell
+# List ALL users and their license status
+.\Check-Licenses.ps1
+
+# Check specific key
+.\Check-Licenses.ps1 -Action status -Key "XXXX-XXXX-XXXX-XXXX"
+
+# Reset key (allow transfer to new machine)
+.\Check-Licenses.ps1 -Action reset -Key "XXXX-XXXX-XXXX-XXXX"
+
+# Generate new keys
 .\Generate-License.ps1 -Days 7          # 7-day trial
 .\Generate-License.ps1 -Days 30         # 30-day
 .\Generate-License.ps1 -Days 365        # 1-year
@@ -101,16 +122,27 @@ When Google Apps Script access is available, the app will automatically send act
 .\Generate-License.ps1 -Days 30 -Count 10  # Bulk: 10 keys
 ```
 
-```javascript
-// Check license status in browser console (F12)
-console.log('Valid:', localStorage.getItem('ls_license_validated'));
-console.log('Key:', localStorage.getItem('ls_license_key'));
-console.log('Machine:', localStorage.getItem('ls_license_machine'));
-console.log('Expires:', localStorage.getItem('ls_license_days'), 'days from', localStorage.getItem('ls_license_date'));
+---
 
-// Force reset (for testing)
-localStorage.clear(); location.reload();
-```
+## ⚠️ Important Notes
+
+1. **First activation requires internet** — The app must reach AWS to register the machine
+2. **After first activation, works offline** — Same machine can use without internet
+3. **You (admin) need internet to check dashboard** — `Check-Licenses.ps1` calls AWS
+4. **Data stored in AWS DynamoDB** — Region: us-east-1, Table: LogSherlock-Licenses
+5. **Admin secret:** `LSPRO2026KRISHNA` — Keep this private!
+6. **TTL auto-cleanup** — Expired records auto-delete from DynamoDB after expiry
+
+---
+
+## 💰 Pricing Model (Suggested)
+
+| Plan | Duration | Key Command | Price |
+|------|----------|-------------|-------|
+| Trial | 7 days | `.\Generate-License.ps1 -Days 7` | Free |
+| Monthly | 30 days | `.\Generate-License.ps1 -Days 30` | ₹500/month |
+| Yearly | 365 days | `.\Generate-License.ps1 -Days 365` | ₹5,000/year |
+| Lifetime | Forever | `.\Generate-License.ps1 -Lifetime` | ₹15,000 |
 
 ---
 
