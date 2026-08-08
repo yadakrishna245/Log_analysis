@@ -1,9 +1,7 @@
 #!/bin/bash
-# LogSherlock Pro v4.0 - Single-click AWS Serverless Deployment
-# Features: 885 patterns, 172 features, streaming engine (3GB+), multi-file scan,
-#           Jira integration, Ticket Advisor, AI Copilot, Compliance Export,
-#           Shift Handoff, Runbook Executor, Custom Patterns, Session Persistence
-# Usage: ./deploy.sh [stack-name] [region] [api-key]
+# LogSherlock Pro v4.0 — One-Command AWS Deployment
+# Automatically installs AWS CLI + SAM CLI + Python if missing
+# Usage: ./deploy.sh [stack-name] [region]
 # Example: ./deploy.sh logsherlock-pro us-east-1
 
 set -e
@@ -11,51 +9,165 @@ set -e
 STACK_NAME="${1:-logsherlock-pro}"
 REGION="${2:-us-east-1}"
 API_KEY="${3:-logsherlock-hpe-2026}"
-# CloudFront ID is auto-detected from stack outputs (no hardcoding needed for new accounts)
-CLOUDFRONT_DIST_ID=""
 
 echo ""
 echo "╔══════════════════════════════════════════════════════════════════╗"
 echo "║        LogSherlock Pro v4.0 — AWS Serverless Deployment        ║"
-echo "║   885 patterns | 172 features | Enterprise Log Analysis        ║"
+echo "║   885 Patterns | 172 Features | Enterprise Log Analysis        ║"
 echo "╚══════════════════════════════════════════════════════════════════╝"
 echo ""
 
-# Check prerequisites
-echo "[1/6] Checking prerequisites..."
-command -v aws >/dev/null 2>&1 || { echo "❌ ERROR: AWS CLI not found. Install: https://aws.amazon.com/cli/"; exit 1; }
-command -v sam >/dev/null 2>&1 || { echo "❌ ERROR: SAM CLI not found. Install: https://docs.aws.amazon.com/serverless-application-model/"; exit 1; }
-command -v python3 >/dev/null 2>&1 || command -v python >/dev/null 2>&1 || { echo "❌ ERROR: Python not found."; exit 1; }
-echo "  ✅ AWS CLI, SAM CLI, Python — all present."
-
-# Validate AWS credentials
+# ══════════════════════════════════════════════════════════════════════════════
+# Step 1: Check & Auto-Install Prerequisites
+# ══════════════════════════════════════════════════════════════════════════════
+echo "[1/6] Checking & installing prerequisites..."
 echo ""
+
+# Detect OS
+OS="unknown"
+if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+    OS="linux"
+    # Detect package manager
+    if command -v apt-get &>/dev/null; then PKG="apt"
+    elif command -v yum &>/dev/null; then PKG="yum"
+    elif command -v dnf &>/dev/null; then PKG="dnf"
+    else PKG="unknown"; fi
+elif [[ "$OSTYPE" == "darwin"* ]]; then
+    OS="mac"
+    PKG="brew"
+fi
+echo "  OS: $OS | Package manager: ${PKG:-none}"
+
+# --- Python ---
+if command -v python3 &>/dev/null; then
+    PYTHON_VER=$(python3 --version 2>&1)
+    echo "  ✅ $PYTHON_VER"
+elif command -v python &>/dev/null; then
+    PYTHON_VER=$(python --version 2>&1)
+    echo "  ✅ $PYTHON_VER"
+else
+    echo "  ⚠️  Python not found. Installing..."
+    if [ "$OS" = "linux" ]; then
+        if [ "$PKG" = "apt" ]; then
+            sudo apt-get update -qq && sudo apt-get install -y python3 python3-pip -qq
+        elif [ "$PKG" = "yum" ] || [ "$PKG" = "dnf" ]; then
+            sudo $PKG install -y python3 python3-pip -q
+        fi
+    elif [ "$OS" = "mac" ]; then
+        if command -v brew &>/dev/null; then
+            brew install python@3.11
+        else
+            echo "  ❌ Install Homebrew first: /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
+            exit 1
+        fi
+    fi
+    if command -v python3 &>/dev/null; then
+        echo "  ✅ Python installed: $(python3 --version)"
+    else
+        echo "  ❌ Python install failed. Install manually: https://python.org/downloads"
+        exit 1
+    fi
+fi
+
+# --- AWS CLI ---
+if command -v aws &>/dev/null; then
+    AWS_VER=$(aws --version 2>&1 | cut -d' ' -f1)
+    echo "  ✅ $AWS_VER"
+else
+    echo "  ⚠️  AWS CLI not found. Installing..."
+    if [ "$OS" = "linux" ]; then
+        echo "     Downloading AWS CLI v2..."
+        curl -sL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "/tmp/awscliv2.zip"
+        cd /tmp && unzip -qo awscliv2.zip && sudo ./aws/install && cd -
+        rm -rf /tmp/awscliv2.zip /tmp/aws
+    elif [ "$OS" = "mac" ]; then
+        echo "     Downloading AWS CLI v2 for macOS..."
+        curl -sL "https://awscli.amazonaws.com/AWSCLIV2.pkg" -o "/tmp/AWSCLIV2.pkg"
+        sudo installer -pkg /tmp/AWSCLIV2.pkg -target /
+        rm -f /tmp/AWSCLIV2.pkg
+    fi
+    if command -v aws &>/dev/null; then
+        echo "  ✅ AWS CLI installed: $(aws --version 2>&1 | cut -d' ' -f1)"
+    else
+        echo "  ❌ AWS CLI install failed."
+        echo "     Manual install: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html"
+        exit 1
+    fi
+fi
+
+# --- SAM CLI ---
+if command -v sam &>/dev/null; then
+    SAM_VER=$(sam --version 2>&1)
+    echo "  ✅ $SAM_VER"
+else
+    echo "  ⚠️  SAM CLI not found. Installing..."
+    if [ "$OS" = "linux" ]; then
+        echo "     Installing via pip..."
+        pip3 install --user aws-sam-cli 2>/dev/null || python3 -m pip install --user aws-sam-cli
+        # Add to PATH if needed
+        export PATH="$HOME/.local/bin:$PATH"
+    elif [ "$OS" = "mac" ]; then
+        if command -v brew &>/dev/null; then
+            brew install aws-sam-cli
+        else
+            pip3 install aws-sam-cli
+        fi
+    fi
+    if command -v sam &>/dev/null; then
+        echo "  ✅ SAM CLI installed: $(sam --version)"
+    else
+        # Try with full path
+        if [ -f "$HOME/.local/bin/sam" ]; then
+            export PATH="$HOME/.local/bin:$PATH"
+            echo "  ✅ SAM CLI installed: $(sam --version)"
+        else
+            echo "  ❌ SAM CLI install failed."
+            echo "     Manual: pip3 install aws-sam-cli"
+            echo "     Or: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html"
+            exit 1
+        fi
+    fi
+fi
+
+echo ""
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Step 2: Validate AWS Credentials
+# ══════════════════════════════════════════════════════════════════════════════
 echo "[2/6] Validating AWS credentials..."
 AWS_ACCOUNT=$(aws sts get-caller-identity --region "$REGION" --query 'Account' --output text 2>/dev/null) || {
-    echo "❌ ERROR: AWS credentials not configured or expired."
-    echo "   Run: aws configure"
-    echo "   Or: export AWS_PROFILE=your-profile"
+    echo "  ❌ AWS credentials not configured."
+    echo ""
+    echo "  Run this command and enter your Access Key + Secret Key:"
+    echo "    aws configure"
+    echo ""
+    echo "  Need keys? Go to: https://console.aws.amazon.com/iam/"
+    echo "  → Users → Your user → Security credentials → Create access key"
     exit 1
 }
 echo "  ✅ AWS Account: $AWS_ACCOUNT | Region: $REGION"
 
-# Build
+# ══════════════════════════════════════════════════════════════════════════════
+# Step 3: Build
+# ══════════════════════════════════════════════════════════════════════════════
 echo ""
 echo "[3/6] Building SAM application..."
 cd "$(dirname "$0")"
 
-# Try container build first (more reliable), fall back to native
 if sam build --template-file template.yaml --use-container 2>/dev/null; then
     echo "  ✅ Built with Docker container."
 else
-    echo "  ⚠️  Container build unavailable, trying native..."
+    echo "  ℹ️  Container unavailable, building natively..."
     sam build --template-file template.yaml
     echo "  ✅ Built natively."
 fi
 
-# Deploy
+# ══════════════════════════════════════════════════════════════════════════════
+# Step 4: Deploy
+# ══════════════════════════════════════════════════════════════════════════════
 echo ""
 echo "[4/6] Deploying to AWS ($REGION)..."
+echo "  (First deploy: ~3-5 minutes | Updates: ~1-2 minutes)"
 sam deploy \
     --stack-name "$STACK_NAME" \
     --region "$REGION" \
@@ -64,84 +176,72 @@ sam deploy \
     --no-fail-on-empty-changeset \
     --resolve-s3
 
-echo "  ✅ Stack deployed/updated successfully."
+echo "  ✅ Stack deployed!"
 
-# Get outputs
+# ══════════════════════════════════════════════════════════════════════════════
+# Step 5: Get outputs & invalidate CloudFront
+# ══════════════════════════════════════════════════════════════════════════════
 echo ""
 echo "[5/6] Retrieving deployment info..."
 API_URL=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --region "$REGION" \
     --query 'Stacks[0].Outputs[?OutputKey==`ApiUrl`].OutputValue' --output text 2>/dev/null || echo "")
 CF_URL=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --region "$REGION" \
-    --query 'Stacks[0].Outputs[?OutputKey==`CloudFrontUrl`].OutputValue' --output text 2>/dev/null || echo "https://d3tv1czat55yad.cloudfront.net")
+    --query 'Stacks[0].Outputs[?OutputKey==`CloudFrontUrl`].OutputValue' --output text 2>/dev/null || echo "pending...")
 S3_BUCKET=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --region "$REGION" \
     --query 'Stacks[0].Outputs[?OutputKey==`S3BucketName`].OutputValue' --output text 2>/dev/null || echo "")
 
-# Invalidate CloudFront cache
-echo ""
-echo "[6/6] Invalidating CloudFront cache..."
-# Auto-detect CloudFront distribution ID from stack
-CLOUDFRONT_DIST_ID=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --region "$REGION" \
-    --query 'Stacks[0].Outputs[?OutputKey==`CloudFrontDistId`].OutputValue' --output text 2>/dev/null || echo "")
-if [ -z "$CLOUDFRONT_DIST_ID" ]; then
-    # Fallback: try to get from distribution list matching stack
-    CLOUDFRONT_DIST_ID=$(aws cloudfront list-distributions --query "DistributionList.Items[?Comment=='LogSherlock Pro - CloudFront Distribution'].Id" --output text 2>/dev/null || echo "")
-fi
-if [ -n "$CLOUDFRONT_DIST_ID" ]; then
-    aws cloudfront create-invalidation --distribution-id "$CLOUDFRONT_DIST_ID" --paths "/*" --region "$REGION" > /dev/null 2>&1 && \
-        echo "  ✅ CloudFront cache invalidated (takes 30-60s to propagate)." || \
-        echo "  ⚠️  CloudFront invalidation failed (non-critical)."
-else
-    echo "  ⚠️  CloudFront distribution ID not found. Cache will expire naturally."
+# Auto-detect CloudFront distribution ID
+CF_DIST_ID=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --region "$REGION" \
+    --query 'Stacks[0].Outputs[?OutputKey==`CloudFrontDistributionId`].OutputValue' --output text 2>/dev/null || echo "")
+if [ -z "$CF_DIST_ID" ]; then
+    CF_DIST_ID=$(aws cloudfront list-distributions \
+        --query "DistributionList.Items[?Comment=='LogSherlock Pro - CloudFront Distribution'].Id" \
+        --output text 2>/dev/null || echo "")
 fi
 
+if [ -n "$CF_DIST_ID" ]; then
+    aws cloudfront create-invalidation --distribution-id "$CF_DIST_ID" --paths "/*" --region "$REGION" > /dev/null 2>&1
+    echo "  ✅ CloudFront cache invalidated"
+fi
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Step 6: Verify
+# ══════════════════════════════════════════════════════════════════════════════
+echo ""
+echo "[6/6] Verifying deployment..."
+sleep 5
+if curl -sf "${API_URL}api/health" > /dev/null 2>&1; then
+    echo "  ✅ App is LIVE!"
+else
+    echo "  ⏳ Lambda warming up. App will be ready in ~10 seconds."
+fi
+
+# ══════════════════════════════════════════════════════════════════════════════
 # Summary
+# ══════════════════════════════════════════════════════════════════════════════
 echo ""
 echo "╔══════════════════════════════════════════════════════════════════╗"
 echo "║              ✅ DEPLOYMENT COMPLETE!                            ║"
 echo "╚══════════════════════════════════════════════════════════════════╝"
 echo ""
-echo "  🌐 CloudFront:  ${CF_URL}"
+echo "  🌐 App URL:     ${CF_URL}"
 echo "  🔗 API URL:     ${API_URL}"
 echo "  🪣 S3 Bucket:   ${S3_BUCKET}"
-echo "  🔑 API Key:     ${API_KEY}"
 echo "  📍 Region:      ${REGION}"
 echo "  📦 Stack:       ${STACK_NAME}"
 echo ""
-echo "  ── Features Deployed ──"
-echo "  • 885 detection patterns across 21 categories"
-echo "  • 172 features (80 JS modules)"
-echo "  • 🎯 Ticket Advisor — iterative L4 troubleshooting (<10ms)"
-echo "  • Streaming engine — handles 3GB+ files"
-echo "  • Multi-file scan (30+ archives at once)"
-echo "  • Head+tail scanning for large files (catches end-of-log errors)"
-echo "  • Local AI (Ollama) — streaming responses"
-echo "  • Session Persistence + Command Palette (Ctrl+K)"
-echo "  • Compliance Export (SOC2/ISO27001/HIPAA/PCI-DSS)"
-echo "  • License key activation system"
+echo "  ── What's Deployed ──"
+echo "  • 172 features | 885 patterns | 21 categories"
+echo "  • Streaming engine (3GB+ files)"
+echo "  • Ticket Advisor + AI Copilot"
+echo "  • HPE VME, GFS2, NFS, Alletra, GreenLake patterns"
+echo "  • Per-machine license system"
 echo ""
-echo "  ── Quick Test ──"
-echo "  curl ${API_URL}api/health"
-echo "  curl -X POST ${API_URL}api/ticket/advisor/chat \\"
-echo "    -H 'Content-Type: application/json' \\"
-echo "    -d '{\"messages\":[{\"role\":\"user\",\"content\":\"GFS2 withdraw on node2\"}]}'"
+echo "  ── Next Steps ──"
+echo "  1. Open ${CF_URL} in browser"
+echo "  2. Generate license key (or use dev mode)"
+echo "  3. Drop log files → Get instant RCA!"
 echo ""
-echo "  ── Destroy ──"
+echo "  ── Destroy (removes everything) ──"
 echo "  sam delete --stack-name $STACK_NAME --region $REGION --no-prompts"
-echo ""
-
-# Save deployment info
-cat > .deployment-info.json << EOF
-{
-    "cloudfront_url": "${CF_URL}",
-    "api_url": "${API_URL}",
-    "s3_bucket": "${S3_BUCKET}",
-    "api_key": "${API_KEY}",
-    "region": "${REGION}",
-    "stack_name": "${STACK_NAME}",
-    "cloudfront_dist_id": "${CLOUDFRONT_DIST_ID}",
-    "deployed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-    "version": "4.0"
-}
-EOF
-echo "  📄 Deployment info saved to .deployment-info.json"
 echo ""
