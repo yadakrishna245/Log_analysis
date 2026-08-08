@@ -278,12 +278,27 @@ def detect_node_name(folder_path: str) -> Dict[str, str]:
     if node_dirs:
         for node_dir in node_dirs:
             node_path = os.path.join(folder_path, node_dir)
+            # HPE VME: tag node_name with role prefix
+            tagged_name = _tag_hpe_node_name(node_dir)
             for root, dirs, files in os.walk(node_path):
                 for f in files:
                     filepath = os.path.join(root, f)
-                    node_map[filepath] = node_dir
+                    node_map[filepath] = tagged_name
 
     return node_map
+
+
+def _tag_hpe_node_name(dir_name: str) -> str:
+    """Tag directory name with HPE VME role prefix if it matches known patterns."""
+    lower = dir_name.lower()
+    manager_keywords = ('manager', 'morpheus', 'appliance')
+    node_keywords = ('node', 'host', 'server', 'hvm')
+
+    if any(kw in lower for kw in manager_keywords):
+        return f"manager:{dir_name}"
+    if any(kw in lower for kw in node_keywords):
+        return f"node:{dir_name}"
+    return dir_name
 
 
 def ingest_ticket_folder(folder_path: str, ticket_id: int) -> List[Dict]:
@@ -361,7 +376,36 @@ def ingest_ticket_folder(folder_path: str, ticket_id: int) -> List[Dict]:
                 'line_count': line_count,
             })
 
+    # HPE VME priority sorting: manager logs first, then node logs, then others
+    file_info_list.sort(key=lambda f: _hpe_vme_priority(f.get('filepath', ''), f.get('node_name', '')))
+
     return file_info_list
+
+
+def _hpe_vme_priority(filepath: str, node_name: str) -> int:
+    """Assign priority order for HPE VME folder structure.
+
+    Lower number = higher priority (processed first).
+    Priority:
+        0 - Manager/Morpheus/Appliance logs (control plane)
+        1 - Node/Host/Server/HVM logs (compute nodes)
+        2 - Everything else
+    """
+    path_lower = filepath.lower()
+    node_lower = (node_name or '').lower()
+
+    # Highest priority: manager/control-plane logs
+    manager_keywords = ('manager', 'morpheus', 'appliance')
+    if any(kw in path_lower for kw in manager_keywords) or node_lower.startswith('manager:'):
+        return 0
+
+    # Second priority: compute node logs
+    node_keywords = ('node', 'host', 'server', 'hvm')
+    if any(kw in path_lower for kw in node_keywords) or node_lower.startswith('node:'):
+        return 1
+
+    # Default priority
+    return 2
 
 
 def _read_first_lines(filepath: str, count: int = 20) -> List[str]:
@@ -395,11 +439,30 @@ def _count_lines(filepath: str) -> int:
 
 
 def _infer_node(filepath: str, base_folder: str) -> Optional[str]:
-    """Infer node name from filepath relative to base folder."""
+    """Infer node name from filepath relative to base folder.
+
+    Recognizes HPE VME folder structures:
+    - Folders with 'manager', 'morpheus', 'appliance' → manager node
+    - Folders with 'node', 'host', 'server', 'hvm' → compute/host node
+    """
     rel_path = os.path.relpath(filepath, base_folder)
     parts = rel_path.split(os.sep)
+
+    # HPE VME folder pattern detection across all path components
+    manager_keywords = {'manager', 'morpheus', 'appliance'}
+    node_keywords = {'node', 'host', 'server', 'hvm'}
+
+    for part in parts[:-1]:  # Exclude the filename itself
+        part_lower = part.lower()
+        # Check for manager-type folders
+        if any(kw in part_lower for kw in manager_keywords):
+            return f"manager:{part}"
+        # Check for compute/host node folders
+        if any(kw in part_lower for kw in node_keywords):
+            return f"node:{part}"
+
+    # Fallback: first directory component as node name
     if len(parts) > 1:
-        # First directory component might be node name
         candidate = parts[0]
         # Filter out common non-node directory names
         non_node_names = {'var', 'log', 'etc', 'tmp', 'opt', 'usr', 'home',

@@ -97,6 +97,8 @@
         .terminal-status.error .dot{background:var(--critical);}
         .terminal-status.staged .dot{background:#f5a623;animation:pulse 1.5s infinite;}
         @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.3;}}
+@keyframes folderPulse{0%{box-shadow:0 0 0 0 rgba(255,71,87,0.7);}50%{box-shadow:0 0 0 12px rgba(255,71,87,0);}100%{box-shadow:0 0 0 0 rgba(255,71,87,0);}}
+.folder-alert-badge{display:inline-flex;align-items:center;gap:8px;padding:10px 18px;background:linear-gradient(135deg,#ff4757,#ff3838);color:#fff;border-radius:10px;font-size:13px;font-weight:700;letter-spacing:0.02em;animation:folderPulse 1.5s ease-in-out 20;box-shadow:0 4px 15px rgba(255,71,87,0.4);margin:8px 0;}
         @keyframes slideIn{from{transform:translateX(100px);opacity:0;}to{transform:translateX(0);opacity:1;}}
 
         /* Input group */
@@ -397,6 +399,7 @@
     </style>
 </head>
 <body>
+<script src="license-gate.js"></script>
 <script>
 // ═══ HARD AUTH GATE — Runs FIRST before any HTML renders ═══
 // This blocks the entire app until name + license key are validated
@@ -676,6 +679,9 @@
                         <h1>LogSherlock Pro | HPE VME — Scan Report</h1>
                         <p>Generated: <span id="printDate"></span></p>
                     </div>
+
+                    <!-- Version Detection Banner -->
+                    <div id="versionBanner" style="display:none;padding:10px 16px;margin-bottom:12px;background:var(--bg-2);border:1px solid var(--hpe-green);border-radius:8px;font-size:13px;color:var(--text-200);"></div>
 
                     <!-- Root Cause Summary -->
                     <div id="rcaSummary" class="rca-summary" style="display:none;">
@@ -2030,6 +2036,34 @@ async function scanLocally(file) {
                 setStatus('scanning', `Scanning: ${info} · ${(msg.totalLines/1000).toFixed(0)}K lines · ${msg.findings} findings`);
             }
 
+            if (msg.type === 'folders_detected') {
+                // Store detected folders for smart suggestions
+                window._detectedFolders = msg.folders || [];
+                // Check if JIRA description mentions specific folders
+                const jiraCtx = (document.getElementById('ticketContext') || {}).value || '';
+                if (jiraCtx && msg.folders.length > 0) {
+                    const mentioned = msg.folders.filter(f => jiraCtx.toLowerCase().includes(f.toLowerCase().split('/').pop()));
+                    if (mentioned.length > 0) {
+                        setStatus('scanning', `📁 Prioritizing mentioned folder(s): ${mentioned.join(', ')}...`);
+                        // Show eye-catching red badge
+                        let alertDiv = document.getElementById('folderAlertBadge');
+                        if (!alertDiv) {
+                            alertDiv = document.createElement('div');
+                            alertDiv.id = 'folderAlertBadge';
+                            alertDiv.style.cssText = 'padding:10px 16px;margin:10px 0;';
+                            const resultsEl = document.getElementById('results');
+                            const vBanner = document.getElementById('versionBanner');
+                            if (vBanner) vBanner.parentNode.insertBefore(alertDiv, vBanner);
+                            else if (resultsEl) resultsEl.insertBefore(alertDiv, resultsEl.firstChild);
+                        }
+                        alertDiv.innerHTML = mentioned.map(f => 
+                            `<span class="folder-alert-badge">🔍 CHECK THIS → ${f}</span>`
+                        ).join(' ');
+                        alertDiv.style.display = 'block';
+                    }
+                }
+            }
+
             if (msg.type === 'error') {
                 setStatus('error', 'Scan failed: ' + msg.message);
                 hideProgress();
@@ -2070,7 +2104,7 @@ async function scanLocally(file) {
                     client_side: true, jira_report: null, date_range: dateRangeStr,
                 };
 
-                setStatus('done', `${findings.length} findings · ${msg.filesAnalyzed} files · ${elapsed}s${dateRangeStr} · 🔒 Zero data uploaded`);
+                setStatus('done', `✅ Scan Complete — ${findings.length} findings · ${msg.filesAnalyzed} files · ${msg.totalLines.toLocaleString()} lines · ${elapsed}s${dateRangeStr} · 🔒 Zero data uploaded`);
                 trackEvent('scan_completed', { findings: findings.length, files: msg.filesAnalyzed, seconds: elapsed });
                 render(result);
                 showTicketRelevantFindings();
@@ -2140,8 +2174,12 @@ async function handleFiles(files) {
         if (name.endsWith('.tar.gz') || name.endsWith('.tgz') || name.endsWith('.tar')) {
             scannable.push(file);
         } else if (name.endsWith('.zip')) {
+            if (file.size > 2 * 1024 * 1024 * 1024) {
+                // ZIP > 2GB — warn but still try (browser may OOM)
+                setStatus('scanning', `⚠️ Large ZIP (${(file.size/1024/1024/1024).toFixed(1)}GB) — for best performance, use .tar.gz format for files over 2GB. Attempting scan...`);
+            }
             scannable.push(file); // ZIP is supported!
-        } else if (name.endsWith('.7z')) {
+        } else if (name.endsWith('.7z') || name.endsWith('.rar')) {
             unsupported.push(file);
         } else if (BINARY_EXTS.has(ext)) {
             skippedBinary.push(file.name);
@@ -2152,12 +2190,14 @@ async function handleFiles(files) {
     }
 
     if (skippedBinary.length > 0 && scannable.length > 0) {
-        setStatus('scanning', `⚠️ Skipping ${skippedBinary.length} binary file(s) (${skippedBinary.slice(0,3).join(', ')}${skippedBinary.length>3?'...':''}) — scanning ${scannable.length} text file(s)...`);
-        await new Promise(r => setTimeout(r, 1500));
+        const docFiles = skippedBinary.filter(n => n.match(/\.(pdf|doc|docx)$/i));
+        const docMsg = docFiles.length > 0 ? ` · 📄 For PDF/DOC: copy-paste text into the Jira Description box above` : '';
+        setStatus('scanning', `⚠️ Skipping ${skippedBinary.length} binary file(s) (${skippedBinary.slice(0,3).join(', ')}${skippedBinary.length>3?'...':''}) — scanning ${scannable.length} text file(s)${docMsg}...`);
+        await new Promise(r => setTimeout(r, 2000));
     }
 
     if (unsupported.length > 0 && scannable.length === 0) {
-        setStatus('error', '⚠️ .7z format not supported. Please extract and re-compress as .tar.gz or .zip');
+        setStatus('error', '⚠️ .7z/.rar not supported in browser. Extract with 7-Zip or WinRAR and re-upload as folder, .tar.gz, or .zip. Tip: 7z x file.7z then drag the extracted folder here.');
         return;
     }
 
@@ -2188,7 +2228,7 @@ async function handleFiles(files) {
     let totalFilesAnalyzed = 0;
     let totalLinesScanned = 0;
     const allMtimes = [];
-    const MAX_FINDINGS = 500;
+    const MAX_FINDINGS = 5000;
     const decoder = new TextDecoder('utf-8', {fatal: false});
 
     for (let fi = 0; fi < scannable.length; fi++) {
@@ -2372,6 +2412,31 @@ function render(data){
     const f=data.findings||[];
     _allFindings = f; // Store for filter functions
     window._allFindings = f; // Expose for cinema/insights
+
+    // ═══ VERSION DETECTION — Run FIRST before any rendering ═══
+    const _jiraCtx = (document.getElementById('ticketContext') || {}).value || '';
+    const _logText = f.map(x => (x.line_content || '') + ' ' + (x.description || '')).join(' ');
+    const _versionCtx = window.LSP_VersionDetection ? window.LSP_VersionDetection.detect(_jiraCtx + ' ' + _logText) : null;
+    window._lastVersionContext = _versionCtx;
+    
+    // Boost findings by version/component relevance
+    if (_versionCtx && window.LSP_VersionDetection) {
+      const boosted = window.LSP_VersionDetection.boost(f, _versionCtx);
+      _allFindings = boosted;
+      window._allFindings = boosted;
+    }
+
+    // Show version detection banner if version found
+    if (_versionCtx && _versionCtx.vme_version) {
+      const vBanner = document.getElementById('versionBanner');
+      if (vBanner) {
+        const kiHtml = _versionCtx.known_issues.length > 0
+          ? `<br><small style="opacity:0.8">⚠️ ${_versionCtx.known_issues.length} known issue(s) for this version</small>`
+          : '';
+        vBanner.innerHTML = `<span style="background:var(--hpe-green);color:#fff;padding:3px 10px;border-radius:4px;font-weight:600;font-size:12px;">VME ${_versionCtx.vme_version}</span> detected · Components: ${_versionCtx.components.join(', ') || 'general'}${kiHtml}`;
+        vBanner.style.display = 'block';
+      }
+    }
     // Sort findings by recency (newest first, no-timestamp at bottom)
     _allFindings.sort((a, b) => {
         const tsA = a.log_timestamp || '';
@@ -2400,20 +2465,20 @@ function render(data){
             <div class="metric"><div class="metric-val" style="color:#2ed573;font-size:2.5rem">✅</div><div class="metric-label">Clean</div></div>
             <div class="metric"><div class="metric-val neutral">${data.files_analyzed||0}</div><div class="metric-label">Files Scanned</div></div>
             <div class="metric"><div class="metric-val neutral">${data.total_lines||0}</div><div class="metric-label">Lines Checked</div></div>
-            <div class="metric"><div class="metric-val neutral">${typeof PATTERNS !== 'undefined' && PATTERNS ? PATTERNS.length : 455}</div><div class="metric-label">Patterns Tested</div></div>`;
+            <div class="metric"><div class="metric-val neutral">${typeof PATTERNS !== 'undefined' && PATTERNS ? PATTERNS.length : 1160}</div><div class="metric-label">Patterns Tested</div></div>`;
         $('#findingsCount').textContent = '0 findings';
         $('#findingsList').innerHTML = `
             <div style="text-align:center;padding:60px 20px;background:var(--bg-0);border-radius:12px;border:1px solid var(--border-subtle);margin:20px 0;">
                 <div style="font-size:64px;margin-bottom:16px;">🎉</div>
                 <h3 style="color:#2ed573;margin:0 0 12px 0;font-size:1.5rem;">No Known Issues Detected</h3>
                 <p style="color:var(--text-400);margin:0 0 16px 0;max-width:600px;margin-left:auto;margin-right:auto;">
-                    Scanned <strong>${data.files_analyzed||0} files</strong> against <strong>${typeof PATTERNS !== 'undefined' && PATTERNS ? PATTERNS.length : 455} detection patterns</strong> — no matches found.
+                    Scanned <strong>${data.files_analyzed||0} files</strong> against <strong>${typeof PATTERNS !== 'undefined' && PATTERNS ? PATTERNS.length : 1160} detection patterns</strong> — no matches found.
                     This means the logs don't contain any of the known problematic patterns.
                 </p>
                 <div style="background:var(--bg-100);border-radius:8px;padding:16px;text-align:left;max-width:500px;margin:0 auto;">
                     <p style="color:var(--text-300);margin:0 0 8px 0;font-weight:600;">⚠️ This does NOT mean the system is healthy:</p>
                     <ul style="color:var(--text-400);margin:0;padding-left:20px;line-height:1.8;">
-                        <li>The issue might be <strong>new/unknown</strong> — not yet in our ${typeof PATTERNS !== 'undefined' && PATTERNS ? PATTERNS.length : 455} pattern database</li>
+                        <li>The issue might be <strong>new/unknown</strong> — not yet in our ${typeof PATTERNS !== 'undefined' && PATTERNS ? PATTERNS.length : 1160} pattern database</li>
                         <li>The relevant log files might <strong>not be included</strong> in this bundle</li>
                         <li>The issue might require <strong>manual investigation</strong> with different keywords</li>
                         <li>Try the <strong>🎯 Ticket Advisor</strong> tab — paste Jira description for suggestions on what to collect</li>
@@ -2430,7 +2495,7 @@ function render(data){
         $('#cascadePanel').style.display = 'none';
         $('#rcaSummary').style.display = 'none';
         // Set RCA report to honest "no findings" message
-        const noFindingsRCA = `h2. Scan Results — No Patterns Detected\n\n*Date:* ${new Date().toISOString().split('T')[0]}\n*Files Scanned:* ${data.files_analyzed||0}\n*Patterns Tested:* ${typeof PATTERNS !== 'undefined' && PATTERNS ? PATTERNS.length : 455}\n*Findings:* 0\n\n----\n\nh3. Summary\n\nNo known problematic patterns were detected in the uploaded log files.\n\nThis does NOT confirm the system is healthy. Possible reasons:\n* The issue may be new/undocumented (not in our ${typeof PATTERNS !== 'undefined' && PATTERNS ? PATTERNS.length : 455} pattern signatures)\n* The relevant log files may not be included in this bundle\n* The issue may require manual investigation with specific keywords\n\nh3. Recommended Next Steps\n\n# Verify the correct log bundle was uploaded (check file dates)\n# Use the Ticket Advisor for suggestions on what additional files to collect\n# Manually search for error keywords from the ticket description\n# Escalate if the issue is reproducible but not detectable by pattern matching`;
+        const noFindingsRCA = `h2. Scan Results — No Patterns Detected\n\n*Date:* ${new Date().toISOString().split('T')[0]}\n*Files Scanned:* ${data.files_analyzed||0}\n*Patterns Tested:* ${typeof PATTERNS !== 'undefined' && PATTERNS ? PATTERNS.length : 1160}\n*Findings:* 0\n\n----\n\nh3. Summary\n\nNo known problematic patterns were detected in the uploaded log files.\n\nThis does NOT confirm the system is healthy. Possible reasons:\n* The issue may be new/undocumented (not in our ${typeof PATTERNS !== 'undefined' && PATTERNS ? PATTERNS.length : 1160} pattern signatures)\n* The relevant log files may not be included in this bundle\n* The issue may require manual investigation with specific keywords\n\nh3. Recommended Next Steps\n\n# Verify the correct log bundle was uploaded (check file dates)\n# Use the Ticket Advisor for suggestions on what additional files to collect\n# Manually search for error keywords from the ticket description\n# Escalate if the issue is reproducible but not detectable by pattern matching`;
         $('#jiraReportRaw').value = noFindingsRCA;
         $('#jiraReportRendered').innerHTML = renderJiraMarkup(noFindingsRCA);
         saveHistory(data);
@@ -2481,6 +2546,22 @@ function render(data){
         <div class="metric" style="cursor:pointer" onclick="filterFindings('MEDIUM')" title="Click to show only MEDIUM findings"><div class="metric-val med">${m}</div><div class="metric-label">Medium</div></div>
         <div class="metric" style="cursor:pointer" onclick="filterFindings('LOW')" title="Click to show only LOW findings"><div class="metric-val low">${l}</div><div class="metric-label">Low</div></div>
         <div class="metric" style="cursor:pointer" onclick="filterFindings('')" title="Click to show ALL findings"><div class="metric-val neutral">${data.files_analyzed||0}</div><div class="metric-label">Files</div></div>`;
+
+    // Detect HVM Manager vs Node findings
+    const managerFindings = f.filter(x => (x.file||'').match(/morpheus|appliance|mysql|rabbitmq|elasticsearch|nginx/i));
+    const nodeFindings = f.filter(x => (x.file||'').match(/libvirt|pacemaker|corosync|multipath|gfs2|dlm|messages|syslog|dmesg/i));
+    if (managerFindings.length > 0 || nodeFindings.length > 0) {
+        const folderInfo = document.createElement('div');
+        folderInfo.style.cssText = 'padding:8px 14px;margin-bottom:12px;background:var(--bg-2);border-radius:8px;font-size:12px;color:var(--text-300);border:1px solid var(--border-subtle);';
+        let html = '<strong>📁 Source Detection:</strong> ';
+        if (managerFindings.length > 0) html += `<span style="color:var(--hpe-green)">HVM Manager: ${managerFindings.length} findings</span> `;
+        if (nodeFindings.length > 0) html += `<span style="color:#ff6b6b">HVM Node/Server: ${nodeFindings.length} findings</span>`;
+        folderInfo.innerHTML = html;
+        const resultsEl = document.getElementById('results');
+        const banner = document.getElementById('versionBanner');
+        if (banner && banner.nextSibling) { banner.parentNode.insertBefore(folderInfo, banner.nextSibling); }
+        else if (resultsEl) { resultsEl.insertBefore(folderInfo, resultsEl.firstChild.nextSibling.nextSibling); }
+    }
 
     // Severity Heatmap
     const fileMap = {};
@@ -5668,6 +5749,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         });
+        // Image drag-drop for ticket context
+        ticketCtx.addEventListener('dragover', function(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; this.style.borderColor = 'var(--hpe-green)'; });
+        ticketCtx.addEventListener('dragleave', function(e) { this.style.borderColor = ''; });
+        ticketCtx.addEventListener('drop', function(e) { e.preventDefault(); this.style.borderColor = ''; const files = e.dataTransfer.files; for (let i = 0; i < files.length; i++) { if (files[i].type.startsWith('image/')) { addTicketImage(files[i]); } } });
     }
 });
 
@@ -7473,6 +7558,16 @@ function generateLocalAdvisorResponse(text) {
 <script src="comparison-page.js"></script>
 <script src="hpe-advanced-patterns.js"></script>
     <script src="hpe-resolution-patterns.js"></script>
+<!-- HPE VME Version Detection Engine -->
+<script src="version-detection.js"></script>
+<!-- HPE VME Deep Patterns (150 new patterns) -->
+<script src="hpe-vme-migration-patterns.js"></script>
+<script src="hpe-vme-gfs2-deep-patterns.js"></script>
+<script src="hpe-vme-nfs-deep-patterns.js"></script>
+<script src="hpe-vme-alletra-deep-patterns.js"></script>
+<script src="hpe-vme-cluster-patterns.js"></script>
+<script src="hpe-vme-lifecycle-patterns.js"></script>
+<script src="hpe-vme-confirmed-patterns.js"></script>
 <script src="pattern-updates.js"></script>
 <script src="team-dashboard.js"></script>
 <!-- Enterprise Features v2 (10 new) -->

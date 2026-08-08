@@ -41,6 +41,28 @@ KEYWORD_CATEGORIES = {
 }
 
 
+# HPE VME Version Detection
+VME_VERSION_PATTERNS = [
+    (r'(?:HPE\s+)?(?:VM\s*Essentials|VME|Morpheus\s+VM)\s*(?:Software\s*)?v?(\d+\.\d+\.\d+)', 'vme_version'),
+    (r'(?:HVM|hypervisor)\s*(?:version\s*)?v?(\d+\.\d+\.\d+)', 'hvm_version'),
+    (r'VME\s*(\d+\.\d+\.\d+)', 'vme_version'),
+    (r'[Ll]ayout\s+version\s*[:=]?\s*(\d+\.\d+)', 'layout_version'),
+    (r'[Ii]nstaller\s*(?:version\s*)?v?(\d+\.\d+\.\d+)', 'installer_version'),
+    (r'alletra(?:mp)?[-_]plugin\s*v?(\d+\.\d+\.\d+)', 'alletra_plugin'),
+]
+
+# HVM Manager vs Node folder classification
+MANAGER_INDICATORS = [
+    '/var/log/morpheus/', '/opt/morpheus/', 'morpheus-ui', 'mysql',
+    'rabbitmq', 'elasticsearch', 'nginx', 'morpheus-ctl', 'appliance.log',
+]
+NODE_INDICATORS = [
+    '/var/log/libvirt/', '/var/log/pacemaker/', '/var/log/cluster/',
+    '/var/log/corosync/', 'multipath', 'iscsi', 'gfs2', 'dlm',
+    'fence', 'stonith', 'messages', 'syslog', 'dmesg', 'kern.log',
+]
+
+
 def analyze_ticket(ticket_id: int, folder_path: str, description: str = '',
                    db_session=None) -> Dict:
     """Orchestrate full analysis of a ticket's log files.
@@ -94,6 +116,10 @@ def analyze_ticket(ticket_id: int, folder_path: str, description: str = '',
     # Step 2: Extract keywords for relevance boosting
     keywords = extract_keywords(description)
 
+    # Step 2b: Detect VME version
+    version_info = detect_version(description)
+    result['version_info'] = version_info
+
     # Step 3: Pattern matching
     engine = PatternEngine(BUILT_IN_PATTERNS)
     all_findings = []
@@ -114,6 +140,7 @@ def analyze_ticket(ticket_id: int, folder_path: str, description: str = '',
             finding_data['node_name'] = fi.get('node_name')
             finding_data['file_type'] = fi.get('file_type')
             finding_data['filename'] = fi.get('filename')
+            finding_data['source_type'] = classify_source(filepath)
 
             # Store in database
             finding = Finding(
@@ -224,6 +251,32 @@ def extract_keywords(description: str) -> Dict[str, List[str]]:
         'terms': list(set(technical_terms)),
         'products': products,
     }
+
+
+def detect_version(description: str) -> Dict:
+    """Detect HPE VME version from ticket description or log content."""
+    result = {'vme_version': None, 'versions': {}}
+    if not description:
+        return result
+    for pattern, vtype in VME_VERSION_PATTERNS:
+        match = re.search(pattern, description, re.IGNORECASE)
+        if match:
+            result['versions'][vtype] = match.group(1)
+            if vtype == 'vme_version' and not result['vme_version']:
+                result['vme_version'] = match.group(1)
+    return result
+
+
+def classify_source(filepath: str) -> str:
+    """Classify file as coming from HVM Manager or Node/Server."""
+    path_lower = filepath.lower()
+    for indicator in MANAGER_INDICATORS:
+        if indicator.lower() in path_lower:
+            return 'manager'
+    for indicator in NODE_INDICATORS:
+        if indicator.lower() in path_lower:
+            return 'node'
+    return 'unknown'
 
 
 def rank_findings(findings: List[Dict]) -> List[Dict]:
@@ -397,12 +450,18 @@ def _generate_summary(findings: List[Dict], file_infos: List[Dict]) -> Dict:
     else:
         overall_severity = 'LOW'
 
+    # Source type breakdown
+    source_types = defaultdict(int)
+    for f in findings:
+        source_types[f.get('source_type', 'unknown')] += 1
+
     return {
         'total_findings': len(findings),
         'files_analyzed': len(file_infos),
         'severity_breakdown': dict(severity_counts),
         'category_breakdown': dict(category_counts),
         'node_breakdown': dict(node_counts),
+        'source_breakdown': dict(source_types),
         'primary_category': primary_category,
         'overall_severity': overall_severity,
         'nodes_affected': len(node_counts),

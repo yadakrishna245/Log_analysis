@@ -16,7 +16,7 @@ self.onmessage = async function(e) {
     }));
     
     const findings = [];
-    const MAX_FINDINGS = 300;
+    const MAX_FINDINGS = 5000;
     let filesAnalyzed = 0;
     let totalLines = 0;
     let totalEntries = 0;
@@ -33,6 +33,18 @@ self.onmessage = async function(e) {
         const binExts = ['.png','.jpg','.gif','.pdf','.rpm','.deb','.bin','.exe','.so','.ko','.pyc','.class','.sqlite','.db','.vmdk','.qcow2','.iso','.img','.jar','.war'];
         for (const ext of binExts) { if (n.endsWith(ext)) return 'skip'; }
         if (size > 100 * 1024 * 1024) return 'skip'; // Skip files > 100MB inside archives
+
+        // ═══ HPE VME — HVM Manager folders (highest priority) ═══
+        if (/\/var\/log\/morpheus\/|\/opt\/morpheus\/log\/|morpheus-ui|mysql|rabbitmq|elasticsearch|nginx/.test(n)) return 'high';
+        const basename = n.split('/').pop();
+        if (/^(morpheus-ctl-status|appliance\.log)$/.test(basename)) return 'high';
+        if (n.includes('morpheus-ui/current')) return 'high';
+
+        // ═══ HPE VME — HVM Node/Server folders (high priority) ═══
+        if (/\/var\/log\/libvirt\/|\/var\/log\/pacemaker\/|\/var\/log\/cluster\/|\/var\/log\/corosync\//.test(n)) return 'high';
+        if (/^(messages|syslog|dmesg|kern\.log|daemon\.log)$/.test(basename)) return 'high';
+        if (/multipath|iscsi|gfs2|dlm|fence|stonith/.test(n)) return 'high';
+
         if (HIGH_PRI_RE.test(n)) return 'high';
         const textExts = ['.log','.err','.out','.txt','.conf','.cfg','.yaml','.yml','.xml','.json','.sh','.py','.pl'];
         for (const ext of textExts) { if (n.endsWith(ext)) return 'medium'; }
@@ -71,11 +83,11 @@ self.onmessage = async function(e) {
         // For large files, scan head + tail (critical errors often at end of syslog)
         let headLimit, tailStart;
         if (text.length > 5*1024*1024) {
-            headLimit = 15000;  // First 15k lines
-            tailStart = Math.max(15000, totalLineCount - 15000); // Last 15k lines
+            headLimit = 50000;  // First 50k lines
+            tailStart = Math.max(50000, totalLineCount - 50000); // Last 50k lines
         } else if (text.length > 1024*1024) {
-            headLimit = 25000;
-            tailStart = Math.max(25000, totalLineCount - 25000);
+            headLimit = 75000;
+            tailStart = Math.max(75000, totalLineCount - 75000);
         } else {
             headLimit = totalLineCount;
             tailStart = totalLineCount; // no tail scan needed
@@ -154,6 +166,30 @@ self.onmessage = async function(e) {
         }
     }
     
+    // ═══ Folder Detection — collect archive folder structure ═══
+    const foldersSet = new Set();
+    let foldersSent = false;
+
+    function detectFolder(name) {
+        if (!name) return;
+        const parts = name.split('/');
+        if (parts.length > 1) {
+            // Collect top-level and second-level folder names
+            foldersSet.add(parts[0]);
+            if (parts.length > 2) foldersSet.add(parts[0] + '/' + parts[1]);
+        }
+    }
+
+    function sendFoldersIfReady() {
+        if (!foldersSent && foldersSet.size > 0) {
+            foldersSent = true;
+            self.postMessage({
+                type: 'folders_detected',
+                folders: Array.from(foldersSet).sort(),
+            });
+        }
+    }
+
     try {
         const isTar = file.name.endsWith('.tar.gz') || file.name.endsWith('.tgz') || file.name.endsWith('.tar');
         const isGz = file.name.endsWith('.gz') && !isTar;
@@ -185,6 +221,8 @@ self.onmessage = async function(e) {
                 offset = dataOffset + compSize;
                 
                 totalEntries++;
+                detectFolder(name);
+                if (totalEntries === 50) sendFoldersIfReady();
                 
                 // Skip directories, large files, binary files
                 const priority = classifyFile(name, uncompSize);
@@ -192,7 +230,7 @@ self.onmessage = async function(e) {
                     filesSkipped++;
                     continue;
                 }
-                if (priority === 'medium' && mediumCount >= 50) {
+                if (priority === 'medium' && mediumCount >= 200) {
                     filesSkipped++;
                     continue;
                 }
@@ -223,7 +261,7 @@ self.onmessage = async function(e) {
                             if (rdone) break;
                             chunks.push(value);
                             totalSize += value.length;
-                            if (totalSize > 30 * 1024 * 1024) break; // 30MB safety limit per file
+                            if (totalSize > 100 * 1024 * 1024) break; // 100MB safety limit per file
                         }
                         const merged = new Uint8Array(totalSize);
                         let pos = 0;
@@ -299,14 +337,16 @@ self.onmessage = async function(e) {
                 const paddedSize = Math.ceil(size / 512) * 512;
                 
                 totalEntries++;
+                detectFolder(name);
+                if (totalEntries === 50) sendFoldersIfReady();
                 
-                if ((type === '0' || type === '\0') && size > 0 && size <= 30 * 1024 * 1024) {
+                if ((type === '0' || type === '\0') && size > 0 && size <= 100 * 1024 * 1024) {
                     const priority = classifyFile(name, size);
                     if (priority === 'skip') {
                         if (!(await fillBuffer(paddedSize))) break;
                         consume(paddedSize);
                         filesSkipped++;
-                    } else if (priority === 'medium' && mediumCount >= 50) {
+                    } else if (priority === 'medium' && mediumCount >= 200) {
                         if (!(await fillBuffer(paddedSize))) break;
                         consume(paddedSize);
                         filesSkipped++;
@@ -440,6 +480,7 @@ self.onmessage = async function(e) {
     }
     
     // Done — send results
+    sendFoldersIfReady();
     self.postMessage({
         type: 'done',
         findings,
