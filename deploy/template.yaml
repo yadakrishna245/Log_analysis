@@ -23,6 +23,11 @@ Parameters:
     Default: ''
     Description: API key for authentication (leave empty to auto-generate)
     NoEcho: true
+  AdminSecret:
+    Type: String
+    Description: Admin secret for license management API (REQUIRED - no default)
+    NoEcho: true
+    MinLength: 12
   TablePrefix:
     Type: String
     Default: LogSherlock
@@ -67,8 +72,17 @@ Resources:
           LOGSHERLOCK_DEV_MODE: 'false'
           GH_MONITOR_TOKEN: !Ref GhMonitorToken
       Policies:
-        - S3FullAccessPolicy:
-            BucketName: !Ref LogSherlockUploads
+        - Statement:
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+                - s3:PutObject
+                - s3:DeleteObject
+              Resource: !Sub 'arn:aws:s3:::${LogSherlockUploads}/*'
+            - Effect: Allow
+              Action:
+                - s3:ListBucket
+              Resource: !Sub 'arn:aws:s3:::${LogSherlockUploads}'
         - DynamoDBCrudPolicy:
             TableName: !Ref TicketsTable
         - DynamoDBCrudPolicy:
@@ -197,7 +211,8 @@ Resources:
       Environment:
         Variables:
           LICENSES_TABLE: !Ref LicensesTable
-          ADMIN_SECRET: 'LSPRO2026KRISHNA'
+          ADMIN_SECRET: !Ref AdminSecret
+          ALLOWED_ORIGINS: !Sub 'https://${CloudFrontDistribution.DomainName},http://localhost:8888'
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref LicensesTable
@@ -206,7 +221,7 @@ Resources:
               Action:
                 - ses:SendEmail
                 - ses:SendRawEmail
-              Resource: '*'
+              Resource: !Sub 'arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/*'
       Events:
         Activate:
           Type: HttpApi
@@ -285,6 +300,33 @@ Resources:
         RestrictPublicBuckets: true
 
   # ============================================================
+  # CloudFront Security Headers Policy
+  # ============================================================
+  SecurityHeadersPolicy:
+    Type: AWS::CloudFront::ResponseHeadersPolicy
+    Properties:
+      ResponseHeadersPolicyConfig:
+        Name: LogSherlock-SecurityHeaders
+        SecurityHeadersConfig:
+          StrictTransportSecurity:
+            AccessControlMaxAgeSec: 31536000
+            IncludeSubdomains: true
+            Override: true
+            Preload: false
+          ContentTypeOptions:
+            Override: true
+          FrameOptions:
+            FrameOption: SAMEORIGIN
+            Override: true
+          XSSProtection:
+            ModeBlock: true
+            Override: true
+            Protection: true
+          ReferrerPolicy:
+            ReferrerPolicy: strict-origin-when-cross-origin
+            Override: true
+
+  # ============================================================
   # CloudFront Distribution - CDN & HTTPS Frontend
   # ============================================================
   CloudFrontDistribution:
@@ -297,6 +339,7 @@ Resources:
         DefaultCacheBehavior:
           TargetOriginId: ApiGatewayOrigin
           ViewerProtocolPolicy: redirect-to-https
+          ResponseHeadersPolicyId: !Ref SecurityHeadersPolicy
           AllowedMethods:
             - GET
             - HEAD

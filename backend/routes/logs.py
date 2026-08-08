@@ -183,29 +183,57 @@ def _compute_sha256(filepath):
 
 
 def _extract_archive(log_file, ticket_id):
-    """Extract an archive file and register contents."""
+    """Extract an archive file and register contents (with path traversal protection)."""
     extract_base = Path(current_app.config['EXTRACTION_FOLDER']) / str(ticket_id) / str(log_file.id)
     extract_base.mkdir(parents=True, exist_ok=True)
 
     ext = Path(log_file.original_filename).suffix.lower()
+    extract_base_str = str(extract_base.resolve())
+
+    def _is_safe_path(member_path):
+        """Check if extracted path stays within extract_base (prevents zip-slip/tar-slip)."""
+        abs_path = os.path.abspath(os.path.join(extract_base_str, member_path))
+        return abs_path.startswith(extract_base_str)
 
     try:
         if ext == '.7z':
             import py7zr
             with py7zr.SevenZipFile(log_file.file_path, mode='r') as z:
+                # Validate all paths before extraction
+                for name in z.getnames():
+                    if not _is_safe_path(name):
+                        current_app.logger.warning(f"Path traversal attempt in 7z: {name}")
+                        raise ValueError(f"Unsafe path in archive: {name}")
                 z.extractall(path=str(extract_base))
         elif ext == '.zip':
             import zipfile
             with zipfile.ZipFile(log_file.file_path, 'r') as z:
-                z.extractall(str(extract_base))
+                for member in z.namelist():
+                    if not _is_safe_path(member):
+                        current_app.logger.warning(f"Path traversal attempt in zip: {member}")
+                        continue  # Skip unsafe paths
+                    z.extract(member, str(extract_base))
         elif ext == '.rar':
             import rarfile
             with rarfile.RarFile(log_file.file_path, 'r') as z:
-                z.extractall(str(extract_base))
+                for member in z.namelist():
+                    if not _is_safe_path(member):
+                        current_app.logger.warning(f"Path traversal attempt in rar: {member}")
+                        continue
+                    z.extract(member, str(extract_base))
         elif ext in {'.tar', '.gz', '.bz2'}:
             import tarfile
             with tarfile.open(log_file.file_path, 'r:*') as z:
-                z.extractall(str(extract_base))
+                # Safe extraction: validate each member before extracting
+                for member in z.getmembers():
+                    # Block symlinks, hardlinks, and path traversal
+                    if member.issym() or member.islnk():
+                        current_app.logger.warning(f"Skipping symlink/hardlink in tar: {member.name}")
+                        continue
+                    if not _is_safe_path(member.name):
+                        current_app.logger.warning(f"Path traversal attempt in tar: {member.name}")
+                        continue
+                    z.extract(member, str(extract_base))
 
         log_file.is_extracted = True
         log_file.extraction_path = str(extract_base)

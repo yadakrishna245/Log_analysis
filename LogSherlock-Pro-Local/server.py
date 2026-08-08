@@ -23,6 +23,12 @@ class LogSherlockHandler(http.server.SimpleHTTPRequestHandler):
         super().__init__(*args, directory=DIR, **kwargs)
 
     def do_POST(self):
+        # Limit request body size to 1MB for API proxy calls
+        content_length = int(self.headers.get('Content-Length', 0))
+        if content_length > 1 * 1024 * 1024:  # 1MB max
+            self._json_response({'error': 'Request body too large (max 1MB)'}, 413)
+            return
+
         if self.path == '/api/copilot/device-code':
             self._proxy_device_code()
         elif self.path == '/api/copilot/poll-token':
@@ -54,10 +60,23 @@ class LogSherlockHandler(http.server.SimpleHTTPRequestHandler):
             super().do_GET()
 
     def end_headers(self):
-        # Prevent browser caching — always serve fresh files
+        # Security headers
         self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
         self.send_header('Pragma', 'no-cache')
         self.send_header('Expires', '0')
+        self.send_header('X-Content-Type-Options', 'nosniff')
+        self.send_header('X-Frame-Options', 'SAMEORIGIN')
+        self.send_header('X-XSS-Protection', '1; mode=block')
+        self.send_header('Referrer-Policy', 'strict-origin-when-cross-origin')
+        self.send_header('Content-Security-Policy',
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline'; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+            "font-src 'self' https://fonts.gstatic.com; "
+            "img-src 'self' data: blob:; "
+            "connect-src 'self' https://api.github.com https://api.githubcopilot.com "
+            "https://github.com https://5bruz4e6hj.execute-api.us-east-1.amazonaws.com;"
+        )
         super().end_headers()
 
     def _proxy_device_code(self):
@@ -153,7 +172,7 @@ class LogSherlockHandler(http.server.SimpleHTTPRequestHandler):
                 # Stream response back to client
                 self.send_response(200)
                 self.send_header('Content-Type', 'text/event-stream')
-                self.send_header('Access-Control-Allow-Origin', '*')
+                self.send_header('Access-Control-Allow-Origin', 'http://localhost:8888')
                 self.send_header('Cache-Control', 'no-cache')
                 self.end_headers()
                 while True:
@@ -176,14 +195,14 @@ class LogSherlockHandler(http.server.SimpleHTTPRequestHandler):
         self.send_response(code)
         self.send_header('Content-Type', 'application/json')
         self.send_header('Content-Length', str(len(body)))
-        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Origin', 'http://localhost:8888')
         self.end_headers()
         self.wfile.write(body)
 
     def do_OPTIONS(self):
         """Handle CORS preflight."""
         self.send_response(204)
-        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Origin', 'http://localhost:8888')
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
         self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Copilot-Token')
         self.end_headers()
@@ -194,7 +213,7 @@ class LogSherlockHandler(http.server.SimpleHTTPRequestHandler):
 
 
 def main():
-    server = http.server.HTTPServer(('0.0.0.0', PORT), LogSherlockHandler)
+    server = http.server.HTTPServer(('127.0.0.1', PORT), LogSherlockHandler)
     print(f"""
 ╔══════════════════════════════════════════════════════════╗
 ║  LogSherlock Pro — Local Server                         ║

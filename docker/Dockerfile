@@ -35,10 +35,15 @@ ENV STORAGE_BACKEND=local
 ENV UPLOAD_FOLDER=/tmp/uploads
 ENV LOG_DIR=/tmp/logs
 ENV PORT=8888
-ENV LOGSHERLOCK_DEV_MODE=true
+ENV LOGSHERLOCK_DEV_MODE=false
 
-# Create required directories
-RUN mkdir -p /tmp/uploads /tmp/logs
+# Create non-root user and required directories
+RUN adduser --disabled-password --gecos '' appuser \
+    && mkdir -p /tmp/uploads /tmp/logs \
+    && chown -R appuser:appuser /app /tmp/uploads /tmp/logs
+
+# Switch to non-root user
+USER appuser
 
 # Expose port
 EXPOSE 8888

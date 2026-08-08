@@ -8,7 +8,15 @@ set -e
 
 STACK_NAME="${1:-logsherlock-pro}"
 REGION="${2:-us-east-1}"
-API_KEY="${3:-logsherlock-hpe-2026}"
+API_KEY="${3:-}"
+
+# Generate a strong random API key if none provided
+if [ -z "$API_KEY" ]; then
+    API_KEY=$(openssl rand -hex 24)
+    echo "  🔑 Generated API key: $API_KEY"
+    echo "  ⚠️  Save this key! You'll need it for API access."
+    echo ""
+fi
 
 echo ""
 echo "╔══════════════════════════════════════════════════════════════════╗"

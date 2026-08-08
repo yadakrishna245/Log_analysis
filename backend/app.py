@@ -97,11 +97,8 @@ def create_app(config_class=Config):
         # Knowledge base and runbooks are reference data (no customer data)
         if request.path.startswith('/api/knowledge/'):
             return None
-        # Ollama proxy — local AI, no customer data (only pattern names)
+        # Ollama proxy — local AI only, restricted to localhost Ollama instance
         if request.path.startswith('/api/ollama/'):
-            return None
-        # Jira proxy — credentials passed per-request, no data stored server-side
-        if request.path.startswith('/api/jira/'):
             return None
         # Analytics — tracking events, no sensitive data
         if request.path.startswith('/api/analytics/'):
@@ -155,17 +152,39 @@ def create_app(config_class=Config):
         _rate_limit_store[ip].append(now)
 
     # Security headers + CORS
+    ALLOWED_ORIGINS = [
+        'https://d3tv1czat55yad.cloudfront.net',
+        'http://localhost:8888',
+        'http://127.0.0.1:8888',
+    ]
+
     @app.after_request
     def add_security_headers(response):
         response.headers['X-Content-Type-Options'] = 'nosniff'
         response.headers['X-Frame-Options'] = 'SAMEORIGIN'
         response.headers['X-XSS-Protection'] = '1; mode=block'
         response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
-        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+
+        # CORS: restrict to known origins
+        origin = request.headers.get('Origin', '')
+        if origin in ALLOWED_ORIGINS:
+            response.headers['Access-Control-Allow-Origin'] = origin
+        elif app.config.get('DEBUG') or os.environ.get('LOGSHERLOCK_DEV_MODE', '').lower() in ('true', '1', 'yes'):
+            response.headers['Access-Control-Allow-Origin'] = origin or '*'
         response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-API-Key, X-Requested-With'
         response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+        response.headers['Access-Control-Max-Age'] = '3600'
+
         if not app.config.get('DEBUG'):
-            response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://raw.githubusercontent.com http://localhost:11434;"
+            response.headers['Content-Security-Policy'] = (
+                "default-src 'self'; "
+                "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+                "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+                "font-src 'self' https://fonts.gstatic.com; "
+                "img-src 'self' data: blob:; "
+                "connect-src 'self' https://raw.githubusercontent.com http://localhost:11434;"
+            )
         return response
 
     # Health check endpoint
@@ -230,11 +249,32 @@ def create_app(config_class=Config):
             return jsonify({'error': str(e)}), 503
 
     # ─── Jira API Proxy — avoids CORS, credentials passed per-request ────────
+    # Allowlist of valid Jira domains (add customer Jira instances here)
+    JIRA_ALLOWED_HOSTS = [
+        'atlassian.net',
+        'jira.com',
+    ]
+
+    def _validate_jira_url(url):
+        """Validate that jira_url points to a legitimate Jira instance."""
+        from urllib.parse import urlparse
+        parsed = urlparse(url)
+        if parsed.scheme != 'https':
+            return False
+        host = parsed.hostname or ''
+        # Must end with an allowed Jira domain
+        return any(host.endswith(domain) for domain in JIRA_ALLOWED_HOSTS)
+
     @app.route('/api/jira/ticket/<ticket_id>', methods=['POST'])
     def jira_get_ticket(ticket_id):
         """Proxy to Jira REST API to fetch ticket details. Credentials from request body."""
         import requests as req
+        import re
         try:
+            # Validate ticket_id format
+            if not re.match(r'^[A-Z][A-Z0-9]+-\d+$', ticket_id):
+                return jsonify({'error': 'Invalid ticket ID format. Expected: PROJECT-123'}), 400
+
             data = request.get_json()
             jira_url = data.get('jira_url', '').rstrip('/')
             email = data.get('email', '')
@@ -242,6 +282,10 @@ def create_app(config_class=Config):
 
             if not all([jira_url, email, api_token]):
                 return jsonify({'error': 'Missing Jira credentials (jira_url, email, api_token)'}), 400
+
+            # SSRF protection: validate URL against allowlist
+            if not _validate_jira_url(jira_url):
+                return jsonify({'error': 'Invalid Jira URL. Must be a valid *.atlassian.net or *.jira.com HTTPS URL.'}), 400
 
             # Fetch issue details
             r = req.get(
@@ -297,7 +341,12 @@ def create_app(config_class=Config):
     def jira_post_comment(ticket_id):
         """Proxy to post a comment to a Jira ticket."""
         import requests as req
+        import re
         try:
+            # Validate ticket_id format
+            if not re.match(r'^[A-Z][A-Z0-9]+-\d+$', ticket_id):
+                return jsonify({'error': 'Invalid ticket ID format. Expected: PROJECT-123'}), 400
+
             data = request.get_json()
             jira_url = data.get('jira_url', '').rstrip('/')
             email = data.get('email', '')
@@ -306,6 +355,10 @@ def create_app(config_class=Config):
 
             if not all([jira_url, email, api_token, comment_body]):
                 return jsonify({'error': 'Missing required fields'}), 400
+
+            # SSRF protection: validate URL against allowlist
+            if not _validate_jira_url(jira_url):
+                return jsonify({'error': 'Invalid Jira URL. Must be a valid *.atlassian.net or *.jira.com HTTPS URL.'}), 400
 
             r = req.post(
                 f"{jira_url}/rest/api/2/issue/{ticket_id}/comment",
@@ -323,12 +376,17 @@ def create_app(config_class=Config):
         except Exception as e:
             return jsonify({'error': str(e)}), 500
 
-    # Live system metrics for demo
+    # Live system metrics for demo (requires auth via API key)
     @app.route('/api/health/detailed', methods=['GET'])
     def health_detailed():
-        """Detailed system health and metrics — perfect for live demo."""
-        import platform
-        import sys
+        """Detailed system health and metrics — requires authentication."""
+        # Require API key for detailed health info
+        api_key = request.headers.get('X-API-Key', '')
+        valid_key = app.config.get('API_KEY', os.environ.get('LOGSHERLOCK_API_KEY', ''))
+        is_dev = app.config.get('DEBUG') or os.environ.get('LOGSHERLOCK_DEV_MODE', '').lower() in ('true', '1', 'yes')
+        if valid_key and api_key != valid_key and not is_dev:
+            return jsonify({'error': 'Authentication required for detailed health endpoint.'}), 401
+
         from datetime import datetime, timezone
 
         # Database stats
@@ -342,34 +400,16 @@ def create_app(config_class=Config):
             open_tickets = Ticket.query.filter_by(status='open').count()
             analyzed_tickets = Ticket.query.filter_by(status='analyzed').count()
             db_status = 'connected'
-        except Exception as e:
-            db_status = f'error: {str(e)}'
+        except Exception:
+            db_status = 'error'
             total_tickets = total_findings = total_patterns = 0
             total_knowledge = total_suppressions = open_tickets = analyzed_tickets = 0
-
-        # Disk usage for uploads
-        upload_folder = app.config.get('UPLOAD_FOLDER', './uploads')
-        upload_size = 0
-        upload_files = 0
-        try:
-            for root, dirs, files in os.walk(upload_folder):
-                for f in files:
-                    fp = os.path.join(root, f)
-                    upload_size += os.path.getsize(fp)
-                    upload_files += 1
-        except Exception:
-            pass
 
         return jsonify({
             'status': 'healthy',
             'app': 'LogSherlock Pro',
             'version': '1.0.0',
             'timestamp': datetime.now(timezone.utc).isoformat(),
-            'system': {
-                'python_version': sys.version.split()[0],
-                'platform': platform.platform(),
-                'hostname': platform.node(),
-            },
             'database': {
                 'status': db_status,
                 'total_tickets': total_tickets,
@@ -380,11 +420,6 @@ def create_app(config_class=Config):
                 'total_knowledge_entries': total_knowledge,
                 'active_suppressions': total_suppressions,
             },
-            'storage': {
-                'upload_folder': upload_folder,
-                'total_upload_size_mb': round(upload_size / (1024 * 1024), 2),
-                'total_upload_files': upload_files,
-            },
             'capabilities': {
                 'single_line_patterns': total_patterns,
                 'multiline_patterns': 5,
@@ -394,13 +429,6 @@ def create_app(config_class=Config):
                 'zip_bomb_protection': True,
                 'false_positive_suppression': True,
                 'self_learning_feedback': True,
-            },
-            'security': {
-                'auth_enabled': bool(app.config.get('API_KEY')),
-                'dev_mode': bool(app.config.get('DEBUG') or os.environ.get('LOGSHERLOCK_DEV_MODE', '').lower() in ('true', '1')),
-                'security_headers': True,
-                'zip_slip_protection': True,
-                'max_upload_size_gb': app.config.get('MAX_CONTENT_LENGTH', 0) / (1024**3),
             },
         })
 

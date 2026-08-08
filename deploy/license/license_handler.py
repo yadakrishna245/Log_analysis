@@ -24,7 +24,9 @@ from datetime import datetime, timezone
 import boto3
 
 TABLE_NAME = os.environ.get('LICENSES_TABLE', 'LogSherlock-Licenses')
-ADMIN_SECRET = os.environ.get('ADMIN_SECRET', 'LSPRO2026KRISHNA')
+ADMIN_SECRET = os.environ.get('ADMIN_SECRET')
+if not ADMIN_SECRET:
+    raise RuntimeError("ADMIN_SECRET environment variable is required. Cannot start without it.")
 
 dynamodb = boto3.resource('dynamodb')
 table = dynamodb.Table(TABLE_NAME)
@@ -46,10 +48,13 @@ def handler(event, context):
     except (json.JSONDecodeError, TypeError):
         data = {}
 
-    # CORS headers
+    # CORS headers - restrict to allowed origins
+    origin = (event.get('headers') or {}).get('origin', '')
+    allowed_origins = [o.strip() for o in os.environ.get('ALLOWED_ORIGINS', 'https://d3tv1czat55yad.cloudfront.net,http://localhost:8888').split(',')]
+    allowed_origin = origin if origin in allowed_origins else allowed_origins[0]
     headers = {
         'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Origin': allowed_origin,
         'Access-Control-Allow-Headers': 'Content-Type, Authorization',
         'Access-Control-Allow-Methods': 'POST, OPTIONS'
     }
