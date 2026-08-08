@@ -5,7 +5,7 @@ __pycache__/
 build/
 *.egg
 
-# Distribution output
+# Distribution build folder (local only)
 dist/
 
 # Virtual environments
@@ -61,24 +61,10 @@ flask_stderr.log
 instance/
 CHECKPOINT.md
 
-# Admin Dashboard (PRIVATE - in monitor repo only)
+# Pro-Local development folder (kept locally, NOT in repo)
+# Only the ZIP bundle is committed for distribution
+LogSherlock-Pro-Local/
 templates/admin/
-LogSherlock-Pro-Local/Administration/
-LogSherlock-Pro-Local/Check-Licenses.ps1
-LogSherlock-Pro-Local/USER-TRACKING.md
-LogSherlock-Pro-Local/LogSherlock-Pro.zip
-LogSherlock-Pro-Local/LogSherlock.bat
-LogSherlock-Pro-Local/screenshots/
-LogSherlock-Pro-Local/new-patterns-combined.js
-LogSherlock-Pro-Local/server.py
-LogSherlock-Pro-Local/Generate-License.ps1
-LogSherlock-Pro-Local/SETUP-GUIDE.html
-LogSherlock-Pro-Local/LICENSE-GUIDE.md
-LogSherlock-Pro-Local/CONFIGURATION.md
-LogSherlock-Pro-Local/README.md
-LogSherlock-Pro-Local/README-LICENSE.md
-LogSherlock-Pro-Local/LICENSE
-LogSherlock-Pro-Local/licenses-sample.json
 
 # Unused/Removed
 build_exe.bat
