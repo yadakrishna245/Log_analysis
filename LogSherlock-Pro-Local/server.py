@@ -215,11 +215,11 @@ class LogSherlockHandler(http.server.SimpleHTTPRequestHandler):
 def main():
     server = http.server.HTTPServer(('127.0.0.1', PORT), LogSherlockHandler)
     print(f"""
-╔══════════════════════════════════════════════════════════╗
-║  LogSherlock Pro — Local Server                         ║
-║  URL: http://localhost:{PORT}                             ║
-║  Press Ctrl+C to stop                                   ║
-╚══════════════════════════════════════════════════════════╝
++----------------------------------------------------------+
+|  LogSherlock Pro -- Local Server                         |
+|  URL: http://localhost:{PORT}                             |
+|  Press Ctrl+C to stop                                    |
++----------------------------------------------------------+
 """)
     try:
         server.serve_forever()
