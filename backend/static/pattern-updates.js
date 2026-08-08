@@ -10,11 +10,51 @@
   // ─── Embedded Pattern Update History ───────────────────────────────────────────
   const PATTERN_UPDATES = [
     {
-      version: 675,
+      version: 975,
       date: '2026-08-08',
       dateLabel: 'Aug 8, 2026',
-      added: 220,
+      added: 300,
       current: true,
+      categories: ['HPE VME/Morpheus', 'GFS2 Clustered Filesystem', 'NFS Storage', 'HPE Alletra/Nimble', 'HPE GreenLake', 'VMware-to-HVM Migration', 'HVM Version-Specific'],
+      patterns: [
+        'VME Manager - database connection pool exceeded',
+        'VME Manager - Elasticsearch cluster health red',
+        'VME Manager - RabbitMQ queue overflow',
+        'HVM KVM process crash detected',
+        'HVM libvirtd service failure',
+        'VME cluster split-brain detected',
+        'VME instance provisioning failed',
+        'GFS2 filesystem withdraw triggered',
+        'GFS2 DLM lock timeout',
+        'GFS2 journal recovery required',
+        'NFS mount.nfs connection timed out',
+        'NFS stale file handle detected',
+        'NFS server not responding',
+        'Alletra array controller failover',
+        'Alletra drive predictive failure',
+        'Alletra volume offline',
+        'Alletra replication link down',
+        'GreenLake API 401 unauthorized',
+        'GreenLake device onboarding failed',
+        'GreenLake DSCC connection timeout',
+        'Migration VM not booting - INACCESSIBLE_BOOT_DEVICE',
+        'Migration VirtIO driver missing',
+        'Migration virt-v2v operation failed',
+        'Migration UEFI boot entry not found',
+        'HVM 8.0 cluster upgrade blocked',
+        'HVM 8.1.12 live migration failure',
+        'HVM 9.0 major upgrade path required',
+        'Migration disk format conversion failed',
+        'Migration initramfs missing VirtIO modules',
+        'GreenLake flex capacity warning exceeded'
+      ]
+    },
+    {
+      version: 975,
+      date: '2026-08-08',
+      dateLabel: 'Aug 8, 2026',
+      added: 520,
+      current: false,
       categories: ['HPE VME/Server Hardware', 'Linux System', 'Windows System', 'Storage & SAN', 'Network', 'Virtualization', 'Kubernetes & Containers', 'Database', 'Security & Compliance'],
       patterns: [
         'iLO connectivity failure - connection refused',
@@ -365,9 +405,9 @@
     }
   ];
 
-  const TOTAL_SIGNATURES = 675;
-  const CURRENT_VERSION = 675;
-  const LATEST_VERSION = 675;
+  const TOTAL_SIGNATURES = 975;
+  const CURRENT_VERSION = 975;
+  const LATEST_VERSION = 975;
   const LAST_UPDATED = '2026-08-08';
   const NEXT_UPDATE_DATE = new Date('2026-09-08');
   const AUTO_UPDATE_KEY = 'logsherlock_auto_update_enabled';
@@ -1194,6 +1234,27 @@
   ];
 
   // ═══════════════════════════════════════════════════════════════════════════════
+  // HPE VME / GFS2 / NFS / Alletra / GreenLake / Migration / HVM Versions
+  // Loaded from hpe-advanced-patterns.js (external pattern module)
+  // ═══════════════════════════════════════════════════════════════════════════════
+  const DETECTION_PATTERNS_HPE_VME = (typeof window !== 'undefined' && window._LSP_HPE_VME) || [];
+  const DETECTION_PATTERNS_GFS2 = (typeof window !== 'undefined' && window._LSP_GFS2) || [];
+  const DETECTION_PATTERNS_NFS = (typeof window !== 'undefined' && window._LSP_NFS) || [];
+  const DETECTION_PATTERNS_ALLETRA = (typeof window !== 'undefined' && window._LSP_ALLETRA) || [];
+  const DETECTION_PATTERNS_GREENLAKE = (typeof window !== 'undefined' && window._LSP_GREENLAKE) || [];
+  const DETECTION_PATTERNS_MIGRATION = (typeof window !== 'undefined' && window._LSP_MIGRATION) || [];
+  const DETECTION_PATTERNS_HVM_VERSIONS = (typeof window !== 'undefined' && window._LSP_HVM_VERSIONS) || [];
+
+  // Extended HPE Resolution Patterns (300 additional from hpe-resolution-patterns.js)
+  const DETECTION_PATTERNS_HPE_VME_EXT = (typeof window !== 'undefined' && window._LSP_HPE_VME_EXT) || [];
+  const DETECTION_PATTERNS_GFS2_EXT = (typeof window !== 'undefined' && window._LSP_GFS2_EXT) || [];
+  const DETECTION_PATTERNS_NFS_EXT = (typeof window !== 'undefined' && window._LSP_NFS_EXT) || [];
+  const DETECTION_PATTERNS_ALLETRA_EXT = (typeof window !== 'undefined' && window._LSP_ALLETRA_EXT) || [];
+  const DETECTION_PATTERNS_GREENLAKE_EXT = (typeof window !== 'undefined' && window._LSP_GREENLAKE_EXT) || [];
+  const DETECTION_PATTERNS_MIGRATION_EXT = (typeof window !== 'undefined' && window._LSP_MIGRATION_EXT) || [];
+  const DETECTION_PATTERNS_HVM_VERSIONS_EXT = (typeof window !== 'undefined' && window._LSP_HVM_VERSIONS_EXT) || [];
+
+  // ═══════════════════════════════════════════════════════════════════════════════
   // Merge all detection patterns into single array
   // ═══════════════════════════════════════════════════════════════════════════════
   const ALL_DETECTION_PATTERNS = [
@@ -1205,7 +1266,21 @@
     ...DETECTION_PATTERNS_VIRT,
     ...DETECTION_PATTERNS_K8S,
     ...DETECTION_PATTERNS_DATABASE,
-    ...DETECTION_PATTERNS_SECURITY
+    ...DETECTION_PATTERNS_SECURITY,
+    ...DETECTION_PATTERNS_HPE_VME,
+    ...DETECTION_PATTERNS_GFS2,
+    ...DETECTION_PATTERNS_NFS,
+    ...DETECTION_PATTERNS_ALLETRA,
+    ...DETECTION_PATTERNS_GREENLAKE,
+    ...DETECTION_PATTERNS_MIGRATION,
+    ...DETECTION_PATTERNS_HVM_VERSIONS,
+    ...DETECTION_PATTERNS_HPE_VME_EXT,
+    ...DETECTION_PATTERNS_GFS2_EXT,
+    ...DETECTION_PATTERNS_NFS_EXT,
+    ...DETECTION_PATTERNS_ALLETRA_EXT,
+    ...DETECTION_PATTERNS_GREENLAKE_EXT,
+    ...DETECTION_PATTERNS_MIGRATION_EXT,
+    ...DETECTION_PATTERNS_HVM_VERSIONS_EXT
   ];
 
   // ─── Pattern Matching Engine ───────────────────────────────────────────────────
