@@ -8,7 +8,7 @@
 [![Flask](https://img.shields.io/badge/Flask-3.0-000000?style=for-the-badge&logo=flask&logoColor=white)](https://flask.palletsprojects.com)
 [![AWS](https://img.shields.io/badge/AWS-Serverless-FF9900?style=for-the-badge&logo=amazonaws&logoColor=white)](https://aws.amazon.com)
 [![Patterns](https://img.shields.io/badge/Patterns-455-01A982?style=for-the-badge)](docs/USER_GUIDE.md)
-[![Features](https://img.shields.io/badge/Features-144-8b5cf6?style=for-the-badge)](#-Features-144)
+[![Features](https://img.shields.io/badge/Features-158-8b5cf6?style=for-the-badge)](#-Features-158)
 [![Known Issues](https://img.shields.io/badge/Known_Issues-120-01A982?style=for-the-badge)](docs/USER_GUIDE.md)
 [![Runbooks](https://img.shields.io/badge/Runbooks-12-01A982?style=for-the-badge)](docs/USER_GUIDE.md)
 [![Privacy](https://img.shields.io/badge/Privacy-Zero_Upload-01A982?style=for-the-badge&logo=shieldsdotio&logoColor=white)](#-security--privacy)
@@ -508,7 +508,7 @@ flowchart TD
 |---|---------|-------------|
 | 128 | **⏰ Temporal Clustering** | Groups findings by timestamp proximity (60s window) — "What happened at 03:14?" |
 | 129 | **📌 Pin & Annotate** | Bookmark any finding with free-text notes — persists across sessions |
-| 130 | **⌨️ Command Palette (Ctrl+K)** | VS Code-style instant jump to any of 144 Features — power user speed |
+| 130 | **⌨️ Command Palette (Ctrl+K)** | VS Code-style instant jump to any of 158 Features — power user speed |
 | 131 | **🔇 Noise Suppression** | Auto-collapse repetitive patterns (10+ occurrences) — focus on unique issues |
 | 132 | **💾 Session Persistence** | IndexedDB auto-save — resume analysis after page reload with all results intact |
 | 133 | **✏️ Custom Pattern Editor** | Define your own regex rules with live validation — runs alongside 455 built-in patterns |
@@ -528,6 +528,25 @@ flowchart TD
 | 142 | **📊 Alert Fatigue Scorer** | Statistical signal vs noise — "You have 847 findings but only 12 matter, here's why" |
 | 143 | **🔍 Smart Log Search (Regex Builder)** | Visual regex construction for non-regex users + saved searches library |
 | 144 | **📋 SOP Compliance Checker** | Define SOPs as checklists, auto-trigger by scan findings, track completion + export history |
+
+### 🏢 Enterprise Analysis & Productivity Features (NEW — Aug 8)
+
+| # | Feature | Description |
+|---|---------|-------------|
+| 145 | **🔗 Cross-Log Correlation** | Upload multiple log files → auto-correlate events by timestamp (±5s window) across services |
+| 146 | **📈 Anomaly Heatmap** | CSS grid heatmap showing error density by hour/day — instantly spot recurring patterns |
+| 147 | **🧬 Root Cause Chain Builder** | 24 causal rules detect chains (e.g., disk full → journal failed → service crashed → node down) |
+| 148 | **⏰ Predictive Alert (Trend Extrapolation)** | Linear regression on numeric patterns — "disk hits 100% in 14 hours" with R² confidence |
+| 149 | **📝 Auto Incident Report Generator** | One-click export → structured report (timeline, root cause, impact, remediation) as .txt/.md |
+| 150 | **🔄 Diff Two Scans** | Compare current vs baseline — highlight NEW, RESOLVED, UNCHANGED findings at a glance |
+| 151 | **🏷️ Smart Tagging & Grouping** | Auto-group by category + custom tags with drag-drop reorg and filtered views |
+| 152 | **📊 KPI Dashboard (Personal Stats)** | Track scans, findings, categories, avg per scan over time — real localStorage history |
+| 153 | **🔔 Watch Patterns** | Define patterns to monitor — when matched in any scan, they bubble to top with 🚨 alert |
+| 154 | **💊 Remediation Suggestions** | User-editable fix library matched to findings by category/pattern — copy fix with one click |
+| 155 | **📋 Runbook Executor** | Attach checkable runbook steps to findings → track completion → export proof-of-work |
+| 156 | **👥 Shift Handoff Report** | Structured L4→L4 handoff: findings summary, open items, actions taken, next steps (.txt/.md) |
+| 157 | **🔄 Pattern Library Sync** | Export/import custom patterns as JSON between team members with merge strategy selector |
+| 158 | **⚖️ Severity Override Rules** | Persistent per-user severity customization — "In MY environment, X is ALWAYS critical" |
 
 ---
 
@@ -1076,7 +1095,7 @@ http://localhost:8888
 | Port | `localhost:8888` | CloudFront URL |
 | Dependencies | Python only (stdlib) | None (browser) |
 | License | Per-machine key | Per-machine key |
-| All 144 Features | ✅ | ✅ |
+| All 158 Features | ✅ | ✅ |
 | Works air-gapped | ✅ | ❌ |
 
 #### Troubleshooting

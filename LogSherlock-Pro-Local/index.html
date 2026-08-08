@@ -2806,6 +2806,21 @@ function render(data){
     if (typeof renderAlertFatiguePanel === 'function' && f.length > 0) renderAlertFatiguePanel(f);
     if (typeof renderSmartSearchPanel === 'function' && f.length > 0) renderSmartSearchPanel(f);
     if (typeof renderSOPPanel === 'function') renderSOPPanel(f);
+    // Advanced Analysis & Enterprise Features
+    if (typeof renderCrossLogCorrelationPanel === 'function' && f.length > 0) renderCrossLogCorrelationPanel(f);
+    if (typeof renderAnomalyHeatmapPanel === 'function' && f.length > 0) renderAnomalyHeatmapPanel(f);
+    if (typeof renderRootCauseChainPanel === 'function' && f.length > 0) renderRootCauseChainPanel(f);
+    if (typeof renderPredictiveAlertPanel === 'function' && f.length > 0) renderPredictiveAlertPanel(f);
+    if (typeof renderIncidentReportPanel === 'function' && f.length > 0) renderIncidentReportPanel(f);
+    if (typeof renderScanDiffPanel === 'function' && f.length > 0) renderScanDiffPanel(f);
+    if (typeof renderSmartTaggingPanel === 'function' && f.length > 0) renderSmartTaggingPanel(f);
+    if (typeof renderKPIDashboardPanel === 'function') renderKPIDashboardPanel(f);
+    if (typeof renderWatchPatternsPanel === 'function') renderWatchPatternsPanel(f);
+    if (typeof renderRemediationPanel === 'function' && f.length > 0) renderRemediationPanel(f);
+    if (typeof renderRunbookExecutorPanel === 'function') renderRunbookExecutorPanel(f);
+    if (typeof renderShiftHandoffPanel === 'function' && f.length > 0) renderShiftHandoffPanel(f);
+    if (typeof renderPatternLibrarySyncPanel === 'function') renderPatternLibrarySyncPanel(f);
+    if (typeof renderSeverityOverridePanel === 'function' && f.length > 0) renderSeverityOverridePanel(f);
 
     saveHistory(data);
 }
@@ -7475,6 +7490,20 @@ function generateLocalAdvisorResponse(text) {
 <script src="alert-fatigue-scorer.js"></script>
 <script src="smart-log-search.js"></script>
 <script src="sop-compliance-checker.js"></script>
+<script src="cross-log-correlation.js"></script>
+<script src="anomaly-heatmap.js"></script>
+<script src="root-cause-chain.js"></script>
+<script src="predictive-alert.js"></script>
+<script src="incident-report-generator.js"></script>
+<script src="scan-diff.js"></script>
+<script src="smart-tagging.js"></script>
+<script src="kpi-dashboard.js"></script>
+<script src="watch-patterns.js"></script>
+<script src="remediation-suggestions.js"></script>
+<script src="runbook-executor.js"></script>
+<script src="shift-handoff.js"></script>
+<script src="pattern-library-sync.js"></script>
+<script src="severity-override.js"></script>
 
 </body>
 </html>

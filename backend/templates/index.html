@@ -2688,6 +2688,21 @@ function render(data){
     if (typeof renderAlertFatiguePanel === 'function' && f.length > 0) renderAlertFatiguePanel(f);
     if (typeof renderSmartSearchPanel === 'function' && f.length > 0) renderSmartSearchPanel(f);
     if (typeof renderSOPPanel === 'function') renderSOPPanel(f);
+    // Advanced Analysis & Enterprise Features
+    if (typeof renderCrossLogCorrelationPanel === 'function' && f.length > 0) renderCrossLogCorrelationPanel(f);
+    if (typeof renderAnomalyHeatmapPanel === 'function' && f.length > 0) renderAnomalyHeatmapPanel(f);
+    if (typeof renderRootCauseChainPanel === 'function' && f.length > 0) renderRootCauseChainPanel(f);
+    if (typeof renderPredictiveAlertPanel === 'function' && f.length > 0) renderPredictiveAlertPanel(f);
+    if (typeof renderIncidentReportPanel === 'function' && f.length > 0) renderIncidentReportPanel(f);
+    if (typeof renderScanDiffPanel === 'function' && f.length > 0) renderScanDiffPanel(f);
+    if (typeof renderSmartTaggingPanel === 'function' && f.length > 0) renderSmartTaggingPanel(f);
+    if (typeof renderKPIDashboardPanel === 'function') renderKPIDashboardPanel(f);
+    if (typeof renderWatchPatternsPanel === 'function') renderWatchPatternsPanel(f);
+    if (typeof renderRemediationPanel === 'function' && f.length > 0) renderRemediationPanel(f);
+    if (typeof renderRunbookExecutorPanel === 'function') renderRunbookExecutorPanel(f);
+    if (typeof renderShiftHandoffPanel === 'function' && f.length > 0) renderShiftHandoffPanel(f);
+    if (typeof renderPatternLibrarySyncPanel === 'function') renderPatternLibrarySyncPanel(f);
+    if (typeof renderSeverityOverridePanel === 'function' && f.length > 0) renderSeverityOverridePanel(f);
 
     saveHistory(data);
 }
@@ -5963,5 +5978,19 @@ function askOllamaTicket() {
 <script src='/static/alert-fatigue-scorer.js'></script>
 <script src='/static/smart-log-search.js'></script>
 <script src='/static/sop-compliance-checker.js'></script>
+<script src='/static/cross-log-correlation.js'></script>
+<script src='/static/anomaly-heatmap.js'></script>
+<script src='/static/root-cause-chain.js'></script>
+<script src='/static/predictive-alert.js'></script>
+<script src='/static/incident-report-generator.js'></script>
+<script src='/static/scan-diff.js'></script>
+<script src='/static/smart-tagging.js'></script>
+<script src='/static/kpi-dashboard.js'></script>
+<script src='/static/watch-patterns.js'></script>
+<script src='/static/remediation-suggestions.js'></script>
+<script src='/static/runbook-executor.js'></script>
+<script src='/static/shift-handoff.js'></script>
+<script src='/static/pattern-library-sync.js'></script>
+<script src='/static/severity-override.js'></script>
 </body>
 </html>

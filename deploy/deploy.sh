@@ -1,6 +1,6 @@
 #!/bin/bash
 # LogSherlock Pro v4.0 - Single-click AWS Serverless Deployment
-# Features: 455 patterns, 144 features, streaming engine (3GB+), multi-file scan,
+# Features: 455 patterns, 158 features, streaming engine (3GB+), multi-file scan,
 #           Jira integration, Ticket Advisor, AI Copilot, Compliance Export,
 #           Shift Handoff, Runbook Executor, Custom Patterns, Session Persistence
 # Usage: ./deploy.sh [stack-name] [region] [api-key]
@@ -16,7 +16,7 @@ CLOUDFRONT_DIST_ID="E3V2MZ00F7WXY9"
 echo ""
 echo "╔══════════════════════════════════════════════════════════════════╗"
 echo "║        LogSherlock Pro v4.0 — AWS Serverless Deployment        ║"
-echo "║   455 Patterns | 144 features | Enterprise Log Analysis        ║"
+echo "║   455 Patterns | 158 features | Enterprise Log Analysis        ║"
 echo "╚══════════════════════════════════════════════════════════════════╝"
 echo ""
 
@@ -97,7 +97,7 @@ echo "  📦 Stack:       ${STACK_NAME}"
 echo ""
 echo "  ── Features Deployed ──"
 echo "  • 455 detection patterns across 14 categories"
-echo "  • 144 features (52 JS modules)"
+echo "  • 158 features (66 JS modules)"
 echo "  • 🎯 Ticket Advisor — iterative L4 troubleshooting (<10ms)"
 echo "  • Streaming engine — handles 3GB+ files"
 echo "  • Multi-file scan (30+ archives at once)"

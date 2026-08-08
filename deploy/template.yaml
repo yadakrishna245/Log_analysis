@@ -54,7 +54,7 @@ Resources:
       Runtime: python3.11
       MemorySize: 2048
       Timeout: 300
-      Description: LogSherlock Pro v4.0 - AI-powered log analysis with 144 features
+      Description: LogSherlock Pro v4.0 - AI-powered log analysis with 158 features
       Environment:
         Variables:
           FLASK_ENV: !Ref FlaskEnv
