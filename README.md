@@ -8,7 +8,7 @@
 [![Flask](https://img.shields.io/badge/Flask-3.0-000000?style=for-the-badge&logo=flask&logoColor=white)](https://flask.palletsprojects.com)
 [![AWS](https://img.shields.io/badge/AWS-Serverless-FF9900?style=for-the-badge&logo=amazonaws&logoColor=white)](https://aws.amazon.com)
 [![Patterns](https://img.shields.io/badge/Patterns-455-01A982?style=for-the-badge)](docs/USER_GUIDE.md)
-[![Features](https://img.shields.io/badge/Features-137-8b5cf6?style=for-the-badge)](#-Features-137)
+[![Features](https://img.shields.io/badge/Features-144-8b5cf6?style=for-the-badge)](#-Features-144)
 [![Known Issues](https://img.shields.io/badge/Known_Issues-120-01A982?style=for-the-badge)](docs/USER_GUIDE.md)
 [![Runbooks](https://img.shields.io/badge/Runbooks-12-01A982?style=for-the-badge)](docs/USER_GUIDE.md)
 [![Privacy](https://img.shields.io/badge/Privacy-Zero_Upload-01A982?style=for-the-badge&logo=shieldsdotio&logoColor=white)](#-security--privacy)
@@ -275,7 +275,7 @@ flowchart TD
 
 ---
 
-## ✨ Features (137)
+## ✨ Features (144)
 
 ### Core Analysis
 | # | Feature | Description |
@@ -508,7 +508,7 @@ flowchart TD
 |---|---------|-------------|
 | 128 | **⏰ Temporal Clustering** | Groups findings by timestamp proximity (60s window) — "What happened at 03:14?" |
 | 129 | **📌 Pin & Annotate** | Bookmark any finding with free-text notes — persists across sessions |
-| 130 | **⌨️ Command Palette (Ctrl+K)** | VS Code-style instant jump to any of 137 features — power user speed |
+| 130 | **⌨️ Command Palette (Ctrl+K)** | VS Code-style instant jump to any of 144 Features — power user speed |
 | 131 | **🔇 Noise Suppression** | Auto-collapse repetitive patterns (10+ occurrences) — focus on unique issues |
 | 132 | **💾 Session Persistence** | IndexedDB auto-save — resume analysis after page reload with all results intact |
 | 133 | **✏️ Custom Pattern Editor** | Define your own regex rules with live validation — runs alongside 455 built-in patterns |
@@ -516,6 +516,18 @@ flowchart TD
 | 135 | **🕐 Recent Scans Library** | Cache last 10 scan results — one-click re-open without re-uploading |
 | 136 | **👍 Confidence Feedback** | Thumbs up/down on findings — tool learns which patterns matter to YOU |
 | 137 | **📤 Shareable Snapshot** | Export analysis as self-contained HTML — recipient needs no license to view |
+
+### 🚀 Advanced Workflow Features (NEW — Aug 8)
+
+| # | Feature | Description |
+|---|---------|-------------|
+| 138 | **🔑 Failure Fingerprinting** | Deterministic hash of incident patterns → instant "seen this before?" matching from IndexedDB library |
+| 139 | **⏪ Log Playback (Time-Travel)** | Animated timeline replay with play/pause/rewind — reveals causal ordering invisible in text |
+| 140 | **💬 Natural Language Query** | Type plain English ("show critical storage errors in messages") → instant offline filtering |
+| 141 | **🧵 Investigation Threads** | Export/import investigation context WITHOUT sharing log data — HIPAA/classified safe |
+| 142 | **📊 Alert Fatigue Scorer** | Statistical signal vs noise — "You have 847 findings but only 12 matter, here's why" |
+| 143 | **🔍 Smart Log Search (Regex Builder)** | Visual regex construction for non-regex users + saved searches library |
+| 144 | **📋 SOP Compliance Checker** | Define SOPs as checklists, auto-trigger by scan findings, track completion + export history |
 
 ---
 
@@ -1064,7 +1076,7 @@ http://localhost:8888
 | Port | `localhost:8888` | CloudFront URL |
 | Dependencies | Python only (stdlib) | None (browser) |
 | License | Per-machine key | Per-machine key |
-| All 137 features | ✅ | ✅ |
+| All 144 Features | ✅ | ✅ |
 | Works air-gapped | ✅ | ❌ |
 
 #### Troubleshooting

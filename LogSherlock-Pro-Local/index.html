@@ -2798,6 +2798,15 @@ function render(data){
     if (typeof addRecentScan === 'function') addRecentScan(data);
     if (typeof saveSession === 'function') saveSession(data);
 
+    // Advanced Workflow Features
+    if (typeof renderFingerprintPanel === 'function' && f.length > 0) renderFingerprintPanel(f);
+    if (typeof renderLogPlaybackPanel === 'function' && f.length > 0) renderLogPlaybackPanel(f);
+    if (typeof renderNLQueryPanel === 'function' && f.length > 0) renderNLQueryPanel(f);
+    if (typeof renderCollabThreadsPanel === 'function') renderCollabThreadsPanel(f);
+    if (typeof renderAlertFatiguePanel === 'function' && f.length > 0) renderAlertFatiguePanel(f);
+    if (typeof renderSmartSearchPanel === 'function' && f.length > 0) renderSmartSearchPanel(f);
+    if (typeof renderSOPPanel === 'function') renderSOPPanel(f);
+
     saveHistory(data);
 }
 
@@ -7457,6 +7466,15 @@ function generateLocalAdvisorResponse(text) {
 <script src="recent-scans.js"></script>
 <script src="confidence-feedback.js"></script>
 <script src="shareable-snapshot.js"></script>
+
+<!-- Advanced Workflow Features (7 new) -->
+<script src="failure-fingerprint.js"></script>
+<script src="log-playback.js"></script>
+<script src="nl-query.js"></script>
+<script src="collab-threads.js"></script>
+<script src="alert-fatigue-scorer.js"></script>
+<script src="smart-log-search.js"></script>
+<script src="sop-compliance-checker.js"></script>
 
 </body>
 </html>
