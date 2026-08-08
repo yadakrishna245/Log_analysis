@@ -65,23 +65,45 @@ self.onmessage = async function(e) {
     function scanLines(text, fileName, mtime) {
         const lines = text.split('\n');
         filesAnalyzed++;
-        const maxLines = text.length > 5*1024*1024 ? 30000 : (text.length > 1024*1024 ? 50000 : 100000);
-        // Prepend archive name to file path if available
         const fullFile = archiveName ? archiveName + '/' + fileName : fileName;
+        const totalLineCount = lines.length;
         
-        for (let ln = 0; ln < Math.min(lines.length, maxLines); ln++) {
+        // For large files, scan head + tail (critical errors often at end of syslog)
+        let headLimit, tailStart;
+        if (text.length > 5*1024*1024) {
+            headLimit = 15000;  // First 15k lines
+            tailStart = Math.max(15000, totalLineCount - 15000); // Last 15k lines
+        } else if (text.length > 1024*1024) {
+            headLimit = 25000;
+            tailStart = Math.max(25000, totalLineCount - 25000);
+        } else {
+            headLimit = totalLineCount;
+            tailStart = totalLineCount; // no tail scan needed
+        }
+        
+        // Scan head
+        for (let ln = 0; ln < Math.min(totalLineCount, headLimit); ln++) {
             totalLines++;
             const line = lines[ln];
             if (!line || !PREFILTER_RE.test(line)) continue;
             for (const p of compiledPatterns) {
                 if (p.compiled.test(line)) {
+                    // Capture ±2 lines of context around the finding
+                    const ctxStart = Math.max(0, ln - 2);
+                    const ctxEnd = Math.min(totalLineCount - 1, ln + 2);
+                    const contextLines = [];
+                    for (let ci = ctxStart; ci <= ctxEnd; ci++) {
+                        const prefix = ci === ln ? '>>> ' : '    ';
+                        contextLines.push(prefix + lines[ci].substring(0, 300));
+                    }
+                    const lineContext = contextLines.join('\n');
                     findings.push({
                         pattern_name: p.name,
                         severity: p.severity,
                         category: p.category,
                         file: fullFile,
                         line_number: ln + 1,
-                        line_content: line.substring(0, 500),
+                        line_content: lineContext.substring(0, 1500),
                         description: p.description,
                         solution_hint: p.solution_hint || '',
                         file_date: mtime ? new Date(mtime * 1000).toISOString() : '',
@@ -92,6 +114,43 @@ self.onmessage = async function(e) {
                 }
             }
             if (findings.length >= MAX_FINDINGS) return;
+        }
+        
+        // Scan tail (for large files only)
+        if (tailStart < totalLineCount) {
+            for (let ln = tailStart; ln < totalLineCount; ln++) {
+                totalLines++;
+                const line = lines[ln];
+                if (!line || !PREFILTER_RE.test(line)) continue;
+                for (const p of compiledPatterns) {
+                    if (p.compiled.test(line)) {
+                        // Capture ±2 lines of context around the finding
+                        const ctxStart = Math.max(0, ln - 2);
+                        const ctxEnd = Math.min(totalLineCount - 1, ln + 2);
+                        const contextLines = [];
+                        for (let ci = ctxStart; ci <= ctxEnd; ci++) {
+                            const prefix = ci === ln ? '>>> ' : '    ';
+                            contextLines.push(prefix + lines[ci].substring(0, 300));
+                        }
+                        const lineContext = contextLines.join('\n');
+                        findings.push({
+                            pattern_name: p.name,
+                            severity: p.severity,
+                            category: p.category,
+                            file: fullFile,
+                            line_number: ln + 1,
+                            line_content: lineContext.substring(0, 1500),
+                            description: p.description,
+                            solution_hint: p.solution_hint || '',
+                            file_date: mtime ? new Date(mtime * 1000).toISOString() : '',
+                            log_timestamp: extractTimestamp(line),
+                        });
+                        if (findings.length >= MAX_FINDINGS) return;
+                        break;
+                    }
+                }
+                if (findings.length >= MAX_FINDINGS) return;
+            }
         }
     }
     

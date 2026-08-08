@@ -515,7 +515,7 @@
                             <div style="font-size:14px;color:var(--text-400)">VME Log Analysis Suite</div>
                         </div>
                     </div>
-                    <div class="pg-desc">Drop archives — scanned locally in your browser. Zero data uploaded. 156 pattern signatures.</div>
+                    <div class="pg-desc">Drop archives — scanned locally in your browser. Zero data uploaded. <span id="patternCountInline"></span> pattern signatures.</div>
                     <div id="valuePitch" style="margin-top:8px;font-size:11px;color:var(--text-500);line-height:1.6;max-width:680px;">
                         <span id="valuePitchToggle" style="cursor:pointer;color:var(--text-400);border-bottom:1px dashed var(--text-500);" onclick="document.getElementById('valuePitchText').style.display=document.getElementById('valuePitchText').style.display==='none'?'block':'none';this.textContent=document.getElementById('valuePitchText').style.display==='none'?'ℹ️ What is this?':'ℹ️ Hide'">ℹ️ What is this?</span>
                         <div id="valuePitchText" style="display:none;margin-top:6px;padding:10px 14px;background:var(--bg-2);border:1px solid var(--border-subtle);border-radius:8px;color:var(--text-300);font-size:12px;line-height:1.7;">
@@ -523,7 +523,7 @@
                         </div>
                     </div>
                     <div class="pattern-stats" id="patternStats">
-                        <span class="stat-dot"></span><span>455 detection patterns</span>
+                        <span class="stat-dot"></span><span><span id="patternCountStat"></span> detection patterns</span>
                         <span class="stat-dot"></span><span>120 known issues</span>
                         <span class="stat-dot"></span><span>12 runbooks</span>
                     </div>
@@ -1514,7 +1514,10 @@ async function loadPatterns() {
 }
 
 // Load patterns on page load
-loadPatterns();
+loadPatterns().then(() => {
+    if (document.getElementById('patternCountInline')) document.getElementById('patternCountInline').textContent = PATTERNS.length;
+    if (document.getElementById('patternCountStat')) document.getElementById('patternCountStat').textContent = PATTERNS.length;
+});
 
 // ══════════════════════════════════════════════════════════════════
 // EMBEDDED KNOWLEDGE BASE — 120 Known Issues + 48 VME Guide Entries
@@ -2319,9 +2322,10 @@ async function handleFiles(files) {
         files_analyzed: totalFilesAnalyzed, total_lines: totalLinesScanned,
         related_issues: relatedIssues, analysis_time_seconds: parseFloat(elapsed),
         client_side: true, jira_report: null, date_range: dateRangeStr,
+        truncated: allFindings.length >= MAX_FINDINGS,
     };
 
-    setStatus('done', `${allFindings.length} findings · ${totalFilesAnalyzed} files from ${scannable.length} archives · ${elapsed}s${dateRangeStr} · 🔒 Zero data uploaded`);
+    setStatus('done', `${allFindings.length} findings · ${totalFilesAnalyzed} files from ${scannable.length} archives · ${elapsed}s${dateRangeStr} · 🔒 Zero data uploaded${allFindings.length >= MAX_FINDINGS ? ` ⚠️ Results capped at ${MAX_FINDINGS} — some findings may not be shown` : ''}`);
     trackEvent('multi_scan_completed', { findings: allFindings.length, files: totalFilesAnalyzed, archives: scannable.length, seconds: elapsed });
     render(result);
     showTicketRelevantFindings();
@@ -2396,20 +2400,20 @@ function render(data){
             <div class="metric"><div class="metric-val" style="color:#2ed573;font-size:2.5rem">✅</div><div class="metric-label">Clean</div></div>
             <div class="metric"><div class="metric-val neutral">${data.files_analyzed||0}</div><div class="metric-label">Files Scanned</div></div>
             <div class="metric"><div class="metric-val neutral">${data.total_lines||0}</div><div class="metric-label">Lines Checked</div></div>
-            <div class="metric"><div class="metric-val neutral">455</div><div class="metric-label">Patterns Tested</div></div>`;
+            <div class="metric"><div class="metric-val neutral">${typeof PATTERNS !== 'undefined' && PATTERNS ? PATTERNS.length : 455}</div><div class="metric-label">Patterns Tested</div></div>`;
         $('#findingsCount').textContent = '0 findings';
         $('#findingsList').innerHTML = `
             <div style="text-align:center;padding:60px 20px;background:var(--bg-0);border-radius:12px;border:1px solid var(--border-subtle);margin:20px 0;">
                 <div style="font-size:64px;margin-bottom:16px;">🎉</div>
                 <h3 style="color:#2ed573;margin:0 0 12px 0;font-size:1.5rem;">No Known Issues Detected</h3>
                 <p style="color:var(--text-400);margin:0 0 16px 0;max-width:600px;margin-left:auto;margin-right:auto;">
-                    Scanned <strong>${data.files_analyzed||0} files</strong> against <strong>455 detection patterns</strong> — no matches found.
+                    Scanned <strong>${data.files_analyzed||0} files</strong> against <strong>${typeof PATTERNS !== 'undefined' && PATTERNS ? PATTERNS.length : 455} detection patterns</strong> — no matches found.
                     This means the logs don't contain any of the known problematic patterns.
                 </p>
                 <div style="background:var(--bg-100);border-radius:8px;padding:16px;text-align:left;max-width:500px;margin:0 auto;">
                     <p style="color:var(--text-300);margin:0 0 8px 0;font-weight:600;">⚠️ This does NOT mean the system is healthy:</p>
                     <ul style="color:var(--text-400);margin:0;padding-left:20px;line-height:1.8;">
-                        <li>The issue might be <strong>new/unknown</strong> — not yet in our 455 pattern database</li>
+                        <li>The issue might be <strong>new/unknown</strong> — not yet in our ${typeof PATTERNS !== 'undefined' && PATTERNS ? PATTERNS.length : 455} pattern database</li>
                         <li>The relevant log files might <strong>not be included</strong> in this bundle</li>
                         <li>The issue might require <strong>manual investigation</strong> with different keywords</li>
                         <li>Try the <strong>🎯 Ticket Advisor</strong> tab — paste Jira description for suggestions on what to collect</li>
@@ -2426,7 +2430,7 @@ function render(data){
         $('#cascadePanel').style.display = 'none';
         $('#rcaSummary').style.display = 'none';
         // Set RCA report to honest "no findings" message
-        const noFindingsRCA = `h2. Scan Results — No Patterns Detected\n\n*Date:* ${new Date().toISOString().split('T')[0]}\n*Files Scanned:* ${data.files_analyzed||0}\n*Patterns Tested:* 455\n*Findings:* 0\n\n----\n\nh3. Summary\n\nNo known problematic patterns were detected in the uploaded log files.\n\nThis does NOT confirm the system is healthy. Possible reasons:\n* The issue may be new/undocumented (not in our 455 pattern signatures)\n* The relevant log files may not be included in this bundle\n* The issue may require manual investigation with specific keywords\n\nh3. Recommended Next Steps\n\n# Verify the correct log bundle was uploaded (check file dates)\n# Use the Ticket Advisor for suggestions on what additional files to collect\n# Manually search for error keywords from the ticket description\n# Escalate if the issue is reproducible but not detectable by pattern matching`;
+        const noFindingsRCA = `h2. Scan Results — No Patterns Detected\n\n*Date:* ${new Date().toISOString().split('T')[0]}\n*Files Scanned:* ${data.files_analyzed||0}\n*Patterns Tested:* ${typeof PATTERNS !== 'undefined' && PATTERNS ? PATTERNS.length : 455}\n*Findings:* 0\n\n----\n\nh3. Summary\n\nNo known problematic patterns were detected in the uploaded log files.\n\nThis does NOT confirm the system is healthy. Possible reasons:\n* The issue may be new/undocumented (not in our ${typeof PATTERNS !== 'undefined' && PATTERNS ? PATTERNS.length : 455} pattern signatures)\n* The relevant log files may not be included in this bundle\n* The issue may require manual investigation with specific keywords\n\nh3. Recommended Next Steps\n\n# Verify the correct log bundle was uploaded (check file dates)\n# Use the Ticket Advisor for suggestions on what additional files to collect\n# Manually search for error keywords from the ticket description\n# Escalate if the issue is reproducible but not detectable by pattern matching`;
         $('#jiraReportRaw').value = noFindingsRCA;
         $('#jiraReportRendered').innerHTML = renderJiraMarkup(noFindingsRCA);
         saveHistory(data);
@@ -2562,6 +2566,9 @@ function render(data){
         return true;
     });
     $('#findingsCount').textContent=dedupFindings.length+' findings';
+    if (data.truncated) {
+        $('#findingsCount').textContent += ' ⚠️ (capped)';
+    }
     $('#findingsList').innerHTML=dedupFindings.map(x=>`
         <div class="finding">
             <div><span class="badge badge-${x.severity.toLowerCase()}">${x.severity}</span></div>

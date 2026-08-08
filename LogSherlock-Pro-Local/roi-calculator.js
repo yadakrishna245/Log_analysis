@@ -7,10 +7,10 @@
   'use strict';
 
   const DEFAULTS = {
-    hourlyRate: 150,          // $150/hr for L4 engineer
-    timeSavedPerScan: 2.5,    // hours saved per scan (industry benchmark)
-    resolutionRate: 0.80,     // 80% of scans lead to faster ticket resolution
-    monthlyCost: 299          // tool cost per month
+    hourlyRate: 150,          // CONFIGURABLE ESTIMATE — adjust to your team's rate
+    timeSavedPerScan: 2.5,    // CONFIGURABLE ESTIMATE — average time without tool per ticket
+    resolutionRate: 0.80,     // CONFIGURABLE ESTIMATE — fraction of scans that reduce MTTR
+    monthlyCost: 299          // CONFIGURABLE ESTIMATE — your subscription tier
   };
 
   /**
@@ -136,7 +136,7 @@
         + '  <h2>\uD83D\uDCCA ROI Calculator \u2014 Your Savings</h2>'
         + '  <div class="roi-empty">'
         + '    <div class="roi-empty-icon">\uD83D\uDD0D</div>'
-        + '    <p>Start scanning logs to see your ROI build up!</p>'
+        + '    <p>Start scanning logs to track your usage. ROI estimates use configurable assumptions.</p>'
         + '  </div>'
         + '</div>';
     }
@@ -179,12 +179,12 @@
       + '    <p>\uD83D\uDCB3 Tool cost: $' + roi.monthlyCost + '/month \u2014 <span style="color:#00e676;font-weight:600;">Net positive!</span></p>'
       + '  </div>'
       + '  <div class="roi-compare">'
-      + '    <span class="slow">Without LogSherlock: ~2.5 hrs per ticket</span>'
+      + '    <span class="slow">Without tool: ~2.5 hrs (estimated avg)</span>'
       + '    &nbsp; | &nbsp;'
       + '    <span class="fast">With LogSherlock: &lt;10 seconds</span>'
       + '  </div>'
       + '  <div class="roi-footer">'
-      + '    Based on ' + roi.totalScans + ' scans performed since ' + formattedDate
+      + '    Based on ' + roi.totalScans + ' actual scans since ' + formattedDate + ' · Time/cost estimates are configurable assumptions, not measurements'
       + '  </div>'
       + '</div>';
 
