@@ -9,12 +9,21 @@ set -e
 STACK_NAME="${1:-logsherlock-pro}"
 REGION="${2:-us-east-1}"
 API_KEY="${3:-}"
+ADMIN_SECRET="${4:-}"
 
 # Generate a strong random API key if none provided
 if [ -z "$API_KEY" ]; then
     API_KEY=$(openssl rand -hex 24)
     echo "  🔑 Generated API key: $API_KEY"
     echo "  ⚠️  Save this key! You'll need it for API access."
+    echo ""
+fi
+
+# Generate a strong random Admin Secret if none provided
+if [ -z "$ADMIN_SECRET" ]; then
+    ADMIN_SECRET=$(openssl rand -hex 16)
+    echo "  🔐 Generated Admin Secret: $ADMIN_SECRET"
+    echo "  ⚠️  Save this! You'll need it for the admin dashboard."
     echo ""
 fi
 
@@ -182,6 +191,7 @@ sam deploy \
     --capabilities CAPABILITY_IAM \
     --no-confirm-changeset \
     --no-fail-on-empty-changeset \
+    --parameter-overrides "ApiKey=$API_KEY AdminSecret=$ADMIN_SECRET" \
     --resolve-s3
 
 echo "  ✅ Stack deployed!"
@@ -252,4 +262,28 @@ echo "  3. Drop log files → Get instant RCA!"
 echo ""
 echo "  ── Destroy (removes everything) ──"
 echo "  sam delete --stack-name $STACK_NAME --region $REGION --no-prompts"
+echo ""
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Save deployment secrets locally (gitignored, for your reference)
+# ══════════════════════════════════════════════════════════════════════════════
+SECRETS_FILE=".deployment-secrets.txt"
+cat > "$SECRETS_FILE" << SECRETS_EOF
+# LogSherlock Pro — Deployment Secrets
+# Generated: $(date -u +"%Y-%m-%d %H:%M UTC")
+# Stack: $STACK_NAME | Region: $REGION
+# ⚠️  DO NOT COMMIT THIS FILE (it's gitignored)
+
+API_KEY=$API_KEY
+ADMIN_SECRET=$ADMIN_SECRET
+APP_URL=${CF_URL}
+API_URL=${API_URL}
+STACK_NAME=$STACK_NAME
+REGION=$REGION
+
+# Use ADMIN_SECRET when logging into the admin dashboard
+# Use API_KEY for X-API-Key header in API requests
+SECRETS_EOF
+echo "  💾 Secrets saved to: $SECRETS_FILE"
+echo "     (gitignored — safe to keep locally)"
 echo ""

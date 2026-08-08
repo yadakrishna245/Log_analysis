@@ -46,6 +46,7 @@ test_ticket_advisor.py
 
 # Deployment
 .deployment-info.json
+.deployment-secrets.txt
 deploy/.aws-sam/
 deploy/license_handler.py
 

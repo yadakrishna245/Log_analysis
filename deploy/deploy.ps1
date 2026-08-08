@@ -167,6 +167,22 @@ if ($LASTEXITCODE -ne 0) {
 # ══════════════════════════════════════════════════════════════════════════════
 # Step 4: Deploy
 # ══════════════════════════════════════════════════════════════════════════════
+
+# Auto-generate API Key and Admin Secret if not set
+$ApiKey = if ($env:LOGSHERLOCK_API_KEY) { $env:LOGSHERLOCK_API_KEY } else {
+    $k = -join ((1..48) | ForEach-Object { '{0:x}' -f (Get-Random -Max 16) })
+    Write-Host "  🔑 Generated API Key: $k" -ForegroundColor Cyan
+    Write-Host "     Save this! You'll need it for API access." -ForegroundColor Yellow
+    $k
+}
+$AdminSecret = if ($env:LOGSHERLOCK_ADMIN_SECRET) { $env:LOGSHERLOCK_ADMIN_SECRET } else {
+    $s = -join ((1..32) | ForEach-Object { '{0:x}' -f (Get-Random -Max 16) })
+    Write-Host "  🔐 Generated Admin Secret: $s" -ForegroundColor Cyan
+    Write-Host "     Save this! You'll need it for the admin dashboard." -ForegroundColor Yellow
+    $s
+}
+Write-Host ""
+
 Write-Host "`n[4/6] Deploying to AWS ($Region)..." -ForegroundColor Yellow
 Write-Host "  (First deploy takes 3-5 minutes, updates take 1-2 minutes)" -ForegroundColor Gray
 sam deploy `
@@ -175,6 +191,7 @@ sam deploy `
     --capabilities CAPABILITY_IAM `
     --no-confirm-changeset `
     --no-fail-on-empty-changeset `
+    --parameter-overrides "ApiKey=$ApiKey AdminSecret=$AdminSecret" `
     --resolve-s3
 
 if ($LASTEXITCODE -ne 0) {
@@ -248,4 +265,26 @@ Write-Host "  3. Drop log files → Get instant RCA!"
 Write-Host ""
 Write-Host "  ── Destroy (if needed) ──" -ForegroundColor Gray
 Write-Host "  sam delete --stack-name $StackName --region $Region --no-prompts"
+Write-Host ""
+
+# Save secrets locally for reference (gitignored)
+$secretsFile = ".deployment-secrets.txt"
+@"
+# LogSherlock Pro — Deployment Secrets
+# Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm UTC')
+# Stack: $StackName | Region: $Region
+# DO NOT COMMIT THIS FILE (it's gitignored)
+
+API_KEY=$ApiKey
+ADMIN_SECRET=$AdminSecret
+APP_URL=$cfUrl
+API_URL=$apiUrl
+STACK_NAME=$StackName
+REGION=$Region
+
+# Use ADMIN_SECRET when logging into the admin dashboard
+# Use API_KEY for X-API-Key header in API requests
+"@ | Set-Content $secretsFile -Encoding UTF8
+Write-Host "  💾 Secrets saved to: $secretsFile" -ForegroundColor Green
+Write-Host "     (gitignored — safe to keep locally)" -ForegroundColor Gray
 Write-Host ""
