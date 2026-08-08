@@ -81,3 +81,9 @@ docs/.env.example
 demo/collect_demovmehost01_20260802_100000/
 create-distribution-zip.ps1
 licenses.json
+
+# Build scripts (not for distribution)
+build-bundle.ps1
+test-zip.ps1
+verify-bundle.ps1
+build/
