@@ -8,7 +8,7 @@
 [![Flask](https://img.shields.io/badge/Flask-3.0-000000?style=for-the-badge&logo=flask&logoColor=white)](https://flask.palletsprojects.com)
 [![AWS](https://img.shields.io/badge/AWS-Serverless-FF9900?style=for-the-badge&logo=amazonaws&logoColor=white)](https://aws.amazon.com)
 [![Patterns](https://img.shields.io/badge/Patterns-455-01A982?style=for-the-badge)](docs/USER_GUIDE.md)
-[![Features](https://img.shields.io/badge/Features-127-8b5cf6?style=for-the-badge)](#-features-127)
+[![Features](https://img.shields.io/badge/Features-137-8b5cf6?style=for-the-badge)](#-Features-137)
 [![Known Issues](https://img.shields.io/badge/Known_Issues-120-01A982?style=for-the-badge)](docs/USER_GUIDE.md)
 [![Runbooks](https://img.shields.io/badge/Runbooks-12-01A982?style=for-the-badge)](docs/USER_GUIDE.md)
 [![Privacy](https://img.shields.io/badge/Privacy-Zero_Upload-01A982?style=for-the-badge&logo=shieldsdotio&logoColor=white)](#-security--privacy)
@@ -275,7 +275,7 @@ flowchart TD
 
 ---
 
-## ✨ Features (127)
+## ✨ Features (137)
 
 ### Core Analysis
 | # | Feature | Description |
@@ -501,6 +501,21 @@ flowchart TD
 | 125 | **🎯 Pattern Confidence** | 5-factor evidence strength scoring per finding — false-positive likelihood |
 | 126 | **📚 Knowledge Base Builder** | Save resolved cases as searchable playbooks — institutional memory |
 | 127 | **👥 Multi-Tenant Workspace** | Team-shared findings with role-based access + export/import JSON sharing |
+
+### ⚡ Workflow Enhancement Features (NEW — Aug 8)
+
+| # | Feature | Description |
+|---|---------|-------------|
+| 128 | **⏰ Temporal Clustering** | Groups findings by timestamp proximity (60s window) — "What happened at 03:14?" |
+| 129 | **📌 Pin & Annotate** | Bookmark any finding with free-text notes — persists across sessions |
+| 130 | **⌨️ Command Palette (Ctrl+K)** | VS Code-style instant jump to any of 137 features — power user speed |
+| 131 | **🔇 Noise Suppression** | Auto-collapse repetitive patterns (10+ occurrences) — focus on unique issues |
+| 132 | **💾 Session Persistence** | IndexedDB auto-save — resume analysis after page reload with all results intact |
+| 133 | **✏️ Custom Pattern Editor** | Define your own regex rules with live validation — runs alongside 455 built-in patterns |
+| 134 | **📏 Baseline Subtraction** | Save "normal" scan as baseline — future scans show ONLY new problems |
+| 135 | **🕐 Recent Scans Library** | Cache last 10 scan results — one-click re-open without re-uploading |
+| 136 | **👍 Confidence Feedback** | Thumbs up/down on findings — tool learns which patterns matter to YOU |
+| 137 | **📤 Shareable Snapshot** | Export analysis as self-contained HTML — recipient needs no license to view |
 
 ---
 
