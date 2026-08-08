@@ -7,7 +7,7 @@
 [![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![Flask](https://img.shields.io/badge/Flask-3.0-000000?style=for-the-badge&logo=flask&logoColor=white)](https://flask.palletsprojects.com)
 [![AWS](https://img.shields.io/badge/AWS-Serverless-FF9900?style=for-the-badge&logo=amazonaws&logoColor=white)](https://aws.amazon.com)
-[![Patterns](https://img.shields.io/badge/Patterns-885-01A982?style=for-the-badge)](docs/USER_GUIDE.md)
+[![Patterns](https://img.shields.io/badge/Patterns-1185-01A982?style=for-the-badge)](docs/USER_GUIDE.md)
 [![Features](https://img.shields.io/badge/Features-172-8b5cf6?style=for-the-badge)](#-Features-172)
 [![Known Issues](https://img.shields.io/badge/Known_Issues-120-01A982?style=for-the-badge)](docs/USER_GUIDE.md)
 [![Runbooks](https://img.shields.io/badge/Runbooks-12-01A982?style=for-the-badge)](docs/USER_GUIDE.md)
@@ -160,7 +160,7 @@ URL: https://d3tv1czat55yad.cloudfront.net
 
 ### ✅ With LogSherlock Pro
 - **~14 seconds** for 73MB tar.gz analysis
-- **885 detection patterns** available to all engineers
+- **1185 Detection Patterns** available to all engineers
 - **120 known issues** with ready-made solutions
 - **41 VME Guide entries** for quick ops reference
 - **Streaming engine** — handles files up to 3GB+
@@ -202,7 +202,7 @@ URL: https://d3tv1czat55yad.cloudfront.net
 flowchart LR
     A[📁 Drop tar.gz Files] --> B[💨 DecompressionStream<br/>Streaming Gzip]
     B --> C[📦 Streaming Tar Parser<br/>Process Entry-by-Entry]
-    C --> D[🔍 Regex Engine<br/>885 Pattern Signatures]
+    C --> D[🔍 Regex Engine<br/>1185 Pattern Signatures]
     D --> E[📊 Results Dashboard<br/>Heatmap + RCA + KB]
 
     style A fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
@@ -224,7 +224,7 @@ flowchart TD
         A1[File dropped by user] --> A2[pako.js gunzip]
         A2 --> A3[Tar header parser]
         A3 --> A4[Line-by-line scan]
-        A4 --> A5{Match 885 regex patterns}
+        A4 --> A5{Match 1185 Regex Patterns}
         A5 -->|Match| A6[Classify severity<br/>CRITICAL / HIGH / MEDIUM / LOW]
         A5 -->|No match| A4
         A6 --> A7[Group by category<br/>14 categories]
@@ -260,7 +260,7 @@ flowchart TD
     subgraph NEW["✅ New Streaming Approach"]
         N1[Read file as stream<br/>chunk by chunk] --> N2[DecompressionStream<br/>decompress on-the-fly]
         N2 --> N3[Parse ONE tar entry<br/>at a time]
-        N3 --> N4[Scan this file's lines<br/>against 885 patterns]
+        N3 --> N4[Scan this file's lines<br/>against 1185 patterns]
         N4 --> N5[Store findings<br/>DISCARD file content]
         N5 --> N6{More entries?}
         N6 -->|Yes| N3
@@ -281,7 +281,7 @@ flowchart TD
 | # | Feature | Description |
 |---|---------|-------------|
 | 1 | **Streaming Client-Side Scan** | Zero upload — DecompressionStream + streaming tar parser, handles 3GB+ files |
-| 2 | **885 Regex Patterns** | Across 21 categories: storage, cluster, network, virtualization, application, service, security, hardware, kernel, backup, filesystem, system, performance, memory |
+| 2 | **1185 Regex Patterns** | Across 21 categories: storage, cluster, network, virtualization, application, service, security, hardware, kernel, backup, filesystem, system, performance, memory |
 | 3 | **Multi-File Scan** | Drop multiple .tar.gz / .log / .sh / .txt files at once — combined results |
 | 4 | **Multi-Folder Scan** | Comma-separated folder paths — all scanned in parallel |
 | 5 | **8-Section RCA Report** | Problem Statement → Impact → Timeline → Root Cause → Cascade Chain → Fix → Remediation Plan → Prevention |
@@ -511,7 +511,7 @@ flowchart TD
 | 130 | **⌨️ Command Palette (Ctrl+K)** | VS Code-style instant jump to any of 172 Features — power user speed |
 | 131 | **🔇 Noise Suppression** | Auto-collapse repetitive patterns (10+ occurrences) — focus on unique issues |
 | 132 | **💾 Session Persistence** | IndexedDB auto-save — resume analysis after page reload with all results intact |
-| 133 | **✏️ Custom Pattern Editor** | Define your own regex rules with live validation — runs alongside 885 built-in patterns |
+| 133 | **✏️ Custom Pattern Editor** | Define your own regex rules with live validation — runs alongside 1185 built-in patterns |
 | 134 | **📏 Baseline Subtraction** | Save "normal" scan as baseline — future scans show ONLY new problems |
 | 135 | **🕐 Recent Scans Library** | Cache last 10 scan results — one-click re-open without re-uploading |
 | 136 | **👍 Confidence Feedback** | Thumbs up/down on findings — tool learns which patterns matter to YOU |
@@ -567,7 +567,7 @@ flowchart TD
 | 171 | **📧 Export to Email** | One-click email formatting (plain/HTML/markdown) with recipient memory + copy |
 | 172 | **🎨 Custom Theme Engine** | Dark/Light/High Contrast/Solarized/Nord + custom color builder + WCAG AAA |
 
-### 🔍 Pattern Library Expansion (885 Total Patterns)
+### 🔍 Pattern Library Expansion (1185 Total Patterns)
 
 Added 236 new detection patterns across 9 enterprise categories:
 - **HPE VME / Hardware** (35): iLO, thermal, fan, PSU, DIMM, PCIe, RAID, NMI, MCE, TPM
@@ -734,7 +734,7 @@ flowchart LR
 |-------|-------------|-----------------|
 | **📝 Ticket Description** | Verdict Engine matches findings to your ticket → Ticket Alignment % | +30-40% — narrows 10 possible causes to THE one matching your ticket |
 | **🖼️ Screenshot (Ctrl+V)** | Sent to AI (Ollama/Copilot) for visual error analysis | Helps AI give context-aware suggestions |
-| **📦 Log Archive (.tar.gz/.zip)** | Scanned against 885 Regex Patterns → produces findings with file:line evidence | **Core engine** — this is what drives all analysis |
+| **📦 Log Archive (.tar.gz/.zip)** | Scanned against 1185 Regex Patterns → produces findings with file:line evidence | **Core engine** — this is what drives all analysis |
 
 ### Recommended Steps (Every Ticket):
 1. **Paste** Jira ticket description into TICKET CONTEXT box
@@ -828,7 +828,7 @@ graph TB
 
     subgraph FLASK["🐍 Flask Application"]
         ROUTES["/api/patterns/export<br/>/api/knowledge/lookup<br/>/api/advisor"]
-        ENGINE[Pattern Engine<br/>885 Compiled Regexes]
+        ENGINE[Pattern Engine<br/>1185 Compiled Regexes]
         KB[Knowledge Base<br/>120 Issues + 12 Runbooks + 41 VME Guide]
     end
 
@@ -867,7 +867,7 @@ graph TB
 | Scan results / findings | Browser memory only | ❌ **Never** |
 | Pattern names (e.g., "oom_kill") | Sent to `/api/knowledge/lookup` | ✅ Anonymous identifiers only |
 | Jira description text | Sent to `/api/advisor` | ✅ For investigation suggestions |
-| 885 pattern definitions | Fetched from `/api/patterns/export` | N/A (server → client) |
+| 1185 pattern definitions | Fetched from `/api/patterns/export` | N/A (server → client) |
 
 ---
 
@@ -876,7 +876,7 @@ graph TB
 | Capability | LogSherlock Pro | Splunk | Datadog | Manual grep |
 |-----------|:-:|:-:|:-:|:-:|
 | Zero data upload | ✅ | ❌ | ❌ | ✅ |
-| Auto pattern detection | ✅ 885 patterns | ✅ Custom | ✅ Custom | ❌ Manual |
+| Auto pattern detection | ✅ 1185 patterns | ✅ Custom | ✅ Custom | ❌ Manual |
 | RCA report generation | ✅ 8-section | ❌ | ❌ | ❌ |
 | Knowledge Base | ✅ 120 issues | ❌ | ❌ | ❌ |
 | Setup time | 0 min (browser) | Days | Days | 0 min |
@@ -1160,7 +1160,7 @@ See [docs/OLLAMA_SETUP.md](docs/OLLAMA_SETUP.md) for full guide.
 ```mermaid
 flowchart LR
     subgraph BROWSER["🖥️ Your Browser"]
-        A[Log Scanner] --> B[Pattern Detection<br/>885 Regex Patterns]
+        A[Log Scanner] --> B[Pattern Detection<br/>1185 Regex Patterns]
         B --> C[Findings:<br/>pattern names + severity]
     end
 
@@ -1192,7 +1192,7 @@ flowchart LR
 
 | Method | Endpoint | Description | Privacy |
 |--------|----------|-------------|---------|
-| `GET` | `/api/patterns/export` | Fetch all 885 patterns as JSON | No user data |
+| `GET` | `/api/patterns/export` | Fetch all 1185 patterns as JSON | No user data |
 | `POST` | `/api/knowledge/lookup` | Match pattern names → known issues | Pattern names only |
 | `POST` | `/api/advisor` | Jira description → investigation tips | Ticket text |
 | `POST` | `/api/ticket/advisor` | Single-shot L4 structured response | Ticket text |
@@ -1209,7 +1209,7 @@ flowchart LR
 ### Example: Fetch Patterns
 ```bash
 curl https://d3tv1czat55yad.cloudfront.net/api/patterns/export | jq '.count'
-# ? 885
+# ? 1185
 ```
 
 ### Example: Knowledge Lookup
@@ -1393,7 +1393,7 @@ LogSherlock-Pro/
 │                                      All JS/CSS/HTML in one file — zero build step
 │
 ├── 🔍 engine/                      ← Pattern detection engine
-│   ├── patterns.py                 ← ⭐ 885 Regex Patterns Across 21 categories
+│   ├── patterns.py                 ← ⭐ 1185 Regex Patterns Across 21 categories
 │   ├── analyzer.py                 ← Server-side analysis orchestrator
 │   ├── ingestion.py                ← File parsing, tar extraction, classification
 │   └── correlator.py               ← Cross-node timeline correlation
@@ -1466,7 +1466,7 @@ LogSherlock-Pro/
 flowchart LR
     subgraph FRONTEND["templates/index.html"]
         A[User drops file] --> B[streamTarEntries]
-        B --> C[Pattern matching<br/>885 regex]
+        B --> C[Pattern matching<br/>1185 regex]
         C --> D[renderFindingsList]
     end
 
@@ -1512,7 +1512,7 @@ flowchart LR
 | Pattern compilation | Once at page load |
 | Cold start (Lambda) | ~2s (CloudFront cached) |
 | Demo file (9.4KB) | < 1 second |
-| Patterns matched (demo) | 110 / 885 |
+| Patterns matched (demo) | 110 / 1185 |
 
 ---
 

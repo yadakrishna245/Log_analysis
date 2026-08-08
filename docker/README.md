@@ -194,7 +194,7 @@ environment:
 | Component | Details |
 |-----------|---------|
 | Features | 172 |
-| Detection Patterns | 885 |
+| Detection Patterns | 1185 |
 | Categories | 21 (HPE VME, GFS2, NFS, Alletra, GreenLake, K8s, etc.) |
 | Max File Size | 3GB+ (streaming engine) |
 | AI Support | Optional Ollama sidecar |

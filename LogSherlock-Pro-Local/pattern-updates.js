@@ -1245,6 +1245,15 @@
   const DETECTION_PATTERNS_MIGRATION = (typeof window !== 'undefined' && window._LSP_MIGRATION) || [];
   const DETECTION_PATTERNS_HVM_VERSIONS = (typeof window !== 'undefined' && window._LSP_HVM_VERSIONS) || [];
 
+  // Extended HPE Resolution Patterns (300 additional from hpe-resolution-patterns.js)
+  const DETECTION_PATTERNS_HPE_VME_EXT = (typeof window !== 'undefined' && window._LSP_HPE_VME_EXT) || [];
+  const DETECTION_PATTERNS_GFS2_EXT = (typeof window !== 'undefined' && window._LSP_GFS2_EXT) || [];
+  const DETECTION_PATTERNS_NFS_EXT = (typeof window !== 'undefined' && window._LSP_NFS_EXT) || [];
+  const DETECTION_PATTERNS_ALLETRA_EXT = (typeof window !== 'undefined' && window._LSP_ALLETRA_EXT) || [];
+  const DETECTION_PATTERNS_GREENLAKE_EXT = (typeof window !== 'undefined' && window._LSP_GREENLAKE_EXT) || [];
+  const DETECTION_PATTERNS_MIGRATION_EXT = (typeof window !== 'undefined' && window._LSP_MIGRATION_EXT) || [];
+  const DETECTION_PATTERNS_HVM_VERSIONS_EXT = (typeof window !== 'undefined' && window._LSP_HVM_VERSIONS_EXT) || [];
+
   // ═══════════════════════════════════════════════════════════════════════════════
   // Merge all detection patterns into single array
   // ═══════════════════════════════════════════════════════════════════════════════
@@ -1264,7 +1273,14 @@
     ...DETECTION_PATTERNS_ALLETRA,
     ...DETECTION_PATTERNS_GREENLAKE,
     ...DETECTION_PATTERNS_MIGRATION,
-    ...DETECTION_PATTERNS_HVM_VERSIONS
+    ...DETECTION_PATTERNS_HVM_VERSIONS,
+    ...DETECTION_PATTERNS_HPE_VME_EXT,
+    ...DETECTION_PATTERNS_GFS2_EXT,
+    ...DETECTION_PATTERNS_NFS_EXT,
+    ...DETECTION_PATTERNS_ALLETRA_EXT,
+    ...DETECTION_PATTERNS_GREENLAKE_EXT,
+    ...DETECTION_PATTERNS_MIGRATION_EXT,
+    ...DETECTION_PATTERNS_HVM_VERSIONS_EXT
   ];
 
   // ─── Pattern Matching Engine ───────────────────────────────────────────────────

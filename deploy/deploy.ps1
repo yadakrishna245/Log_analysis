@@ -17,7 +17,7 @@
     - IAM roles + policies
     - License activation system
 
-    172 Features | 885 Patterns | Zero-Upload Scanning | HPE VME L4 Support
+    172 Features | 1185 Patterns | Zero-Upload Scanning | HPE VME L4 Support
 .PARAMETER StackName
     CloudFormation stack name (default: logsherlock-pro)
 .PARAMETER Region
@@ -37,7 +37,7 @@ $startTime = Get-Date
 Write-Host ""
 Write-Host "  ╔══════════════════════════════════════════════════╗" -ForegroundColor Cyan
 Write-Host "  ║   LogSherlock Pro v4.0 — AWS Deployment          ║" -ForegroundColor Cyan
-Write-Host "  ║   885 Patterns | 172 Features | Enterprise       ║" -ForegroundColor Cyan
+Write-Host "  ║   1185 Patterns | 172 Features | Enterprise       ║" -ForegroundColor Cyan
 Write-Host "  ╚══════════════════════════════════════════════════╝" -ForegroundColor Cyan
 Write-Host ""
 
@@ -235,7 +235,7 @@ Write-Host "  📍 Region:      $Region" -ForegroundColor White
 Write-Host "  ⏱️  Time:        $([math]::Round($elapsed.TotalMinutes, 1)) minutes" -ForegroundColor White
 Write-Host ""
 Write-Host "  ── What's Deployed ──" -ForegroundColor Cyan
-Write-Host "  • 172 features | 885 patterns | 21 categories"
+Write-Host "  • 172 features | 1185 Patterns | 21 categories"
 Write-Host "  • Streaming engine (3GB+ files)"
 Write-Host "  • Ticket Advisor + AI Copilot"
 Write-Host "  • Per-machine license system"
