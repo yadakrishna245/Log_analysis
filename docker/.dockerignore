@@ -1,0 +1,13 @@
+.git
+.github
+__pycache__
+*.pyc
+node_modules
+.aws-sam
+deploy/.aws-sam
+deploy/lambda.zip
+*.zip
+.env
+.venv
+venv
+CHECKPOINT.md

@@ -1,0 +1,45 @@
+# LogSherlock Pro — Docker Compose
+# Usage: docker-compose up -d
+# Access: http://localhost:8888
+
+version: '3.8'
+
+services:
+  logsherlock:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: logsherlock-pro
+    ports:
+      - "8888:8888"
+    environment:
+      - FLASK_ENV=production
+      - STORAGE_BACKEND=local
+      - LOGSHERLOCK_DEV_MODE=true
+      - PORT=8888
+    volumes:
+      - logsherlock-data:/tmp/uploads
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8888/api/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # Optional: Local AI with Ollama
+  ollama:
+    image: ollama/ollama:latest
+    container_name: logsherlock-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+    environment:
+      - OLLAMA_ORIGINS=*
+    profiles:
+      - ai
+    restart: unless-stopped
+
+volumes:
+  logsherlock-data:
+  ollama-models:
