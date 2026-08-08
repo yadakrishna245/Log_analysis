@@ -2665,6 +2665,21 @@ function render(data){
         renderMultiTenantPanel(f);
     }
 
+    // Workflow Enhancement Features
+    if (typeof renderTemporalClusteringPanel === 'function' && f.length > 0) renderTemporalClusteringPanel(f);
+    if (typeof renderNoiseSuppressionPanel === 'function' && f.length > 0) renderNoiseSuppressionPanel(f);
+    if (typeof renderBaselinePanel === 'function') renderBaselinePanel(f);
+    if (typeof renderCustomPatternPanel === 'function') renderCustomPatternPanel();
+    if (typeof renderRecentScansPanel === 'function') renderRecentScansPanel();
+    if (typeof renderPinnedPanel === 'function') renderPinnedPanel();
+    if (typeof renderFeedbackPanel === 'function') renderFeedbackPanel();
+    if (typeof renderSnapshotPanel === 'function' && f.length > 0) renderSnapshotPanel(f);
+    if (typeof renderSessionPanel === 'function') renderSessionPanel();
+    if (typeof initPinAnnotate === 'function') initPinAnnotate();
+    if (typeof initConfidenceFeedback === 'function') initConfidenceFeedback();
+    if (typeof addRecentScan === 'function') addRecentScan(data);
+    if (typeof saveSession === 'function') saveSession(data);
+
     saveHistory(data);
 }
 
@@ -5918,5 +5933,17 @@ function askOllamaTicket() {
 <script src='/static/pattern-confidence.js'></script>
 <script src='/static/knowledge-base.js'></script>
 <script src='/static/multi-tenant.js'></script>
+
+<!-- Workflow Enhancement Features (10 new) -->
+<script src='/static/temporal-clustering.js'></script>
+<script src='/static/pin-annotate.js'></script>
+<script src='/static/command-palette.js'></script>
+<script src='/static/noise-suppression.js'></script>
+<script src='/static/session-persistence.js'></script>
+<script src='/static/custom-pattern-editor.js'></script>
+<script src='/static/baseline-subtraction.js'></script>
+<script src='/static/recent-scans.js'></script>
+<script src='/static/confidence-feedback.js'></script>
+<script src='/static/shareable-snapshot.js'></script>
 </body>
 </html>
