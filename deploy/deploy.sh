@@ -11,7 +11,8 @@ set -e
 STACK_NAME="${1:-logsherlock-pro}"
 REGION="${2:-us-east-1}"
 API_KEY="${3:-logsherlock-hpe-2026}"
-CLOUDFRONT_DIST_ID="E3V2MZ00F7WXY9"
+# CloudFront ID is auto-detected from stack outputs (no hardcoding needed for new accounts)
+CLOUDFRONT_DIST_ID=""
 
 echo ""
 echo "╔══════════════════════════════════════════════════════════════════╗"
@@ -78,9 +79,20 @@ S3_BUCKET=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --regi
 # Invalidate CloudFront cache
 echo ""
 echo "[6/6] Invalidating CloudFront cache..."
-aws cloudfront create-invalidation --distribution-id "$CLOUDFRONT_DIST_ID" --paths "/*" --region "$REGION" > /dev/null 2>&1 && \
-    echo "  ✅ CloudFront cache invalidated (takes 30-60s to propagate)." || \
-    echo "  ⚠️  CloudFront invalidation failed (non-critical, cache expires on its own)."
+# Auto-detect CloudFront distribution ID from stack
+CLOUDFRONT_DIST_ID=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --region "$REGION" \
+    --query 'Stacks[0].Outputs[?OutputKey==`CloudFrontDistId`].OutputValue' --output text 2>/dev/null || echo "")
+if [ -z "$CLOUDFRONT_DIST_ID" ]; then
+    # Fallback: try to get from distribution list matching stack
+    CLOUDFRONT_DIST_ID=$(aws cloudfront list-distributions --query "DistributionList.Items[?Comment=='LogSherlock Pro - CloudFront Distribution'].Id" --output text 2>/dev/null || echo "")
+fi
+if [ -n "$CLOUDFRONT_DIST_ID" ]; then
+    aws cloudfront create-invalidation --distribution-id "$CLOUDFRONT_DIST_ID" --paths "/*" --region "$REGION" > /dev/null 2>&1 && \
+        echo "  ✅ CloudFront cache invalidated (takes 30-60s to propagate)." || \
+        echo "  ⚠️  CloudFront invalidation failed (non-critical)."
+else
+    echo "  ⚠️  CloudFront distribution ID not found. Cache will expire naturally."
+fi
 
 # Summary
 echo ""
@@ -96,7 +108,7 @@ echo "  📍 Region:      ${REGION}"
 echo "  📦 Stack:       ${STACK_NAME}"
 echo ""
 echo "  ── Features Deployed ──"
-echo "  • 455 detection patterns across 14 categories"
+echo "  • 885 detection patterns across 21 categories"
 echo "  • 172 features (80 JS modules)"
 echo "  • 🎯 Ticket Advisor — iterative L4 troubleshooting (<10ms)"
 echo "  • Streaming engine — handles 3GB+ files"
