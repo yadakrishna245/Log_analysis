@@ -260,7 +260,7 @@ flowchart TD
     subgraph NEW["✅ New Streaming Approach"]
         N1[Read file as stream<br/>chunk by chunk] --> N2[DecompressionStream<br/>decompress on-the-fly]
         N2 --> N3[Parse ONE tar entry<br/>at a time]
-        N3 --> N4[Scan this file's lines<br/>against 675 patterns]
+        N3 --> N4[Scan this file's lines<br/>against 885 patterns]
         N4 --> N5[Store findings<br/>DISCARD file content]
         N5 --> N6{More entries?}
         N6 -->|Yes| N3
@@ -567,7 +567,7 @@ flowchart TD
 | 171 | **📧 Export to Email** | One-click email formatting (plain/HTML/markdown) with recipient memory + copy |
 | 172 | **🎨 Custom Theme Engine** | Dark/Light/High Contrast/Solarized/Nord + custom color builder + WCAG AAA |
 
-### 🔍 Pattern Library Expansion (675 Total Patterns)
+### 🔍 Pattern Library Expansion (885 Total Patterns)
 
 Added 236 new detection patterns across 9 enterprise categories:
 - **HPE VME / Hardware** (35): iLO, thermal, fan, PSU, DIMM, PCIe, RAID, NMI, MCE, TPM
@@ -876,7 +876,7 @@ graph TB
 | Capability | LogSherlock Pro | Splunk | Datadog | Manual grep |
 |-----------|:-:|:-:|:-:|:-:|
 | Zero data upload | ✅ | ❌ | ❌ | ✅ |
-| Auto pattern detection | ✅ 675 patterns | ✅ Custom | ✅ Custom | ❌ Manual |
+| Auto pattern detection | ✅ 885 patterns | ✅ Custom | ✅ Custom | ❌ Manual |
 | RCA report generation | ✅ 8-section | ❌ | ❌ | ❌ |
 | Knowledge Base | ✅ 120 issues | ❌ | ❌ | ❌ |
 | Setup time | 0 min (browser) | Days | Days | 0 min |
@@ -1192,7 +1192,7 @@ flowchart LR
 
 | Method | Endpoint | Description | Privacy |
 |--------|----------|-------------|---------|
-| `GET` | `/api/patterns/export` | Fetch all 675 patterns as JSON | No user data |
+| `GET` | `/api/patterns/export` | Fetch all 885 patterns as JSON | No user data |
 | `POST` | `/api/knowledge/lookup` | Match pattern names → known issues | Pattern names only |
 | `POST` | `/api/advisor` | Jira description → investigation tips | Ticket text |
 | `POST` | `/api/ticket/advisor` | Single-shot L4 structured response | Ticket text |

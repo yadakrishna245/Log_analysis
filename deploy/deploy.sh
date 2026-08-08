@@ -1,6 +1,6 @@
 #!/bin/bash
 # LogSherlock Pro v4.0 - Single-click AWS Serverless Deployment
-# Features: 675 patterns, 172 features, streaming engine (3GB+), multi-file scan,
+# Features: 885 patterns, 172 features, streaming engine (3GB+), multi-file scan,
 #           Jira integration, Ticket Advisor, AI Copilot, Compliance Export,
 #           Shift Handoff, Runbook Executor, Custom Patterns, Session Persistence
 # Usage: ./deploy.sh [stack-name] [region] [api-key]
@@ -16,7 +16,7 @@ CLOUDFRONT_DIST_ID="E3V2MZ00F7WXY9"
 echo ""
 echo "╔══════════════════════════════════════════════════════════════════╗"
 echo "║        LogSherlock Pro v4.0 — AWS Serverless Deployment        ║"
-echo "║   675 patterns | 172 features | Enterprise Log Analysis        ║"
+echo "║   885 patterns | 172 features | Enterprise Log Analysis        ║"
 echo "╚══════════════════════════════════════════════════════════════════╝"
 echo ""
 
