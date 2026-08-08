@@ -2821,6 +2821,21 @@ function render(data){
     if (typeof renderShiftHandoffPanel === 'function' && f.length > 0) renderShiftHandoffPanel(f);
     if (typeof renderPatternLibrarySyncPanel === 'function') renderPatternLibrarySyncPanel(f);
     if (typeof renderSeverityOverridePanel === 'function' && f.length > 0) renderSeverityOverridePanel(f);
+    // Intelligence, Compliance & Productivity Features
+    if (typeof renderMultiFileTimelinePanel === 'function' && f.length > 0) renderMultiFileTimelinePanel(f);
+    if (typeof renderLogHealthScorePanel === 'function' && f.length > 0) renderLogHealthScorePanel(f);
+    if (typeof renderRecurringIssueTrackerPanel === 'function') renderRecurringIssueTrackerPanel(f);
+    if (typeof renderImpactRadiusPanel === 'function' && f.length > 0) renderImpactRadiusPanel(f);
+    if (typeof renderExecutiveSummaryPanel === 'function' && f.length > 0) renderExecutiveSummaryPanel(f);
+    if (typeof renderSecurityPosturePanel === 'function' && f.length > 0) renderSecurityPosturePanel(f);
+    if (typeof renderTrendOverTimePanel === 'function') renderTrendOverTimePanel(f);
+    if (typeof renderChangeValidationPanel === 'function') renderChangeValidationPanel(f);
+    if (typeof renderFindingPrioritizerPanel === 'function' && f.length > 0) renderFindingPrioritizerPanel(f);
+    if (typeof renderBookmarkManagerPanel === 'function') renderBookmarkManagerPanel(f);
+    if (typeof renderSplitViewPanel === 'function') renderSplitViewPanel(f);
+    if (typeof renderFindingCommentsPanel === 'function') renderFindingCommentsPanel(f);
+    if (typeof renderExportEmailPanel === 'function' && f.length > 0) renderExportEmailPanel(f);
+    if (typeof renderCustomThemePanel === 'function') renderCustomThemePanel(f);
 
     saveHistory(data);
 }
@@ -7504,6 +7519,20 @@ function generateLocalAdvisorResponse(text) {
 <script src="shift-handoff.js"></script>
 <script src="pattern-library-sync.js"></script>
 <script src="severity-override.js"></script>
+<script src="multi-file-timeline.js"></script>
+<script src="log-health-score.js"></script>
+<script src="recurring-issue-tracker.js"></script>
+<script src="impact-radius.js"></script>
+<script src="executive-summary.js"></script>
+<script src="security-posture.js"></script>
+<script src="trend-over-time.js"></script>
+<script src="change-validation.js"></script>
+<script src="finding-prioritizer.js"></script>
+<script src="bookmark-manager.js"></script>
+<script src="split-view.js"></script>
+<script src="finding-comments.js"></script>
+<script src="export-email.js"></script>
+<script src="custom-theme.js"></script>
 
 </body>
 </html>

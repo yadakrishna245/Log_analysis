@@ -8,7 +8,7 @@
 [![Flask](https://img.shields.io/badge/Flask-3.0-000000?style=for-the-badge&logo=flask&logoColor=white)](https://flask.palletsprojects.com)
 [![AWS](https://img.shields.io/badge/AWS-Serverless-FF9900?style=for-the-badge&logo=amazonaws&logoColor=white)](https://aws.amazon.com)
 [![Patterns](https://img.shields.io/badge/Patterns-455-01A982?style=for-the-badge)](docs/USER_GUIDE.md)
-[![Features](https://img.shields.io/badge/Features-158-8b5cf6?style=for-the-badge)](#-Features-158)
+[![Features](https://img.shields.io/badge/Features-172-8b5cf6?style=for-the-badge)](#-Features-172)
 [![Known Issues](https://img.shields.io/badge/Known_Issues-120-01A982?style=for-the-badge)](docs/USER_GUIDE.md)
 [![Runbooks](https://img.shields.io/badge/Runbooks-12-01A982?style=for-the-badge)](docs/USER_GUIDE.md)
 [![Privacy](https://img.shields.io/badge/Privacy-Zero_Upload-01A982?style=for-the-badge&logo=shieldsdotio&logoColor=white)](#-security--privacy)
@@ -260,7 +260,7 @@ flowchart TD
     subgraph NEW["✅ New Streaming Approach"]
         N1[Read file as stream<br/>chunk by chunk] --> N2[DecompressionStream<br/>decompress on-the-fly]
         N2 --> N3[Parse ONE tar entry<br/>at a time]
-        N3 --> N4[Scan this file's lines<br/>against 455 patterns]
+        N3 --> N4[Scan this file's lines<br/>against 675 patterns]
         N4 --> N5[Store findings<br/>DISCARD file content]
         N5 --> N6{More entries?}
         N6 -->|Yes| N3
@@ -508,7 +508,7 @@ flowchart TD
 |---|---------|-------------|
 | 128 | **⏰ Temporal Clustering** | Groups findings by timestamp proximity (60s window) — "What happened at 03:14?" |
 | 129 | **📌 Pin & Annotate** | Bookmark any finding with free-text notes — persists across sessions |
-| 130 | **⌨️ Command Palette (Ctrl+K)** | VS Code-style instant jump to any of 158 Features — power user speed |
+| 130 | **⌨️ Command Palette (Ctrl+K)** | VS Code-style instant jump to any of 172 Features — power user speed |
 | 131 | **🔇 Noise Suppression** | Auto-collapse repetitive patterns (10+ occurrences) — focus on unique issues |
 | 132 | **💾 Session Persistence** | IndexedDB auto-save — resume analysis after page reload with all results intact |
 | 133 | **✏️ Custom Pattern Editor** | Define your own regex rules with live validation — runs alongside 455 built-in patterns |
@@ -547,6 +547,38 @@ flowchart TD
 | 156 | **👥 Shift Handoff Report** | Structured L4→L4 handoff: findings summary, open items, actions taken, next steps (.txt/.md) |
 | 157 | **🔄 Pattern Library Sync** | Export/import custom patterns as JSON between team members with merge strategy selector |
 | 158 | **⚖️ Severity Override Rules** | Persistent per-user severity customization — "In MY environment, X is ALWAYS critical" |
+
+### 🧠 Intelligence, Compliance & Productivity Features (NEW — Aug 8)
+
+| # | Feature | Description |
+|---|---------|-------------|
+| 159 | **🌐 Multi-File Timeline Merge** | Unified timeline across all scanned files — color-coded by source, filterable, CSV export |
+| 160 | **📡 Log Health Score** | Single 0-100 gauge: severity-weighted deductions + density factor + trend vs last scan |
+| 161 | **🔁 Recurring Issue Tracker** | "This OOM appeared in 8 of your last 10 scans" — chronic issue detection across history |
+| 162 | **🧮 Impact Radius Calculator** | Maps findings to 6 infrastructure layers → blast radius visualization (concentric rings) |
+| 163 | **📊 Executive Summary Generator** | Non-technical one-pager for management: status, risk, top issues, recommendations |
+| 164 | **🔒 Security Posture Report** | Security-only filter → 5 domains (Auth, Crypto, Network, Vulns, Data) → A-F grade |
+| 165 | **📅 Trend Over Time** | CSS bar chart of findings over N scans → "errors trending UP 23% this week" |
+| 166 | **✅ Change Validation Checker** | Mark issues → apply fix → re-scan → confirm RESOLVED with evidence export |
+| 167 | **🎯 Finding Prioritizer (RICE)** | Score by Reach×Impact×Confidence÷Effort → "Fix these 3 first" with breakdown |
+| 168 | **📌 Bookmark Manager** | Persistent bookmarks across scans with notes, tags, search, import/export |
+| 169 | **🔀 Split View** | Side-by-side scan comparison with diff highlighting + synchronized scrolling |
+| 170 | **💬 Finding Comments & Notes** | Persistent per-finding comments with author + markdown-lite + thread view |
+| 171 | **📧 Export to Email** | One-click email formatting (plain/HTML/markdown) with recipient memory + copy |
+| 172 | **🎨 Custom Theme Engine** | Dark/Light/High Contrast/Solarized/Nord + custom color builder + WCAG AAA |
+
+### 🔍 Pattern Library Expansion (675 Total Patterns)
+
+Added 236 new detection patterns across 9 enterprise categories:
+- **HPE VME / Hardware** (35): iLO, thermal, fan, PSU, DIMM, PCIe, RAID, NMI, MCE, TPM
+- **Linux System** (40): kernel panic, softlockup, RCU stall, OOM, ext4/XFS/BTRFS, systemd, SELinux
+- **Windows System** (25): BSOD codes, WMI, DCOM, RPC, cluster failover, AD replication
+- **Storage & SAN** (26): multipath, SCSI sense codes, 3PAR/Nimble/Primera, thin provisioning
+- **Network** (25): BGP, OSPF, spanning-tree, MTU, CRC, SSL/TLS, DNS, load balancers
+- **Virtualization** (20): VMware PSOD/HA/vMotion, Hyper-V, KVM/QEMU
+- **Kubernetes** (25): CrashLoopBackOff, etcd, apiserver, PVC, CSI, HPA, autoscaler
+- **Database** (20): MySQL, PostgreSQL, Oracle ORA codes, Redis, MongoDB
+- **Security** (20): brute force, privilege escalation, rootkit, DDoS, PCI-DSS, HIPAA
 
 ---
 
@@ -844,7 +876,7 @@ graph TB
 | Capability | LogSherlock Pro | Splunk | Datadog | Manual grep |
 |-----------|:-:|:-:|:-:|:-:|
 | Zero data upload | ✅ | ❌ | ❌ | ✅ |
-| Auto pattern detection | ✅ 455 patterns | ✅ Custom | ✅ Custom | ❌ Manual |
+| Auto pattern detection | ✅ 675 patterns | ✅ Custom | ✅ Custom | ❌ Manual |
 | RCA report generation | ✅ 8-section | ❌ | ❌ | ❌ |
 | Knowledge Base | ✅ 120 issues | ❌ | ❌ | ❌ |
 | Setup time | 0 min (browser) | Days | Days | 0 min |
@@ -1095,7 +1127,7 @@ http://localhost:8888
 | Port | `localhost:8888` | CloudFront URL |
 | Dependencies | Python only (stdlib) | None (browser) |
 | License | Per-machine key | Per-machine key |
-| All 158 Features | ✅ | ✅ |
+| All 172 Features | ✅ | ✅ |
 | Works air-gapped | ✅ | ❌ |
 
 #### Troubleshooting
@@ -1160,7 +1192,7 @@ flowchart LR
 
 | Method | Endpoint | Description | Privacy |
 |--------|----------|-------------|---------|
-| `GET` | `/api/patterns/export` | Fetch all 455 patterns as JSON | No user data |
+| `GET` | `/api/patterns/export` | Fetch all 675 patterns as JSON | No user data |
 | `POST` | `/api/knowledge/lookup` | Match pattern names → known issues | Pattern names only |
 | `POST` | `/api/advisor` | Jira description → investigation tips | Ticket text |
 | `POST` | `/api/ticket/advisor` | Single-shot L4 structured response | Ticket text |

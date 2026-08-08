@@ -1,0 +1,278 @@
+/* LogSherlock Pro — Export Email Panel (File 13) */
+(function () {
+  'use strict';
+
+  function injectStyles() {
+    if (document.getElementById('lsp-export-email-styles')) return;
+    var style = document.createElement('style');
+    style.id = 'lsp-export-email-styles';
+    style.textContent = [
+      '.lsp-email-panel { background: var(--bg-secondary, #1e1e2e); border: 1px solid var(--border, #333); border-radius: 8px; margin: 10px 0; font-family: system-ui, sans-serif; color: var(--text-primary, #e0e0e0); }',
+      '.lsp-email-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; cursor: pointer; user-select: none; border-radius: 8px; transition: background 0.2s; }',
+      '.lsp-email-header:hover { background: var(--bg-primary, #121220); }',
+      '.lsp-email-header h3 { margin: 0; font-size: 16px; }',
+      '.lsp-email-header .chevron { transition: transform 0.3s; }',
+      '.lsp-email-header .chevron.collapsed { transform: rotate(-90deg); }',
+      '.lsp-email-body { padding: 16px; display: none; border-top: 1px solid var(--border, #333); }',
+      '.lsp-email-body.open { display: block; }',
+      '.lsp-email-row { margin-bottom: 12px; }',
+      '.lsp-email-row label { display: block; font-size: 12px; color: var(--text-secondary, #aaa); margin-bottom: 4px; }',
+      '.lsp-email-row input, .lsp-email-row textarea, .lsp-email-row select { width: 100%; box-sizing: border-box; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border, #444); background: var(--bg-primary, #121220); color: var(--text-primary, #e0e0e0); font-size: 13px; }',
+      '.lsp-email-row textarea { min-height: 60px; resize: vertical; }',
+      '.lsp-email-format-btns { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }',
+      '.lsp-email-format-btns button { padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border, #444); background: var(--bg-primary, #121220); color: var(--text-primary, #e0e0e0); cursor: pointer; font-size: 12px; transition: all 0.2s; }',
+      '.lsp-email-format-btns button.active { background: var(--accent, #7c3aed); color: #fff; border-color: var(--accent, #7c3aed); }',
+      '.lsp-email-preview { background: var(--bg-primary, #0d0d1a); border: 1px solid var(--border, #333); border-radius: 6px; padding: 12px; max-height: 350px; overflow-y: auto; font-size: 12px; white-space: pre-wrap; word-break: break-word; margin-bottom: 12px; }',
+      '.lsp-email-actions { display: flex; gap: 8px; flex-wrap: wrap; }',
+      '.lsp-email-actions button { padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s; }',
+      '.lsp-email-copy-btn { background: var(--accent, #7c3aed); color: #fff; }',
+      '.lsp-email-copy-btn:hover { opacity: 0.85; }',
+      '.lsp-email-empty { padding: 20px; text-align: center; color: var(--text-secondary, #888); font-style: italic; }'
+    ].join('\n');
+    document.head.appendChild(style);
+  }
+
+  function escapeHtml(str) {
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function buildSubject(findings) {
+    var critCount = findings.filter(function (f) { return f.severity && f.severity.toLowerCase() === 'critical'; }).length;
+    var dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    return 'Log Analysis Report \u2014 ' + dateStr + ' \u2014 ' + findings.length + ' findings, ' + critCount + ' critical';
+  }
+
+  function countBySeverity(findings) {
+    var counts = {};
+    findings.forEach(function (f) {
+      var sev = (f.severity || 'unknown').toLowerCase();
+      counts[sev] = (counts[sev] || 0) + 1;
+    });
+    return counts;
+  }
+
+  function buildPlainText(findings, greeting) {
+    var lines = [];
+    lines.push('Subject: ' + buildSubject(findings));
+    lines.push('');
+    lines.push(greeting);
+    lines.push('');
+    var counts = countBySeverity(findings);
+    var summaryParts = Object.keys(counts).map(function (k) { return counts[k] + ' ' + k; });
+    lines.push('Summary: ' + findings.length + ' total findings (' + summaryParts.join(', ') + ').');
+    lines.push('');
+
+    var criticals = findings.filter(function (f) { return f.severity && f.severity.toLowerCase() === 'critical'; });
+    if (criticals.length > 0) {
+      lines.push('=== CRITICAL FINDINGS ===');
+      criticals.forEach(function (f, i) {
+        lines.push((i + 1) + '. [' + (f.file || 'unknown') + ':' + (f.line || '?') + '] ' + (f.text || ''));
+      });
+      lines.push('');
+    }
+
+    lines.push('=== ALL FINDINGS ===');
+    lines.push('Severity | Category | Location | Text');
+    lines.push('-'.repeat(60));
+    findings.forEach(function (f) {
+      lines.push((f.severity || '-') + ' | ' + (f.category || '-') + ' | ' + (f.file || '?') + ':' + (f.line || '?') + ' | ' + (f.text || ''));
+    });
+    lines.push('');
+    lines.push('Generated by LogSherlock Pro at ' + new Date().toISOString());
+    return lines.join('\n');
+  }
+
+  function buildHtml(findings, greeting) {
+    var sevColors = { critical: '#ef4444', error: '#f97316', warning: '#eab308', info: '#3b82f6', debug: '#6b7280' };
+    var lines = [];
+    lines.push('<html><body style="font-family:Arial,sans-serif;color:#222;padding:20px;">');
+    lines.push('<h2 style="color:#333;">' + escapeHtml(buildSubject(findings)) + '</h2>');
+    lines.push('<p>' + escapeHtml(greeting) + '</p>');
+
+    var counts = countBySeverity(findings);
+    var summaryParts = Object.keys(counts).map(function (k) { return '<strong>' + counts[k] + '</strong> ' + escapeHtml(k); });
+    lines.push('<p><strong>Summary:</strong> ' + findings.length + ' total findings (' + summaryParts.join(', ') + ').</p>');
+
+    var criticals = findings.filter(function (f) { return f.severity && f.severity.toLowerCase() === 'critical'; });
+    if (criticals.length > 0) {
+      lines.push('<h3 style="color:#ef4444;">\u26A0\uFE0F Critical Findings</h3><ul>');
+      criticals.forEach(function (f) {
+        lines.push('<li><strong>' + escapeHtml((f.file || '?') + ':' + (f.line || '?')) + '</strong> — ' + escapeHtml(f.text || '') + '</li>');
+      });
+      lines.push('</ul>');
+    }
+
+    lines.push('<h3>All Findings</h3>');
+    lines.push('<table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;width:100%;font-size:13px;">');
+    lines.push('<tr style="background:#f0f0f0;"><th>Severity</th><th>Category</th><th>Location</th><th>Text</th></tr>');
+    findings.forEach(function (f) {
+      var sev = (f.severity || 'unknown').toLowerCase();
+      var color = sevColors[sev] || '#666';
+      lines.push('<tr>');
+      lines.push('<td style="color:' + color + ';font-weight:bold;">' + escapeHtml(f.severity || '-') + '</td>');
+      lines.push('<td>' + escapeHtml(f.category || '-') + '</td>');
+      lines.push('<td>' + escapeHtml((f.file || '?') + ':' + (f.line || '?')) + '</td>');
+      lines.push('<td>' + escapeHtml(f.text || '') + '</td>');
+      lines.push('</tr>');
+    });
+    lines.push('</table>');
+    lines.push('<hr><p style="color:#888;font-size:11px;">Generated by LogSherlock Pro at ' + escapeHtml(new Date().toISOString()) + '</p>');
+    lines.push('</body></html>');
+    return lines.join('\n');
+  }
+
+  function buildMarkdown(findings, greeting) {
+    var lines = [];
+    lines.push('## ' + buildSubject(findings));
+    lines.push('');
+    lines.push(greeting);
+    lines.push('');
+    var counts = countBySeverity(findings);
+    var summaryParts = Object.keys(counts).map(function (k) { return '**' + counts[k] + '** ' + k; });
+    lines.push('**Summary:** ' + findings.length + ' total findings (' + summaryParts.join(', ') + ').');
+    lines.push('');
+
+    var criticals = findings.filter(function (f) { return f.severity && f.severity.toLowerCase() === 'critical'; });
+    if (criticals.length > 0) {
+      lines.push('### \u26A0\uFE0F Critical Findings');
+      criticals.forEach(function (f, i) {
+        lines.push((i + 1) + '. **' + (f.file || '?') + ':' + (f.line || '?') + '** — ' + (f.text || ''));
+      });
+      lines.push('');
+    }
+
+    lines.push('### All Findings');
+    lines.push('');
+    lines.push('| Severity | Category | Location | Text |');
+    lines.push('|----------|----------|----------|------|');
+    findings.forEach(function (f) {
+      lines.push('| ' + (f.severity || '-') + ' | ' + (f.category || '-') + ' | ' + (f.file || '?') + ':' + (f.line || '?') + ' | ' + (f.text || '') + ' |');
+    });
+    lines.push('');
+    lines.push('---');
+    lines.push('*Generated by LogSherlock Pro at ' + new Date().toISOString() + '*');
+    return lines.join('\n');
+  }
+
+  window.renderExportEmailPanel = function (findings) {
+    injectStyles();
+    findings = Array.isArray(findings) ? findings : [];
+
+    var panel = document.createElement('div');
+    panel.className = 'lsp-email-panel';
+
+    var header = document.createElement('div');
+    header.className = 'lsp-email-header';
+    header.innerHTML = '<h3>\uD83D\uDCE7 Export & Email Report</h3><span class="chevron">\u25BC</span>';
+    panel.appendChild(header);
+
+    var body = document.createElement('div');
+    body.className = 'lsp-email-body open';
+    panel.appendChild(body);
+
+    var chevron = header.querySelector('.chevron');
+    header.addEventListener('click', function () {
+      var isOpen = body.classList.toggle('open');
+      chevron.classList.toggle('collapsed', !isOpen);
+    });
+
+    if (findings.length === 0) {
+      body.innerHTML = '<div class="lsp-email-empty">No findings to email</div>';
+      return panel;
+    }
+
+    // Recipients
+    var recipRow = document.createElement('div');
+    recipRow.className = 'lsp-email-row';
+    recipRow.innerHTML = '<label>Recipients (comma-separated)</label>';
+    var recipInput = document.createElement('input');
+    recipInput.type = 'text';
+    recipInput.placeholder = 'team@example.com, lead@example.com';
+    recipInput.value = localStorage.getItem('lsp_email_recipients') || '';
+    recipInput.addEventListener('input', function () {
+      localStorage.setItem('lsp_email_recipients', recipInput.value);
+    });
+    recipRow.appendChild(recipInput);
+    body.appendChild(recipRow);
+
+    // Greeting
+    var greetRow = document.createElement('div');
+    greetRow.className = 'lsp-email-row';
+    greetRow.innerHTML = '<label>Greeting</label>';
+    var greetInput = document.createElement('input');
+    greetInput.type = 'text';
+    greetInput.value = 'Hi Team,';
+    greetRow.appendChild(greetInput);
+    body.appendChild(greetRow);
+
+    // Format buttons
+    var formatDiv = document.createElement('div');
+    formatDiv.className = 'lsp-email-format-btns';
+    var formats = ['Plain Text', 'HTML', 'Markdown'];
+    var activeFormat = 'Plain Text';
+    var formatBtns = [];
+    formats.forEach(function (fmt) {
+      var btn = document.createElement('button');
+      btn.textContent = fmt;
+      if (fmt === activeFormat) btn.classList.add('active');
+      btn.addEventListener('click', function () {
+        activeFormat = fmt;
+        formatBtns.forEach(function (b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        updatePreview();
+      });
+      formatDiv.appendChild(btn);
+      formatBtns.push(btn);
+    });
+    body.appendChild(formatDiv);
+
+    // Preview
+    var preview = document.createElement('div');
+    preview.className = 'lsp-email-preview';
+    body.appendChild(preview);
+
+    function getContent() {
+      var greeting = greetInput.value || 'Hi Team,';
+      if (activeFormat === 'Plain Text') return buildPlainText(findings, greeting);
+      if (activeFormat === 'HTML') return buildHtml(findings, greeting);
+      return buildMarkdown(findings, greeting);
+    }
+
+    function updatePreview() {
+      preview.textContent = getContent();
+    }
+
+    greetInput.addEventListener('input', updatePreview);
+    updatePreview();
+
+    // Actions
+    var actions = document.createElement('div');
+    actions.className = 'lsp-email-actions';
+
+    var copyBtn = document.createElement('button');
+    copyBtn.className = 'lsp-email-copy-btn';
+    copyBtn.textContent = '\uD83D\uDCCB Copy to Clipboard';
+    copyBtn.addEventListener('click', function () {
+      var content = getContent();
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(content).then(function () {
+          copyBtn.textContent = '\u2705 Copied!';
+          setTimeout(function () { copyBtn.textContent = '\uD83D\uDCCB Copy to Clipboard'; }, 2000);
+        });
+      } else {
+        var ta = document.createElement('textarea');
+        ta.value = content;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        copyBtn.textContent = '\u2705 Copied!';
+        setTimeout(function () { copyBtn.textContent = '\uD83D\uDCCB Copy to Clipboard'; }, 2000);
+      }
+    });
+    actions.appendChild(copyBtn);
+    body.appendChild(actions);
+
+    return panel;
+  };
+})();

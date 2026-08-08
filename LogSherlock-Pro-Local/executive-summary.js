@@ -1,296 +1,275 @@
 /**
- * LogSherlock Pro — Executive Summary Generator
- * C-level one-pager auto-generated from findings
- * 
- * ENTERPRISE FEATURE: When CTO/VP asks "what happened?" — generate a 
- * professional 1-page summary with: situation, impact, actions, ETA.
- * Written in business language, not tech jargon.
- * 
- * DATA INTEGRITY: Summary is generated from ACTUAL findings only.
- * Impact statements use "potential" language. No unverified claims.
+ * LogSherlock Pro — Executive Summary Panel
+ * Generates a non-technical one-page summary for management/stakeholders
  */
+(function () {
+  'use strict';
 
-(function() {
-    'use strict';
+  var STYLE_ID = 'lsp-executive-summary-style';
 
-    // Business-friendly severity descriptions
-    const SEVERITY_BUSINESS = {
-        CRITICAL: { label: 'Service Impacting', color: '#ef4444', business: 'Immediate attention required — service stability at risk' },
-        HIGH: { label: 'Significant Risk', color: '#f59e0b', business: 'Important issues requiring prompt resolution' },
-        MEDIUM: { label: 'Moderate Concern', color: '#3b82f6', business: 'Issues to monitor and plan remediation' },
-        LOW: { label: 'Minor', color: '#6b7280', business: 'Low-priority items for planned maintenance' },
-        INFO: { label: 'Informational', color: '#8b5cf6', business: 'Observations for awareness' }
-    };
+  function injectStyles() {
+    if (document.getElementById(STYLE_ID)) return;
+    var style = document.createElement('style');
+    style.id = STYLE_ID;
+    style.textContent = [
+      '.lsp-exec-panel { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; border: 1px solid #e0e0e0; border-radius: 8px; margin: 16px 0; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }',
+      '.lsp-exec-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; cursor: pointer; background: #f8f9fa; border-radius: 8px 8px 0 0; user-select: none; }',
+      '.lsp-exec-header h2 { margin: 0; font-size: 18px; }',
+      '.lsp-exec-header .lsp-toggle { font-size: 14px; color: #666; }',
+      '.lsp-exec-body { padding: 20px; }',
+      '.lsp-exec-body.collapsed { display: none; }',
+      '.lsp-exec-status { padding: 12px 16px; border-radius: 6px; font-size: 16px; font-weight: 600; margin-bottom: 16px; }',
+      '.lsp-exec-status.critical { background: #fdecea; color: #b71c1c; }',
+      '.lsp-exec-status.warning { background: #fff8e1; color: #e65100; }',
+      '.lsp-exec-status.healthy { background: #e8f5e9; color: #1b5e20; }',
+      '.lsp-exec-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 18px; }',
+      '.lsp-exec-metric { background: #f5f5f5; padding: 12px; border-radius: 6px; text-align: center; }',
+      '.lsp-exec-metric .val { font-size: 24px; font-weight: 700; color: #1a237e; }',
+      '.lsp-exec-metric .label { font-size: 12px; color: #666; margin-top: 4px; }',
+      '.lsp-exec-section { margin-bottom: 16px; }',
+      '.lsp-exec-section h3 { font-size: 14px; color: #444; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 0.5px; }',
+      '.lsp-exec-issue { padding: 10px 14px; background: #fafafa; border-left: 3px solid #e53935; margin-bottom: 8px; border-radius: 0 4px 4px 0; }',
+      '.lsp-exec-issue.high { border-left-color: #ff9800; }',
+      '.lsp-exec-issue.medium { border-left-color: #ffc107; }',
+      '.lsp-exec-issue.low { border-left-color: #4caf50; }',
+      '.lsp-exec-recommendation { padding: 12px 16px; background: #e3f2fd; border-radius: 6px; font-weight: 500; }',
+      '.lsp-exec-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }',
+      '.lsp-exec-actions button { padding: 8px 14px; border: 1px solid #ccc; border-radius: 4px; background: #fff; cursor: pointer; font-size: 13px; }',
+      '.lsp-exec-actions button:hover { background: #f0f0f0; }',
+      '.lsp-exec-timestamp { font-size: 11px; color: #999; margin-top: 12px; }'
+    ].join('\n');
+    document.head.appendChild(style);
+  }
 
-    // Domain-to-business-impact mapping
-    const DOMAIN_IMPACT = {
-        storage: 'Data availability and persistence',
-        network: 'Service connectivity and communication',
-        cluster: 'High availability and failover capability',
-        memory: 'Application performance and stability',
-        kernel: 'System stability and reliability',
-        application: 'Business service delivery',
-        security: 'Security posture and compliance'
-    };
+  function getSeverityWeight(sev) {
+    var s = (sev || '').toLowerCase();
+    if (s === 'critical') return 4;
+    if (s === 'high') return 3;
+    if (s === 'medium') return 2;
+    if (s === 'low') return 1;
+    return 0;
+  }
 
-    function generateExecutiveSummary(findings) {
-        if (!findings || findings.length === 0) return null;
+  function determineStatus(findings) {
+    var critCount = 0;
+    var highCount = 0;
+    for (var i = 0; i < findings.length; i++) {
+      var sev = (findings[i].severity || '').toLowerCase();
+      if (sev === 'critical') critCount++;
+      if (sev === 'high') highCount++;
+    }
+    if (critCount > 0) return { label: 'Critical — Immediate Attention Required', cls: 'critical' };
+    if (highCount > 0 || findings.length > 10) return { label: 'Warning — Issues Detected', cls: 'warning' };
+    return { label: 'Healthy — System Operating Normally', cls: 'healthy' };
+  }
 
-        const critCount = findings.filter(f => f.severity === 'CRITICAL').length;
-        const highCount = findings.filter(f => f.severity === 'HIGH').length;
-        const medCount = findings.filter(f => f.severity === 'MEDIUM').length;
+  function getCategories(findings) {
+    var cats = {};
+    for (var i = 0; i < findings.length; i++) {
+      var c = findings[i].category || 'Uncategorized';
+      cats[c] = true;
+    }
+    return Object.keys(cats);
+  }
 
-        // Determine overall situation level
-        let situationLevel, situationDesc;
-        if (critCount > 0) {
-            situationLevel = 'CRITICAL';
-            situationDesc = 'Active service-impacting issues detected requiring immediate attention.';
-        } else if (highCount > 0) {
-            situationLevel = 'HIGH';
-            situationDesc = 'Significant issues detected that may affect service stability if unaddressed.';
-        } else if (medCount > 0) {
-            situationLevel = 'MEDIUM';
-            situationDesc = 'Moderate issues detected — no immediate risk but remediation recommended.';
-        } else {
-            situationLevel = 'LOW';
-            situationDesc = 'Minor observations only — environment appears healthy.';
-        }
+  function getTopIssues(findings, count) {
+    var sorted = findings.slice().sort(function (a, b) {
+      return getSeverityWeight(b.severity) - getSeverityWeight(a.severity);
+    });
+    return sorted.slice(0, count);
+  }
 
-        // Group findings by domain for business impact
-        const domains = {};
-        findings.forEach(f => {
-            const pattern = (f.pattern_name || '').toLowerCase();
-            let domain = 'application';
-            if (/disk|storage|san|multipath|gfs|lvm|mount|filesystem/.test(pattern)) domain = 'storage';
-            else if (/network|nic|bond|dns|connection|timeout|packet/.test(pattern)) domain = 'network';
-            else if (/cluster|corosync|quorum|pacemaker|fence|dlm/.test(pattern)) domain = 'cluster';
-            else if (/memory|oom|swap|heap|ram/.test(pattern)) domain = 'memory';
-            else if (/kernel|panic|cpu|rcu|watchdog/.test(pattern)) domain = 'kernel';
-            else if (/auth|cert|security|permission|access/.test(pattern)) domain = 'security';
+  function plainEnglish(finding) {
+    var text = finding.text || '';
+    // Remove technical jargon patterns for exec audience
+    var cleaned = text.replace(/\[.*?\]/g, '').replace(/\{.*?\}/g, '').replace(/\d{4}-\d{2}-\d{2}T[\d:.Z]+/g, '').trim();
+    if (cleaned.length > 120) cleaned = cleaned.substring(0, 117) + '...';
+    return cleaned || 'System issue detected requiring attention';
+  }
 
-            if (!domains[domain]) domains[domain] = { count: 0, critical: 0, high: 0 };
-            domains[domain].count++;
-            if (f.severity === 'CRITICAL') domains[domain].critical++;
-            if (f.severity === 'HIGH') domains[domain].high++;
-        });
+  function getRiskAssessment(findings) {
+    var cats = getCategories(findings);
+    var critCount = findings.filter(function (f) { return (f.severity || '').toLowerCase() === 'critical'; }).length;
+    var highCount = findings.filter(function (f) { return (f.severity || '').toLowerCase() === 'high'; }).length;
+    var spread = cats.length;
 
-        // Get unique files affected
-        const affectedSystems = [...new Set(findings.map(f => f.file).filter(Boolean))];
+    if (critCount >= 3 || (critCount > 0 && spread > 4)) return 'High Risk — Multiple critical issues across several system areas';
+    if (critCount > 0 || highCount >= 3) return 'Elevated Risk — Critical or numerous high-priority issues present';
+    if (highCount > 0 || spread > 3) return 'Moderate Risk — Some concerns requiring monitoring';
+    if (findings.length > 0) return 'Low Risk — Minor issues detected, no immediate threat';
+    return 'Minimal Risk — No significant issues identified';
+  }
 
-        return {
-            situationLevel,
-            situationDesc,
-            totalFindings: findings.length,
-            critCount,
-            highCount,
-            medCount,
-            domains,
-            affectedSystems,
-            generatedAt: new Date().toISOString()
-        };
+  function getRecommendation(findings) {
+    var critCount = findings.filter(function (f) { return (f.severity || '').toLowerCase() === 'critical'; }).length;
+    var highCount = findings.filter(function (f) { return (f.severity || '').toLowerCase() === 'high'; }).length;
+    if (critCount > 0) return 'Immediate action required — Critical issues must be addressed before they impact operations.';
+    if (highCount > 0) return 'Monitor closely — High-priority issues should be resolved within the current sprint.';
+    return 'System healthy — Continue routine monitoring. No urgent action needed.';
+  }
+
+  function generateTextReport(findings, scanTime) {
+    var status = determineStatus(findings);
+    var cats = getCategories(findings);
+    var topIssues = getTopIssues(findings, 3);
+    var lines = [];
+    lines.push('EXECUTIVE SUMMARY — LOG ANALYSIS REPORT');
+    lines.push('Generated: ' + scanTime);
+    lines.push('');
+    lines.push('STATUS: ' + status.label);
+    lines.push('');
+    lines.push('KEY METRICS:');
+    lines.push('  Total Findings: ' + findings.length);
+    lines.push('  Critical Issues: ' + findings.filter(function (f) { return (f.severity || '').toLowerCase() === 'critical'; }).length);
+    lines.push('  Categories Affected: ' + cats.length);
+    lines.push('');
+    lines.push('TOP ISSUES:');
+    for (var i = 0; i < topIssues.length; i++) {
+      lines.push('  ' + (i + 1) + '. [' + (topIssues[i].severity || 'Unknown').toUpperCase() + '] ' + plainEnglish(topIssues[i]));
+    }
+    lines.push('');
+    lines.push('RISK ASSESSMENT: ' + getRiskAssessment(findings));
+    lines.push('');
+    lines.push('RECOMMENDATION: ' + getRecommendation(findings));
+    return lines.join('\n');
+  }
+
+  function generateHtmlReport(findings, scanTime) {
+    var status = determineStatus(findings);
+    var cats = getCategories(findings);
+    var topIssues = getTopIssues(findings, 3);
+    var critCount = findings.filter(function (f) { return (f.severity || '').toLowerCase() === 'critical'; }).length;
+
+    var issuesHtml = '';
+    for (var i = 0; i < topIssues.length; i++) {
+      issuesHtml += '<li><strong>' + (topIssues[i].severity || 'Unknown').toUpperCase() + ':</strong> ' + plainEnglish(topIssues[i]) + '</li>';
     }
 
+    return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Executive Summary - Log Analysis</title>' +
+      '<style>body{font-family:Arial,sans-serif;max-width:800px;margin:40px auto;padding:20px;color:#333;}' +
+      'h1{color:#1a237e;border-bottom:2px solid #1a237e;padding-bottom:10px;}' +
+      '.status{padding:12px;border-radius:6px;font-weight:bold;margin:16px 0;}' +
+      '.critical{background:#fdecea;color:#b71c1c;}.warning{background:#fff8e1;color:#e65100;}.healthy{background:#e8f5e9;color:#1b5e20;}' +
+      '.metrics{display:flex;gap:20px;margin:16px 0;}.metric{background:#f5f5f5;padding:16px;border-radius:6px;text-align:center;flex:1;}' +
+      '.metric .val{font-size:28px;font-weight:bold;color:#1a237e;}.metric .lbl{font-size:12px;color:#666;}' +
+      '</style></head><body>' +
+      '<h1>Executive Summary — Log Analysis Report</h1>' +
+      '<p><em>Generated: ' + scanTime + '</em></p>' +
+      '<div class="status ' + status.cls + '">' + status.label + '</div>' +
+      '<div class="metrics"><div class="metric"><div class="val">' + findings.length + '</div><div class="lbl">Total Findings</div></div>' +
+      '<div class="metric"><div class="val">' + critCount + '</div><div class="lbl">Critical</div></div>' +
+      '<div class="metric"><div class="val">' + cats.length + '</div><div class="lbl">Categories</div></div></div>' +
+      '<h2>Top Issues</h2><ol>' + issuesHtml + '</ol>' +
+      '<h2>Risk Assessment</h2><p>' + getRiskAssessment(findings) + '</p>' +
+      '<h2>Recommendation</h2><p><strong>' + getRecommendation(findings) + '</strong></p>' +
+      '</body></html>';
+  }
 
-    // ═══════════════════════════════════════════════════════════════
-    // EXECUTIVE DOCUMENT GENERATOR
-    // ═══════════════════════════════════════════════════════════════
+  function downloadFile(content, filename, mime) {
+    var blob = new Blob([content], { type: mime });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
 
-    function renderExecutiveDocument(summary) {
-        const now = new Date(summary.generatedAt);
-        const levelColor = SEVERITY_BUSINESS[summary.situationLevel]?.color || '#6b7280';
+  window.renderExecutiveSummaryPanel = function (findings) {
+    injectStyles();
+    findings = findings || [];
+    var scanTime = new Date().toLocaleString();
 
-        let doc = `
-══════════════════════════════════════════════════════
- EXECUTIVE INCIDENT SUMMARY
- ${now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
- ${now.toLocaleTimeString()}
-══════════════════════════════════════════════════════
+    var container = document.createElement('div');
+    container.className = 'lsp-exec-panel';
 
-STATUS: ${summary.situationLevel}
-${summary.situationDesc}
+    var status = determineStatus(findings);
+    var cats = getCategories(findings);
+    var topIssues = getTopIssues(findings, 3);
+    var critCount = findings.filter(function (f) { return (f.severity || '').toLowerCase() === 'critical'; }).length;
 
-──────────────────────────────────────────────────────
- SITUATION OVERVIEW
-──────────────────────────────────────────────────────
+    var headerEl = document.createElement('div');
+    headerEl.className = 'lsp-exec-header';
+    headerEl.innerHTML = '<h2>📊 Executive Summary</h2><span class="lsp-toggle">▼</span>';
 
- Total issues identified: ${summary.totalFindings}
- • Critical (service-impacting): ${summary.critCount}
- • High (significant risk):      ${summary.highCount}
- • Medium (moderate concern):    ${summary.medCount}
- • Other:                        ${summary.totalFindings - summary.critCount - summary.highCount - summary.medCount}
+    var bodyEl = document.createElement('div');
+    bodyEl.className = 'lsp-exec-body';
 
- Systems affected: ${summary.affectedSystems.length} log source${summary.affectedSystems.length !== 1 ? 's' : ''}
+    // Status
+    var statusHtml = '<div class="lsp-exec-status ' + status.cls + '">' + status.label + '</div>';
 
-──────────────────────────────────────────────────────
- BUSINESS IMPACT AREAS
-──────────────────────────────────────────────────────
-${Object.entries(summary.domains).map(([domain, info]) => {
-    const impact = DOMAIN_IMPACT[domain] || 'General operations';
-    const status = info.critical > 0 ? '🔴 IMPACTED' : info.high > 0 ? '🟠 AT RISK' : '🟡 MONITOR';
-    return ` ${status} ${impact}\n          (${info.count} finding${info.count !== 1 ? 's' : ''}, ${info.critical} critical, ${info.high} high)`;
-}).join('\n')}
+    // Metrics
+    var metricsHtml = '<div class="lsp-exec-metrics">' +
+      '<div class="lsp-exec-metric"><div class="val">' + findings.length + '</div><div class="label">Total Findings</div></div>' +
+      '<div class="lsp-exec-metric"><div class="val">' + critCount + '</div><div class="label">Critical Issues</div></div>' +
+      '<div class="lsp-exec-metric"><div class="val">' + cats.length + '</div><div class="label">Categories Affected</div></div>' +
+      '<div class="lsp-exec-metric"><div class="val">' + (critCount > 0 ? 'Urgent' : (findings.length > 5 ? 'High' : 'Normal')) + '</div><div class="label">Resolution Priority</div></div>' +
+      '</div>';
 
-──────────────────────────────────────────────────────
- RECOMMENDED ACTIONS
-──────────────────────────────────────────────────────
-${summary.critCount > 0 ? ` 1. IMMEDIATE: Assign L4 engineer to investigate critical findings\n 2. COMMUNICATE: Notify affected service owners\n 3. MONITOR: Set up alert for recurrence\n` :
-  summary.highCount > 0 ? ` 1. SCHEDULE: Plan remediation within 24-48 hours\n 2. ASSESS: Review high-severity findings for service impact\n 3. PREVENTIVE: Address root causes to prevent escalation\n` :
-  ` 1. PLAN: Include in next maintenance window\n 2. REVIEW: Assess findings during regular operations review\n`}
-──────────────────────────────────────────────────────
- DISCLAIMER
-──────────────────────────────────────────────────────
- This summary is auto-generated from automated log pattern
- scanning. Findings indicate pattern matches, not confirmed
- outages. Technical team should validate impact before
- communicating to customers.
-
-══════════════════════════════════════════════════════
- Generated by LogSherlock Pro | Confidential
-══════════════════════════════════════════════════════`;
-
-        return doc;
-    }
-
-    // ═══════════════════════════════════════════════════════════════
-    // UI PANEL
-    // ═══════════════════════════════════════════════════════════════
-
-    function renderExecSummaryPanel(findings, container) {
-        const summary = generateExecutiveSummary(findings);
-        if (!summary) {
-            container.innerHTML = '';
-            return;
-        }
-
-        const levelInfo = SEVERITY_BUSINESS[summary.situationLevel];
-
-        let html = `
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
-                <div>
-                    <span style="font-size:14px;font-weight:600;color:var(--text-100);">📄 Executive Summary</span>
-                    <span style="font-size:11px;color:var(--text-400);margin-left:8px;">C-level one-pager</span>
-                </div>
-                <button id="execSummaryGenerate" style="background:var(--accent);color:var(--bg-0);border:none;border-radius:6px;padding:6px 12px;font-size:11px;cursor:pointer;font-weight:500;">
-                    📋 Generate & Copy
-                </button>
-            </div>
-
-            <!-- Quick preview -->
-            <div style="background:var(--bg-0);border:1px solid ${levelInfo.color}40;border-left:3px solid ${levelInfo.color};border-radius:6px;padding:12px;">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                    <span style="font-size:12px;font-weight:600;color:${levelInfo.color};">${levelInfo.label}</span>
-                    <span style="font-size:10px;color:var(--text-400);">${new Date().toLocaleDateString()}</span>
-                </div>
-                <div style="font-size:11px;color:var(--text-300);margin-bottom:10px;">${summary.situationDesc}</div>
-                <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:6px;text-align:center;">
-                    <div style="background:var(--bg-1);border-radius:4px;padding:6px;">
-                        <div style="font-size:16px;font-weight:700;color:#ef4444;">${summary.critCount}</div>
-                        <div style="font-size:8px;color:var(--text-500);">Critical</div>
-                    </div>
-                    <div style="background:var(--bg-1);border-radius:4px;padding:6px;">
-                        <div style="font-size:16px;font-weight:700;color:#f59e0b;">${summary.highCount}</div>
-                        <div style="font-size:8px;color:var(--text-500);">High</div>
-                    </div>
-                    <div style="background:var(--bg-1);border-radius:4px;padding:6px;">
-                        <div style="font-size:16px;font-weight:700;color:var(--text-300);">${summary.affectedSystems.length}</div>
-                        <div style="font-size:8px;color:var(--text-500);">Systems</div>
-                    </div>
-                    <div style="background:var(--bg-1);border-radius:4px;padding:6px;">
-                        <div style="font-size:16px;font-weight:700;color:var(--text-300);">${Object.keys(summary.domains).length}</div>
-                        <div style="font-size:8px;color:var(--text-500);">Domains</div>
-                    </div>
-                </div>
-                <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px;">
-                    ${Object.entries(summary.domains).map(([domain, info]) => {
-                        const color = info.critical > 0 ? '#ef4444' : info.high > 0 ? '#f59e0b' : '#3b82f6';
-                        return `<span style="font-size:9px;padding:2px 6px;border-radius:10px;background:${color}15;color:${color};border:1px solid ${color}30;">${domain} (${info.count})</span>`;
-                    }).join('')}
-                </div>
-            </div>
-
-            <div id="execSummaryOutput" style="display:none;margin-top:12px;"></div>`;
-
-        container.innerHTML = html;
-
-        // Generate handler
-        document.getElementById('execSummaryGenerate').addEventListener('click', () => {
-            const doc = renderExecutiveDocument(summary);
-            const output = document.getElementById('execSummaryOutput');
-            output.style.display = 'block';
-            output.innerHTML = `
-                <div style="background:var(--bg-0);border:1px solid var(--border-subtle);border-radius:6px;padding:10px;">
-                    <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
-                        <span style="font-size:11px;color:var(--text-200);">📄 Executive Summary Document</span>
-                        <div style="display:flex;gap:4px;">
-                            <button id="execCopy" style="font-size:10px;padding:3px 8px;background:var(--accent);color:var(--bg-0);border:none;border-radius:4px;cursor:pointer;">📋 Copy</button>
-                            <button id="execDownload" style="font-size:10px;padding:3px 8px;background:var(--bg-1);color:var(--text-300);border:1px solid var(--border-subtle);border-radius:4px;cursor:pointer;">💾 Download</button>
-                        </div>
-                    </div>
-                    <pre style="font-size:9px;color:var(--text-400);font-family:var(--mono);white-space:pre-wrap;max-height:250px;overflow-y:auto;background:var(--bg-1);padding:8px;border-radius:4px;">${escHtml(doc)}</pre>
-                </div>`;
-
-            document.getElementById('execCopy').addEventListener('click', () => {
-                navigator.clipboard.writeText(doc).then(() => {
-                    document.getElementById('execCopy').textContent = '✅ Copied!';
-                    setTimeout(() => document.getElementById('execCopy').textContent = '📋 Copy', 2000);
-                });
-            });
-
-            document.getElementById('execDownload').addEventListener('click', () => {
-                const blob = new Blob([doc], { type: 'text/plain' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `Executive-Summary-${new Date().toISOString().split('T')[0]}.txt`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-            });
-        });
-    }
-
-    // ═══════════════════════════════════════════════════════════════
-    // INITIALIZATION
-    // ═══════════════════════════════════════════════════════════════
-
-    function initExecutiveSummary() {
-        window.renderExecutiveSummaryPanel = function(findings) {
-            if (!findings || findings.length === 0) return;
-
-            let container = document.getElementById('executiveSummaryPanel');
-            if (!container) {
-                container = document.createElement('div');
-                container.id = 'executiveSummaryPanel';
-                container.className = 'results-panel';
-                container.style.cssText = 'margin-top:16px;padding:16px;background:var(--bg-1);border:1px solid var(--border-subtle);border-radius:10px;';
-
-                const anchor = document.getElementById('blastRadiusPanel') ||
-                               document.getElementById('logDiffPanel') ||
-                               document.getElementById('findingsList');
-                if (anchor && anchor.parentNode) {
-                    anchor.parentNode.insertBefore(container, anchor.nextSibling);
-                }
-            }
-
-            renderExecSummaryPanel(findings, container);
-        };
-
-        window.LogSherlockExecSummary = {
-            generate: generateExecutiveSummary,
-            version: '1.0.0'
-        };
-    }
-
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initExecutiveSummary);
+    // Top Issues
+    var issuesHtml = '<div class="lsp-exec-section"><h3>Top Issues</h3>';
+    if (topIssues.length === 0) {
+      issuesHtml += '<p>No issues found — system is operating normally.</p>';
     } else {
-        initExecutiveSummary();
+      for (var i = 0; i < topIssues.length; i++) {
+        var sevCls = (topIssues[i].severity || '').toLowerCase();
+        issuesHtml += '<div class="lsp-exec-issue ' + sevCls + '"><strong>' + (i + 1) + '.</strong> ' + plainEnglish(topIssues[i]) + '</div>';
+      }
     }
+    issuesHtml += '</div>';
 
-    function escHtml(str) {
-        const div = document.createElement('div');
-        div.textContent = str || '';
-        return div.innerHTML;
-    }
+    // Risk Assessment
+    var riskHtml = '<div class="lsp-exec-section"><h3>Risk Assessment</h3><p>' + getRiskAssessment(findings) + '</p></div>';
+
+    // Recommendation
+    var recHtml = '<div class="lsp-exec-recommendation">' + getRecommendation(findings) + '</div>';
+
+    // Actions
+    var actionsHtml = '<div class="lsp-exec-actions">' +
+      '<button data-action="copy">📋 Copy to Clipboard</button>' +
+      '<button data-action="txt">📄 Download .txt</button>' +
+      '<button data-action="html">🌐 Download .html (PDF-ready)</button>' +
+      '</div>';
+
+    var timestampHtml = '<div class="lsp-exec-timestamp">Scan performed: ' + scanTime + '</div>';
+
+    bodyEl.innerHTML = statusHtml + metricsHtml + issuesHtml + riskHtml + recHtml + actionsHtml + timestampHtml;
+
+    container.appendChild(headerEl);
+    container.appendChild(bodyEl);
+
+    // Collapse toggle
+    headerEl.addEventListener('click', function () {
+      var toggle = headerEl.querySelector('.lsp-toggle');
+      if (bodyEl.classList.contains('collapsed')) {
+        bodyEl.classList.remove('collapsed');
+        toggle.textContent = '▼';
+      } else {
+        bodyEl.classList.add('collapsed');
+        toggle.textContent = '►';
+      }
+    });
+
+    // Action buttons
+    bodyEl.addEventListener('click', function (e) {
+      var btn = e.target.closest('button[data-action]');
+      if (!btn) return;
+      var action = btn.getAttribute('data-action');
+      if (action === 'copy') {
+        var text = generateTextReport(findings, scanTime);
+        navigator.clipboard.writeText(text).then(function () {
+          btn.textContent = '✅ Copied!';
+          setTimeout(function () { btn.textContent = '📋 Copy to Clipboard'; }, 2000);
+        });
+      } else if (action === 'txt') {
+        downloadFile(generateTextReport(findings, scanTime), 'executive-summary-' + Date.now() + '.txt', 'text/plain');
+      } else if (action === 'html') {
+        downloadFile(generateHtmlReport(findings, scanTime), 'executive-summary-' + Date.now() + '.html', 'text/html');
+      }
+    });
+
+    return container;
+  };
 })();

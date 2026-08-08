@@ -2703,6 +2703,21 @@ function render(data){
     if (typeof renderShiftHandoffPanel === 'function' && f.length > 0) renderShiftHandoffPanel(f);
     if (typeof renderPatternLibrarySyncPanel === 'function') renderPatternLibrarySyncPanel(f);
     if (typeof renderSeverityOverridePanel === 'function' && f.length > 0) renderSeverityOverridePanel(f);
+    // Intelligence, Compliance & Productivity Features
+    if (typeof renderMultiFileTimelinePanel === 'function' && f.length > 0) renderMultiFileTimelinePanel(f);
+    if (typeof renderLogHealthScorePanel === 'function' && f.length > 0) renderLogHealthScorePanel(f);
+    if (typeof renderRecurringIssueTrackerPanel === 'function') renderRecurringIssueTrackerPanel(f);
+    if (typeof renderImpactRadiusPanel === 'function' && f.length > 0) renderImpactRadiusPanel(f);
+    if (typeof renderExecutiveSummaryPanel === 'function' && f.length > 0) renderExecutiveSummaryPanel(f);
+    if (typeof renderSecurityPosturePanel === 'function' && f.length > 0) renderSecurityPosturePanel(f);
+    if (typeof renderTrendOverTimePanel === 'function') renderTrendOverTimePanel(f);
+    if (typeof renderChangeValidationPanel === 'function') renderChangeValidationPanel(f);
+    if (typeof renderFindingPrioritizerPanel === 'function' && f.length > 0) renderFindingPrioritizerPanel(f);
+    if (typeof renderBookmarkManagerPanel === 'function') renderBookmarkManagerPanel(f);
+    if (typeof renderSplitViewPanel === 'function') renderSplitViewPanel(f);
+    if (typeof renderFindingCommentsPanel === 'function') renderFindingCommentsPanel(f);
+    if (typeof renderExportEmailPanel === 'function' && f.length > 0) renderExportEmailPanel(f);
+    if (typeof renderCustomThemePanel === 'function') renderCustomThemePanel(f);
 
     saveHistory(data);
 }
@@ -5992,5 +6007,19 @@ function askOllamaTicket() {
 <script src='/static/shift-handoff.js'></script>
 <script src='/static/pattern-library-sync.js'></script>
 <script src='/static/severity-override.js'></script>
+<script src='/static/multi-file-timeline.js'></script>
+<script src='/static/log-health-score.js'></script>
+<script src='/static/recurring-issue-tracker.js'></script>
+<script src='/static/impact-radius.js'></script>
+<script src='/static/executive-summary.js'></script>
+<script src='/static/security-posture.js'></script>
+<script src='/static/trend-over-time.js'></script>
+<script src='/static/change-validation.js'></script>
+<script src='/static/finding-prioritizer.js'></script>
+<script src='/static/bookmark-manager.js'></script>
+<script src='/static/split-view.js'></script>
+<script src='/static/finding-comments.js'></script>
+<script src='/static/export-email.js'></script>
+<script src='/static/custom-theme.js'></script>
 </body>
 </html>
