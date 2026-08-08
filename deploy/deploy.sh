@@ -1,8 +1,8 @@
 #!/bin/bash
 # LogSherlock Pro v4.0 - Single-click AWS Serverless Deployment
-# Features: 455 patterns, streaming engine (3GB+), multi-file scan, Jira integration,
-#           Ticket Advisor, Intelligence Layer, Incident Cinema, Root Cause Graph,
-#           Timeline Replay, Log Memory, Per-Machine License, Multi-Provider AI
+# Features: 455 patterns, 137 features, streaming engine (3GB+), multi-file scan,
+#           Jira integration, Ticket Advisor, AI Copilot, Compliance Export,
+#           Shift Handoff, Runbook Executor, Custom Patterns, Session Persistence
 # Usage: ./deploy.sh [stack-name] [region] [api-key]
 # Example: ./deploy.sh logsherlock-pro us-east-1
 
@@ -16,7 +16,7 @@ CLOUDFRONT_DIST_ID="E3V2MZ00F7WXY9"
 echo ""
 echo "╔══════════════════════════════════════════════════════════════════╗"
 echo "║        LogSherlock Pro v4.0 — AWS Serverless Deployment        ║"
-echo "║   455 Patterns | 85+ Features | Intelligence | Incident Cinema ║"
+echo "║   455 Patterns | 137 Features | Enterprise Log Analysis        ║"
 echo "╚══════════════════════════════════════════════════════════════════╝"
 echo ""
 
@@ -97,13 +97,15 @@ echo "  📦 Stack:       ${STACK_NAME}"
 echo ""
 echo "  ── Features Deployed ──"
 echo "  • 455 detection patterns across 14 categories"
+echo "  • 137 features (45 JS modules)"
 echo "  • 🎯 Ticket Advisor — iterative L4 troubleshooting (<10ms)"
 echo "  • Streaming engine — handles 3GB+ files"
 echo "  • Multi-file scan (30+ archives at once)"
+echo "  • Head+tail scanning for large files (catches end-of-log errors)"
 echo "  • Local AI (Ollama) — streaming responses"
-echo "  • Jira Integration — fetch/post with AI comment reply"
+echo "  • Session Persistence + Command Palette (Ctrl+K)"
+echo "  • Compliance Export (SOC2/ISO27001/HIPAA/PCI-DSS)"
 echo "  • License key activation system"
-echo "  • Usage analytics dashboard"
 echo ""
 echo "  ── Quick Test ──"
 echo "  curl ${API_URL}api/health"
@@ -126,7 +128,7 @@ cat > .deployment-info.json << EOF
     "stack_name": "${STACK_NAME}",
     "cloudfront_dist_id": "${CLOUDFRONT_DIST_ID}",
     "deployed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-    "version": "3.0"
+    "version": "4.0"
 }
 EOF
 echo "  📄 Deployment info saved to .deployment-info.json"

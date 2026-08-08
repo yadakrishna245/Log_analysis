@@ -1064,7 +1064,7 @@ http://localhost:8888
 | Port | `localhost:8888` | CloudFront URL |
 | Dependencies | Python only (stdlib) | None (browser) |
 | License | Per-machine key | Per-machine key |
-| All 102 features | ✅ | ✅ |
+| All 137 features | ✅ | ✅ |
 | Works air-gapped | ✅ | ❌ |
 
 #### Troubleshooting
