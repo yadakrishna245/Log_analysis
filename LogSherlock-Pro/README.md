@@ -34,8 +34,8 @@ flowchart LR
 ### Option 2: Local Server (Recommended for large logs)
 ```bash
 cd LogSherlock-Pro
-python -m http.server 8888
-# Open http://localhost:8888
+python serve.py
+# Open http://localhost:5555
 ```
 
 ---
