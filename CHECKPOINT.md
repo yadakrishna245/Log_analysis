@@ -1,12 +1,12 @@
 # LogSherlock Pro — Session Checkpoint
 
-**Last Updated:** 2026-08-09 20:01 IST  
+**Last Updated:** 2026-08-09 21:25 IST  
 **Project:** HPE VME L4 Support Engineering Tool  
 **Owner:** Krishna Yada | Senior Tech Lead | Wipro  
 **Repo:** https://github.com/yadakrishna245/Log_analysis  
 **Monitor Repo:** https://github.com/yadakrishna245/HPE-log_analysis_app-monitor (PRIVATE)  
 **Live URL:** https://d3tv1czat55yad.cloudfront.net  
-**Latest Commit (Main):** `7445f6a` — fix: Include scan-worker.js in ZIP - fixes scanning hang  
+**Latest Commit (Main):** `6ecccdb` — fix: Pattern merge now works reliably  
 **Latest Commit (Monitor):** `38813ac` — feat: Add fingerprint field for machine-lock binding  
 **Total Features:** 172  
 **Total JS Modules:** 90 (87 feature modules + 3 pattern files, bundled into 1 obfuscated app.min.js)  
@@ -35,7 +35,79 @@ LogSherlock Pro is an **HPE VME L4 support engineering tool** that analyzes cust
 
 ## CURRENT SESSION WORK (Complete)
 
-### This Session (Aug 9, 2026 — Evening) — License Lock + Bug Fixes + Copilot OAuth
+### This Session (Aug 9, 2026 — Late Night) — Pattern Merge Fix + .cab Detection + file:// Scanning Fix
+
+#### Critical Bug Fixed: Pattern Count Shows 455 Instead of 1185
+- **Symptom:** Header shows "455 detection patterns" — external HPE patterns from app.min.js never merged into scan
+- **Root cause:** `loadPatterns()` runs in inline `<script>` which executes BEFORE `app.min.js` loads (app.min.js is inserted before `</body>` by build script). At that time, `window._LSP_HPE_VME`, `window._LSP_ALL_PATTERNS` etc. are still undefined.
+- **Fix (multi-layer):**
+  1. `loadPatterns()` now uses `_merged` flag — doesn't return early on 2nd call until merge succeeds
+  2. `window.addEventListener('load', ...)` re-merges after app.min.js has executed
+  3. On scan trigger: `loadPatterns()` retries merge → guaranteed 1185+ patterns when scanning
+- **Commits:** `efb13b0`, `4bc631b`, `6ecccdb`
+
+#### Critical Bug Fixed: Web Worker Fails Silently on file:// Protocol
+- **Symptom:** Dropping files on `file://` protocol shows "Scanning..." forever
+- **Root cause:** Web Workers can't use `File.stream()` or `DecompressionStream` properly on file:// origin in Chrome
+- **Fix:** On file:// protocol, skip Worker entirely and use main-thread scan path (`streamTarEntries` + `DecompressionStream` in main thread works)
+- **Commit:** `68be61d`
+
+#### New Feature: .cab File Detection with Extraction Guidance
+- **Symptom:** HPSReports `.cab` files dropped → 146,899 lines scanned with 0 findings (binary garbage treated as text)
+- **Fix:** `.cab` files now detected → shows formatted HTML message with extraction command:
+  ```
+  mkdir extracted
+  expand "filename.CAB" -F:* extracted\
+  ```
+- Uses `innerHTML` directly (not `setStatus` which uses `textContent`)
+- **Commit:** `4bc631b`, `6ecccdb`
+
+#### Bug Fixed: .cab Message Showing Raw HTML Tags
+- **Symptom:** Status area shows `<strong>.cab (Cabinet) files</strong>` as literal text
+- **Root cause:** `setStatus()` uses `textContent` (escapes HTML) not `innerHTML`
+- **Fix:** .cab error now uses direct `el.innerHTML` assignment
+- **Commit:** `6ecccdb`
+
+#### Commits This Sub-Session (Aug 9 Late Night)
+| Commit | Description |
+|--------|-------------|
+| `68be61d` | fix: Use main-thread scan on file:// protocol (Worker hangs silently) |
+| `efb13b0` | fix: Merge all 1185 patterns into scan (HPE patterns were unused) |
+| `4bc631b` | fix: Deferred pattern merge (runs after app.min.js loads) + .cab detection |
+| `6ecccdb` | fix: Pattern merge retries until _LSP_* vars available + .cab innerHTML fix |
+
+#### Pattern Merge Architecture (FIXED)
+```
+Page Load Order:
+  1. Inline <script> runs → loadPatterns() → creates 455 base PATTERNS
+     (window._LSP_* not yet available — merge finds nothing)
+  2. <script src="app.min.js"> loads → executes:
+     - hpe-advanced-patterns.js → sets window._LSP_HPE_VME, _LSP_GFS2, etc.
+     - hpe-resolution-patterns.js → sets window._LSP_HPE_VME_EXT, etc.
+     - hpe-vme-*-patterns.js (7 files) → push to window._LSP_ALL_PATTERNS
+  3. window 'load' event fires:
+     - Re-runs merge → finds all _LSP_* vars → PATTERNS grows to 1185+
+     - Updates patternCountInline / patternCountStat display
+     - Sets PATTERNS._merged = true
+  4. User drops files → scan starts → loadPatterns() called:
+     - Sees _merged = true → returns immediately with 1185 patterns
+```
+
+#### Supported File Types for Scanning
+| Format | Support | Notes |
+|--------|---------|-------|
+| `.tar.gz` / `.tgz` | ✅ Full | Streaming scan, handles 3.5GB+ |
+| `.tar` | ✅ Full | Streaming scan |
+| `.zip` | ✅ Full | In-memory extraction |
+| `.gz` | ✅ Full | Single file decompression |
+| `.log`, `.txt`, `.conf`, `.yaml`, `.xml`, `.json` | ✅ Full | Text file scan |
+| `.cab` (Cabinet) | ⚠️ Detected | Shows extraction command — user must extract first |
+| `.7z`, `.rar` | ❌ Not supported | Shows message: extract with 7-Zip/WinRAR |
+| `.tbz2` / `.tar.bz2` | ⚠️ Partial | May need extraction depending on browser |
+
+---
+
+### Previous Sub-Session (Aug 9, 2026 — Evening) — License Lock + Bug Fixes + Copilot OAuth
 1. ✅ **Machine-Lock Fingerprint Binding** — License now locks to ONE device
    - `hardAuthGate()` regenerates hardware fingerprint on every page load
    - Compares with stored `ls_license_fp` — if mismatch → wipes all credentials, blocks access
