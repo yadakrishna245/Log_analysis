@@ -2163,14 +2163,16 @@ async function scanLocally(file) {
             }
         }
 
-        // Safety: if Worker doesn't respond in 5 seconds, fall back to main-thread scan
+        // Safety: if Worker doesn't respond in time, fall back to main-thread scan
+        // Large files need more time to read into memory before Worker responds
+        const timeoutMs = Math.max(15000, Math.min(120000, Math.round(file.size / (1024 * 1024) * 100))); // ~100ms per MB, min 15s, max 120s
         const workerTimeout = setTimeout(() => {
             if (!workerResponded) {
-                console.warn('[LogSherlock] Worker timeout — falling back to main-thread scan');
+                console.warn('[LogSherlock] Worker timeout after ' + (timeoutMs/1000) + 's — falling back to main-thread scan');
                 try { worker.terminate(); } catch(e){}
                 resolve('fallback');
             }
-        }, 5000);
+        }, timeoutMs);
 
         worker.onmessage = async function(e) {
             workerResponded = true;
@@ -2376,14 +2378,96 @@ async function handleFiles(files) {
 
     if (scannable.length === 0) return;
 
-    // Single file — use Worker on localhost (reliable), main-thread on file:// (Worker often fails)
-    if (scannable.length === 1 && !window._workerFallback && location.protocol !== 'file:') {
-        const result = await scanLocally(scannable[0]);
-        if (result === 'fallback') {
-            console.log('[LogSherlock] Worker fallback for', scannable[0].name);
+    // Use Web Worker for scanning (prevents UI freeze)
+    // For single files OR when total size > 100MB, prefer Worker even on file://
+    const totalSize = scannable.reduce((s, f) => s + f.size, 0);
+    const useWorker = !window._workerFallback && (scannable.length === 1 || totalSize > 100 * 1024 * 1024);
+    
+    if (useWorker) {
+        // Try Worker-based scan (non-blocking)
+        let workerSuccess = false;
+        if (scannable.length === 1) {
+            const result = await scanLocally(scannable[0]);
+            if (result !== 'fallback') workerSuccess = true;
         } else {
-            return;
+            // Multi-file: send each to Worker sequentially
+            const startTime = performance.now();
+            const patterns = await loadPatterns();
+            if (!patterns || !patterns.length) { setStatus('error', 'Could not load patterns'); return; }
+            
+            const patternData = patterns.map(p => ({
+                name: p.name, severity: p.severity, category: p.category,
+                description: p.description, solution_hint: p.solution_hint || '',
+                regex: p.compiled.source, flags: p.compiled.flags,
+            }));
+            const prefilterWords = PREFILTER_RE.source.split('|');
+            
+            const allResults = [];
+            let totalFiles = 0, totalLines = 0, allMtimes = [];
+            
+            for (let i = 0; i < scannable.length; i++) {
+                const file = scannable[i];
+                setStatus('scanning', `File ${i+1}/${scannable.length}: ${file.name} (${(file.size/1024/1024).toFixed(0)}MB)...`);
+                showProgress(5 + Math.round((i / scannable.length) * 85));
+                
+                const result = await new Promise((resolve) => {
+                    const workerUrl = (location.protocol === 'file:') ? 'scan-worker.js' : '/static/scan-worker.js';
+                    let worker;
+                    try { worker = new Worker(workerUrl); } catch(e) {
+                        try { worker = new Worker('scan-worker.js'); } catch(e2) { resolve(null); return; }
+                    }
+                    
+                    const timeout = setTimeout(() => { try{worker.terminate();}catch(e){} resolve(null); }, 5000);
+                    let responded = false;
+                    
+                    worker.onmessage = function(e) {
+                        if (!responded) { responded = true; clearTimeout(timeout); }
+                        const msg = e.data;
+                        if (msg.type === 'progress') {
+                            setStatus('scanning', `File ${i+1}/${scannable.length}: ${msg.filesAnalyzed} logs · ${msg.findings} findings`);
+                        }
+                        if (msg.type === 'done') {
+                            worker.terminate();
+                            resolve(msg);
+                        }
+                        if (msg.type === 'error') { worker.terminate(); resolve(null); }
+                    };
+                    worker.onerror = function() { worker.terminate(); resolve(null); };
+                    worker.postMessage({ file, patterns: patternData, prefilterWords, archiveName: file.name });
+                });
+                
+                if (result === null) { workerSuccess = false; break; }
+                workerSuccess = true;
+                allResults.push(...(result.findings || []));
+                totalFiles += result.filesAnalyzed || 0;
+                totalLines += result.totalLines || 0;
+                if (result.mtimes) allMtimes.push(...result.mtimes);
+            }
+            
+            if (workerSuccess) {
+                const elapsed = ((performance.now() - startTime) / 1000).toFixed(1);
+                let dateRangeStr = '';
+                if (allMtimes.length > 0) {
+                    const sorted = allMtimes.sort((a,b) => a - b);
+                    const fmt = d => new Date(d * 1000).toLocaleDateString('en-IN', {year:'numeric',month:'short',day:'numeric',timeZone:'Asia/Kolkata'});
+                    dateRangeStr = ` · 📅 ${fmt(sorted[0])} → ${fmt(sorted[sorted.length-1])} IST`;
+                }
+                const mergedResult = {
+                    findings: allResults, findings_count: allResults.length,
+                    files_analyzed: totalFiles, total_lines: totalLines,
+                    related_issues: [], analysis_time_seconds: parseFloat(elapsed),
+                    client_side: true, jira_report: null, date_range: dateRangeStr,
+                };
+                setStatus('done', `✅ ${allResults.length} findings · ${totalFiles} files · ${totalLines.toLocaleString()} lines · ${elapsed}s${dateRangeStr} · 🔒 Zero data uploaded`);
+                showProgress(100);
+                render(mergedResult);
+                showTicketRelevantFindings();
+                return;
+            }
         }
+        if (workerSuccess) return;
+        // If Worker failed, fall through to main-thread scan
+        console.log('[LogSherlock] Worker fallback — using main thread');
     }
 
     // Main-thread scan — handles all files reliably (including file:// protocol)
