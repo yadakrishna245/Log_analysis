@@ -73,6 +73,40 @@ LogSherlock Pro is an **HPE VME L4 support engineering tool** that analyzes cust
 **Files on HPRC:** 4x `DKRDC01*_Diagnostics_*.zip` (Windows guest HPSReports)  
 **Status:** Awaiting user scan test with new ZIP
 
+### License Management Automation (GitHub Actions)
+**Repo:** `https://github.com/yadakrishna245/HPE-log_analysis_app-monitor`
+
+**Single workflow:** "🔑 License Manager (Local ZIP)" — handles everything:
+| Action | What it does |
+|--------|-------------|
+| 🆕 Generate New Key | Creates key, adds to `licenses.json` + tracking table |
+| ✏️ Change Days | Finds user by name, updates expiry + "Upgraded To" column |
+| 🚫 Revoke | Sets `active: false`, user locked out within 1 hour |
+| ✅ Reactivate | Re-enables revoked license |
+
+**Tracking file:** `Users_data_Logsherlockpro_Local.md` — shows:
+| # | Name | License Key | Initial Days | Upgraded To | Expires | Status | Registered At |
+
+**How to use:**
+1. Actions → "🔑 License Manager (Local ZIP)" → Run workflow
+2. Select action, enter user name, days, optional custom key
+3. Done — auto-commits to both files
+
+**Key format:** 5+ parts separated by `-` (e.g., `LA-WIPRO-DNR-L4-2026`, `LS-PRO-RS-A7B2-2026`)
+
+**Users shared so far:**
+- DNR: `LA-WIPRO-DNR-L4-2026` (upgraded 7→365 days, expires 2027-08-10)
+- test: `LS-PRO-T-F3CE-2026` (7 days, test entry)
+
+**Commits:**
+| Commit | Description |
+|--------|-------------|
+| `9c6f46e` | Combined License Manager workflow |
+| `0bea064` | Fix tracking table columns (Initial Days + Upgraded To) |
+| `72a6139` | DNR updated to 365 days |
+
+---
+
 ### License Security — How It Works (Confirmed Working)
 **User tested in incognito:** Wrong name "krlfk" + wrong key "LS-MASTER-2029-KRISHNA-KJHDCKJ" → ❌ BLOCKED ✅
 
