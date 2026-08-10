@@ -564,6 +564,7 @@
         </div>
 
         <div class="rail-footer" title="Hewlett Packard Enterprise" style="width:auto;height:auto;border-radius:0;background:none;padding:8px 4px;flex-direction:column;display:flex;align-items:center;gap:4px;">
+            <button onclick="logoutApp()" style="background:none;border:1px solid #ef4444;color:#ef4444;cursor:pointer;padding:4px;border-radius:4px;font-size:12px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;" title="Logout / Switch User">🚪</button>
             <span style="font-size:8px;color:var(--text-500);text-align:center;line-height:1.2;writing-mode:vertical-rl;transform:rotate(180deg);">Hewlett Packard Enterprise</span>
         </div>
     </nav>
@@ -5749,6 +5750,52 @@ function validateLicense() {
     }
 })();
 
+// ═══ REMOTE LICENSE REVALIDATION (silent background check on each page load) ═══
+(function revalidateLicense() {
+    const validated = localStorage.getItem('ls_license_validated');
+    const licenseType = localStorage.getItem('ls_license_type');
+    const userName = localStorage.getItem('ls_username');
+    if (!validated || !userName) return;
+    
+    // Only revalidate master keys (which are in GitHub licenses.json)
+    if (licenseType !== 'master') return;
+    
+    // Rate-limit: max once per hour
+    const lastCheck = parseInt(localStorage.getItem('ls_last_revalidation') || '0');
+    if (Date.now() - lastCheck < 3600000) return;
+    localStorage.setItem('ls_last_revalidation', Date.now().toString());
+    
+    // Silently check licenses.json in background
+    fetch('https://raw.githubusercontent.com/yadakrishna245/HPE-log_analysis_app-monitor/main/licenses.json?t=' + Date.now(), { cache: 'no-store' })
+    .then(function(resp) { return resp.json(); })
+    .then(function(data) {
+        var licenses = data.licenses || [];
+        var storedKeyHash = localStorage.getItem('ls_license_key') || '';
+        var fingerprint = localStorage.getItem('ls_license_fp') || '';
+        
+        // Find any active license matching this user + fingerprint
+        var valid = licenses.some(function(l) {
+            return l.active === true && 
+                   (l.issued_to.toLowerCase() === userName.toLowerCase()) &&
+                   (!l.fingerprint || l.fingerprint === '' || l.fingerprint === fingerprint);
+        });
+        
+        if (!valid) {
+            // License revoked or user not found — lock app
+            localStorage.removeItem('ls_license_validated');
+            localStorage.removeItem('ls_license_key');
+            localStorage.removeItem('ls_license_fp');
+            localStorage.removeItem('ls_license_date');
+            localStorage.removeItem('ls_license_days');
+            localStorage.removeItem('ls_license_type');
+            location.reload(); // Will trigger gate on reload
+        }
+    })
+    .catch(function() {
+        // Network error — don't revoke (allow offline use)
+    });
+})();
+
 function showLicenseExpiredOverlay(originalDays) {
     const overlay = document.createElement('div');
     overlay.id = 'licenseOverlay';
@@ -5798,6 +5845,21 @@ function showExpiryWarning(daysLeft) {
         setTimeout(showLicenseOverlay, 300);
     }
 })();
+
+// Logout / Switch user — clears license and reloads
+function logoutApp() {
+    if (!confirm('This will log you out and require re-entering your license key. Continue?')) return;
+    localStorage.removeItem('ls_username');
+    localStorage.removeItem('ls_license_validated');
+    localStorage.removeItem('ls_license_key');
+    localStorage.removeItem('ls_license_fp');
+    localStorage.removeItem('ls_license_date');
+    localStorage.removeItem('ls_license_days');
+    localStorage.removeItem('ls_license_type');
+    localStorage.removeItem('ls_machine_fp');
+    localStorage.removeItem('ls_last_revalidation');
+    location.reload();
+}
 
 // Admin access — only Krishna sees analytics (admin password: logsherlock2026)
 const _isAdmin = localStorage.getItem('ls_admin') === 'true';
