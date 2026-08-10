@@ -34,6 +34,47 @@ LogSherlock Pro is an **HPE VME L4 support engineering tool** that analyzes cust
 
 ---
 
+## SESSION: Aug 10, 2026 (Afternoon) — Security Fix + Windows Investigation Guide
+
+### Security Bug Fixed: License Bypass on file:// Protocol
+**Bug:** Opening index.html in incognito, entering ANY name + ANY random license key → app unlocked and showed dashboard.
+
+**Root Cause:** The legacy license key format (XXXX-XXXX-XXXX-XXXX) used only a simple XOR checksum for validation. The `parts[2]` field was documented as "MD5 signature" but **was never actually verified** — neither client-side nor server-side. Anyone could craft a key that passed the XOR math, the AWS Lambda API would accept it and return `activated: true`, creating a DynamoDB entry and unlocking the app.
+
+**Fixes Applied:**
+| Fix | Description |
+|-----|-------------|
+| Lambda MD5 validation | `validate_key_format()` now verifies `parts[2]` = `MD5(prefix + days_hex + ADMIN_SECRET)[:4]` — random keys rejected |
+| Remote revalidation | On every page load (max 1x/hour), silently checks license against GitHub `licenses.json`. If revoked → app locks |
+| Logout button | 🚪 button in sidebar footer — clears session, forces re-authentication |
+| Key generator script | `generate_license_key.py` — only way to create valid keys (requires ADMIN_SECRET) |
+
+**Commits:**
+| Commit | Description |
+|--------|-------------|
+| `864cecd` | security: Add remote license revalidation + logout button + Windows investigation guide |
+| Lambda deploy | LogSherlockLicense Lambda updated with MD5 signature check |
+
+### Windows-Aware Investigation Guide
+**Bug:** "Suggest where to look" button always showed Linux commands (`pcs status`, `multipath -ll`, etc.) even when ticket text was clearly about Windows (VirtIO NIC, NDIS, Device Manager, .evtx).
+
+**Fix:** `showLocalAdvice()` now auto-detects Windows vs Linux context from the ticket text keywords:
+- Windows keywords: `windows`, `.evtx`, `NDIS`, `Device Manager`, `VirtIO Ethernet`, `netkvm`, `Event ID`, `Service Control Manager`, etc.
+- Shows Windows-specific paths: Event Viewer filters, driver files (`netkvm.sys`), SetupAPI log, Device Manager steps
+- Shows "Also Check Host Side" section when host context mentioned
+- Shows "Files to Download from HPRC" recommendation
+- Falls back to original Linux commands when no Windows keywords detected
+
+**Commit:** `bc96ecd` — fix: Windows-aware Investigation Guide
+
+### VirtIO NIC Driver Ticket (Danfoss/SKPBA01AS49)
+**New ticket tested:** Windows VM VirtIO NIC NDIS 10317 — driver fatally fails without reboot  
+**Driver Version:** 100.100.104.26600 (Date: 10/21/2024) — same across all 4 affected VMs  
+**Files on HPRC:** 4x `DKRDC01*_Diagnostics_*.zip` (Windows guest HPSReports)  
+**Status:** Awaiting user scan test with new ZIP
+
+---
+
 ## SESSION: Aug 10, 2026 (Morning) — False Positive Elimination + Scanning Fixes
 
 ### Real-World Test: Fidelis UK Case (VM Paused/ENOSPC)
