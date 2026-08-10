@@ -7746,50 +7746,138 @@ function advisorClearConversation() {
 function showLocalAdvice(ticketText, panel) {
     const lower = ticketText.toLowerCase();
     let advice = '<div style="padding:16px;font-size:13px;color:var(--text-200);line-height:1.8;">';
-    advice += '<div style="font-weight:700;color:var(--hpe-green);margin-bottom:10px;">🧭 Investigation Guide (Local Analysis)</div>';
+    
+    // Detect if ticket is Windows-related
+    const isWindows = /windows|\.evtx|event\s*log|device\s*manager|ndis|blue\s*screen|bsod|ntfs|chkdsk|system\.evtx|application\.evtx|hpsreport|virtio.*ethernet|netkvm|red\s*hat\s*virtio|event\s*id\s*\d|service\s*control\s*manager|miniport|pnp\s*device|\.exe|\.dll|driver.*version|c:\\|windows\\system32/i.test(ticketText);
+    
+    // Detect if ticket mentions BOTH host and guest (hybrid)
+    const hasHostContext = /host|hypervisor|libvirt|qemu|syslog|\/var\/log|virsh|skp.*hv\d|vme-host/i.test(ticketText);
     
     const checks = [];
-    if (/gfs2|withdraw|filesystem|mount/i.test(ticketText)) {
-        checks.push('• Check GFS2 status: <code>gfs2_tool freeze check</code>, <code>dlm_tool ls</code>');
-        checks.push('• Look for withdraw events in /var/log/messages');
-        checks.push('• Verify DLM locks: <code>dlm_tool lockdebug</code>');
-    }
-    if (/corosync|pacemaker|cluster|quorum|fence|stonith/i.test(ticketText)) {
-        checks.push('• Check cluster status: <code>pcs status</code>');
-        checks.push('• Verify quorum: <code>corosync-quorumtool -s</code>');
-        checks.push('• Review fencing history: <code>pcs stonith history</code>');
-        checks.push('• Check corosync token timeout in corosync.conf');
-    }
-    if (/multipath|iscsi|scsi|lun|storage|disk/i.test(ticketText)) {
-        checks.push('• Check multipath: <code>multipath -ll</code>');
-        checks.push('• Verify iSCSI sessions: <code>iscsiadm -m session</code>');
-        checks.push('• Check SCSI reservations: <code>sg_persist -i -k /dev/sdX</code>');
-    }
-    if (/morpheus|appliance|manager|ui|502|login/i.test(ticketText)) {
-        checks.push('• Check services: <code>sudo morpheus-ctl status</code>');
-        checks.push('• Restart UI: <code>sudo morpheus-ctl restart morpheus-ui</code>');
-        checks.push('• Check logs: /var/log/morpheus/morpheus-ui/current');
-    }
-    if (/network|bond|nic|vlan|bridge|connectivity|unreachable/i.test(ticketText)) {
-        checks.push('• Check bonds: <code>cat /proc/net/bonding/bond0</code>');
-        checks.push('• Verify routes: <code>ip route</code>');
-        checks.push('• Test connectivity: <code>nc -zv target_ip 443</code>');
-    }
-    if (/vm |virtual machine|migration|libvirt|virsh|snapshot/i.test(ticketText)) {
-        checks.push('• Check VMs: <code>virsh list --all</code>');
-        checks.push('• Check libvirt: <code>systemctl status libvirtd</code>');
-        checks.push('• VM logs: /var/log/libvirt/qemu/*.log');
-    }
-    if (/kernel|panic|oom|watchdog|crash|hung_task/i.test(ticketText)) {
-        checks.push('• Check dmesg: <code>dmesg -T | grep -i error</code>');
-        checks.push('• OOM events: <code>grep -i oom /var/log/messages</code>');
-        checks.push('• Kernel panics: <code>journalctl -k -p err</code>');
-    }
     
-    if (checks.length === 0) {
-        checks.push('• Start with: <code>pcs status</code> and <code>morpheus-ctl status</code>');
-        checks.push('• Check /var/log/messages for errors around the reported time');
-        checks.push('• Run: <code>sosreport --batch</code> for comprehensive collection');
+    if (isWindows) {
+        advice += '<div style="font-weight:700;color:var(--hpe-green);margin-bottom:10px;">🧭 Investigation Guide — Windows Guest (Local Analysis)</div>';
+        
+        // Windows: VirtIO / NIC / Network issues
+        if (/virtio|netkvm|nic|ndis|network.*adapter|ethernet|red\s*hat.*ethernet|miniport|10317/i.test(ticketText)) {
+            checks.push('<div style="margin-bottom:12px;"><strong style="color:#f59e0b;">🔌 VirtIO NIC / Network Driver</strong></div>');
+            checks.push('• <strong>Event Viewer → System.evtx</strong>: Filter Source = <code>Microsoft-Windows-NDIS</code>, Event ID <code>10317</code>');
+            checks.push('• <strong>Event Viewer → System.evtx</strong>: Filter Source = <code>Service Control Manager</code>, Event ID <code>7000/7031/7038</code>');
+            checks.push('• <strong>Device Manager</strong>: Check "Red Hat VirtIO Ethernet Adapter" → Properties → Events tab for error timestamps');
+            checks.push('• <strong>Driver details</strong>: Device Manager → Driver tab → note Driver Version (e.g. 100.100.104.26600)');
+            checks.push('• <strong>Driver file</strong>: Check <code>C:\\Windows\\System32\\drivers\\netkvm.sys</code> — file version & date');
+            checks.push('• <strong>INF file</strong>: Check <code>C:\\Windows\\INF\\oem*.inf</code> — search for "netkvm" to find VirtIO NIC INF');
+            checks.push('• <strong>SetupAPI log</strong>: <code>C:\\Windows\\INF\\setupapi.dev.log</code> — search for "netkvm" install/update events');
+            checks.push('• <strong>Network config</strong>: <code>ipconfig /all</code> — verify adapter state, IP assignment');
+            checks.push('• <strong>Fix</strong>: Device Manager → Uninstall device → Scan for hardware changes → Reconfigure IP');
+        }
+        
+        // Windows: BSOD / Crash
+        if (/bsod|blue\s*screen|bugcheck|dump|crash|0x[0-9a-f]{8}|stop\s*error/i.test(ticketText)) {
+            checks.push('<div style="margin-bottom:12px;"><strong style="color:#ef4444;">💀 BSOD / Crash Analysis</strong></div>');
+            checks.push('• <strong>Minidump</strong>: <code>C:\\Windows\\Minidump\\*.dmp</code> — analyze with WinDbg or BlueScreenView');
+            checks.push('• <strong>MEMORY.DMP</strong>: <code>C:\\Windows\\MEMORY.DMP</code> (full dump if configured)');
+            checks.push('• <strong>Event Viewer → System.evtx</strong>: Filter Source = <code>BugCheck</code>, Event ID <code>1001</code>');
+            checks.push('• <strong>Reliability Monitor</strong>: <code>perfmon /rel</code> — visual crash history');
+            checks.push('• <strong>Driver Verifier</strong>: <code>verifier /query</code> — check if any driver is flagged');
+        }
+        
+        // Windows: Service failures
+        if (/service.*fail|service.*control|7000|7031|7038|logon\s*failure|terminated\s*unexpectedly/i.test(ticketText)) {
+            checks.push('<div style="margin-bottom:12px;"><strong style="color:#f59e0b;">⚙️ Service Failures</strong></div>');
+            checks.push('• <strong>Event Viewer → System.evtx</strong>: Filter Source = <code>Service Control Manager</code>');
+            checks.push('• <strong>Services</strong>: <code>services.msc</code> — check startup type & Log On account');
+            checks.push('• <strong>Dependencies</strong>: <code>sc qc ServiceName</code> — check service dependencies');
+            checks.push('• <strong>Network dependency</strong>: If "domain isn\'t available" → NIC was down when service tried to start');
+        }
+        
+        // Windows: Disk / Storage
+        if (/disk|storage|ntfs|chkdsk|volume|partition|viostor|vioscsi|scsi/i.test(ticketText)) {
+            checks.push('<div style="margin-bottom:12px;"><strong style="color:#3b82f6;">💾 Disk / Storage (VirtIO SCSI)</strong></div>');
+            checks.push('• <strong>Event Viewer → System.evtx</strong>: Filter Source = <code>disk</code>, <code>Ntfs</code>, <code>volmgr</code>');
+            checks.push('• <strong>Driver</strong>: Device Manager → Disk drives → "Red Hat VirtIO SCSI Disk Device" → Driver tab');
+            checks.push('• <strong>Driver file</strong>: <code>C:\\Windows\\System32\\drivers\\viostor.sys</code> or <code>vioscsi.sys</code>');
+            checks.push('• <strong>Disk health</strong>: <code>wmic diskdrive get status</code>');
+            checks.push('• <strong>chkdsk</strong>: <code>chkdsk C: /scan</code> (online check)');
+        }
+        
+        // Windows: Time sync / Domain connectivity
+        if (/time.*service|w32time|domain|ntpclient|129|dc\d|domain\s*controller|kerberos/i.test(ticketText)) {
+            checks.push('<div style="margin-bottom:12px;"><strong style="color:#8b5cf6;">🕐 Time Sync / Domain Connectivity</strong></div>');
+            checks.push('• <strong>Event Viewer → System.evtx</strong>: Filter Source = <code>Microsoft-Windows-Time-Service</code>, Event ID <code>129/37/35</code>');
+            checks.push('• <strong>Time sync</strong>: <code>w32tm /query /status</code>');
+            checks.push('• <strong>Domain connectivity</strong>: <code>nltest /dsgetdc:domain.name</code>');
+            checks.push('• <strong>Network path</strong>: <code>Test-NetConnection DC_IP -Port 389</code> (PowerShell)');
+        }
+        
+        // Windows: General / HPSReport collection
+        if (checks.length === 0 || /hpsreport|diagnostics|collect/i.test(ticketText)) {
+            checks.push('<div style="margin-bottom:12px;"><strong style="color:var(--hpe-green);">📦 Windows Diagnostics Collection (HPSReport)</strong></div>');
+            checks.push('• <strong>Event_Log_System.txt</strong> / <code>System.evtx</code> — primary investigation target');
+            checks.push('• <strong>Event_Log_Application.txt</strong> / <code>Application.evtx</code> — app crashes triggered by root cause');
+            checks.push('• <strong>DevCon.txt</strong> — full device listing (look for VirtIO/QEMU devices, error flags)');
+            checks.push('• <strong>Disk_FSUTIL.txt</strong> / <strong>Disk_Information.TXT</strong> — storage health');
+            checks.push('• <strong>msinfo32</strong> / <code>SystemInformation.NFO</code> — system summary + problem devices');
+        }
+        
+        // Always show "also check host" if host context is mentioned
+        if (hasHostContext) {
+            checks.push('<div style="margin-top:12px;margin-bottom:8px;padding-top:8px;border-top:1px solid var(--border-subtle);"><strong style="color:var(--accent);">🖥️ Also Check Host Side</strong></div>');
+            checks.push('• <strong>libvirt domain log</strong>: <code>/var/log/libvirt/qemu/VM_NAME.log</code> — confirm no detach/attach/migration');
+            checks.push('• <strong>Host syslog</strong>: <code>/var/log/syslog</code> or <code>/var/log/messages</code> around incident time');
+            checks.push('• <strong>QEMU process</strong>: <code>virsh dominfo VM_NAME</code> — confirm running state');
+            checks.push('• <strong>VirtIO backend</strong>: <code>virsh dumpxml VM_NAME | grep -A5 "interface"</code> — NIC model & queues');
+        }
+        
+        // Download recommendation
+        checks.push('<div style="margin-top:12px;padding:10px;background:var(--bg-3);border-radius:8px;border-left:3px solid var(--hpe-green);"><strong style="color:var(--hpe-green);">📥 Files to Download from HPRC:</strong><br>• <code>*_Diagnostics_*.zip</code> — Windows HPSReport (guest diagnostics)<br>• <code>collect_vme-host*.tar.gz</code> — Host log collection (if available)<br>• Focus on: <strong>System.evtx</strong>, <strong>Event_Log_System.txt</strong>, <strong>DevCon.txt</strong></div>');
+        
+    } else {
+        // LINUX context (original behavior)
+        advice += '<div style="font-weight:700;color:var(--hpe-green);margin-bottom:10px;">🧭 Investigation Guide — Linux/VME Host (Local Analysis)</div>';
+        
+        if (/gfs2|withdraw|filesystem|mount/i.test(ticketText)) {
+            checks.push('• Check GFS2 status: <code>gfs2_tool freeze check</code>, <code>dlm_tool ls</code>');
+            checks.push('• Look for withdraw events in /var/log/messages');
+            checks.push('• Verify DLM locks: <code>dlm_tool lockdebug</code>');
+        }
+        if (/corosync|pacemaker|cluster|quorum|fence|stonith/i.test(ticketText)) {
+            checks.push('• Check cluster status: <code>pcs status</code>');
+            checks.push('• Verify quorum: <code>corosync-quorumtool -s</code>');
+            checks.push('• Review fencing history: <code>pcs stonith history</code>');
+            checks.push('• Check corosync token timeout in corosync.conf');
+        }
+        if (/multipath|iscsi|scsi|lun|storage|disk/i.test(ticketText)) {
+            checks.push('• Check multipath: <code>multipath -ll</code>');
+            checks.push('• Verify iSCSI sessions: <code>iscsiadm -m session</code>');
+            checks.push('• Check SCSI reservations: <code>sg_persist -i -k /dev/sdX</code>');
+        }
+        if (/morpheus|appliance|manager|ui|502|login/i.test(ticketText)) {
+            checks.push('• Check services: <code>sudo morpheus-ctl status</code>');
+            checks.push('• Restart UI: <code>sudo morpheus-ctl restart morpheus-ui</code>');
+            checks.push('• Check logs: /var/log/morpheus/morpheus-ui/current');
+        }
+        if (/network|bond|nic|vlan|bridge|connectivity|unreachable/i.test(ticketText)) {
+            checks.push('• Check bonds: <code>cat /proc/net/bonding/bond0</code>');
+            checks.push('• Verify routes: <code>ip route</code>');
+            checks.push('• Test connectivity: <code>nc -zv target_ip 443</code>');
+        }
+        if (/vm |virtual machine|migration|libvirt|virsh|snapshot/i.test(ticketText)) {
+            checks.push('• Check VMs: <code>virsh list --all</code>');
+            checks.push('• Check libvirt: <code>systemctl status libvirtd</code>');
+            checks.push('• VM logs: /var/log/libvirt/qemu/*.log');
+        }
+        if (/kernel|panic|oom|watchdog|crash|hung_task/i.test(ticketText)) {
+            checks.push('• Check dmesg: <code>dmesg -T | grep -i error</code>');
+            checks.push('• OOM events: <code>grep -i oom /var/log/messages</code>');
+            checks.push('• Kernel panics: <code>journalctl -k -p err</code>');
+        }
+        
+        if (checks.length === 0) {
+            checks.push('• Start with: <code>pcs status</code> and <code>morpheus-ctl status</code>');
+            checks.push('• Check /var/log/messages for errors around the reported time');
+            checks.push('• Run: <code>sosreport --batch</code> for comprehensive collection');
+        }
     }
     
     advice += checks.join('<br>');
