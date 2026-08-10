@@ -73,6 +73,32 @@ LogSherlock Pro is an **HPE VME L4 support engineering tool** that analyzes cust
 **Files on HPRC:** 4x `DKRDC01*_Diagnostics_*.zip` (Windows guest HPSReports)  
 **Status:** Awaiting user scan test with new ZIP
 
+### License Security — How It Works (Confirmed Working)
+**User tested in incognito:** Wrong name "krlfk" + wrong key "LS-MASTER-2029-KRISHNA-KJHDCKJ" → ❌ BLOCKED ✅
+
+**Per-machine locking mechanism:**
+- One license = One user = One machine
+- First activation stores a **machine fingerprint** (hash of screen, GPU, CPU cores, timezone, canvas rendering, WebGL renderer)
+- Same key on different machine → BLOCKED ("already activated on another device")
+- Even sharing the ZIP + key won't work for another person
+
+**Canvas fingerprint:** Hidden `<canvas>` draws text/shapes, hashes pixel output. Unique per machine because GPU driver, anti-aliasing, font hinting, and sub-pixel rendering differ even on identical hardware.
+
+**License management (via `licenses.json` in monitor repo):**
+- Add user: add entry with `"key": "LS-MASTER-XXXX-XXXX-XXXX"` (5+ parts), `"active": true`
+- Revoke: set `"active": false` → user locked out within 1 hour
+- Transfer to new machine: clear `"fingerprint"` field → user re-activates on new device
+- No build/deploy needed — app fetches `licenses.json` from GitHub raw URL live
+
+**Key format rules:**
+- Master keys (in licenses.json): must have 5+ parts separated by `-` (e.g., `LS-MASTER-2026-JOHN-HPE`)
+- Legacy keys (API-validated): exactly 4 parts, 4 chars each (e.g., `XXXX-XXXX-XXXX-XXXX`) — now MD5 signed
+- 4-part keys like `LS-USER-1212-TEST` → goes to API, NOT licenses.json
+
+**Files:**
+- `generate_license_key.py` — local-only key generator (uses ADMIN_SECRET, not committed to GitHub)
+- Monitor repo `licenses.json`: `https://github.com/yadakrishna245/HPE-log_analysis_app-monitor`
+
 ---
 
 ## SESSION: Aug 10, 2026 (Morning) — False Positive Elimination + Scanning Fixes
